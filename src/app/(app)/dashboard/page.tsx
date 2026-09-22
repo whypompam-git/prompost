@@ -1,42 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable } from "@/components/dashboard/TaskTable";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
-import { mockClients, mockStaff, mockTasks } from "@/lib/mock-data";
-import type { Task, TaskStatus } from "@/lib/types";
+import { LoadingView } from "@/components/ui/LoadingView";
+import {
+  createTaskRow,
+  listClients,
+  listStaff,
+  listTasks,
+  updateTaskRow,
+} from "@/lib/supabase/queries";
+import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
 export default function DashboardPage() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Task }>("closed");
 
-  const totalClients = mockClients.length;
+  useEffect(() => {
+    Promise.all([listTasks(), listClients(), listStaff()])
+      .then(([t, c, s]) => {
+        setTasks(t);
+        setClients(c);
+        setStaff(s);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
 
   function updateStatus(taskId: string, status: TaskStatus) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
-    // TODO: persist via Supabase — e.g. supabase.from("tasks").update({ status }).eq("id", taskId)
+    updateTaskRow(taskId, { status }).catch(console.error);
   }
 
   function updateAssignee(taskId: string, assigneeId: string) {
     setTasks((prev) =>
       prev.map((t) => (t.id === taskId ? { ...t, assigneeId: assigneeId || null } : t)),
     );
-    // TODO: persist via Supabase
+    updateTaskRow(taskId, { assigneeId: assigneeId || null }).catch(console.error);
   }
 
-  function handleSave(values: TaskFormValues) {
+  async function handleSave(values: TaskFormValues) {
     if (modalMode === "create") {
-      setTasks((prev) => [{ ...values, id: crypto.randomUUID() }, ...prev]);
+      const created = await createTaskRow(values);
+      setTasks((prev) => [created, ...prev]);
     } else if (modalMode !== "closed") {
       const { edit } = modalMode;
+      await updateTaskRow(edit.id, values);
       setTasks((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values } : t)));
     }
-    // TODO: persist via Supabase
     setModalMode("closed");
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Topbar title="แดชบอร์ด" subtitle="ภาพรวมงานและลูกค้าทั้งหมด" />
+        <LoadingView />
+      </>
+    );
   }
 
   return (
@@ -45,7 +74,7 @@ export default function DashboardPage() {
 
       <div className="flex-1 space-y-6 p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="ลูกค้าทั้งหมด" value={totalClients} icon={Users} tone="orange" />
+          <StatCard label="ลูกค้าทั้งหมด" value={clients.length} icon={Users} tone="orange" />
           <StatCard label="ต้องทำ" value={countByStatus("todo")} icon={ListTodo} tone="gray" />
           <StatCard label="กำลังทำ" value={countByStatus("in_progress")} icon={Loader} tone="sky" />
           <StatCard label="เสร็จแล้ว" value={countByStatus("done")} icon={CheckCircle2} tone="emerald" />
@@ -64,8 +93,8 @@ export default function DashboardPage() {
           </div>
           <TaskTable
             tasks={tasks}
-            clients={mockClients}
-            staff={mockStaff}
+            clients={clients}
+            staff={staff}
             onUpdateStatus={updateStatus}
             onUpdateAssignee={updateAssignee}
             onEdit={(task) => setModalMode({ edit: task })}
@@ -76,8 +105,8 @@ export default function DashboardPage() {
       {modalMode !== "closed" && (
         <TaskModal
           initial={modalMode === "create" ? undefined : modalMode.edit}
-          clients={mockClients}
-          staff={mockStaff}
+          clients={clients}
+          staff={staff}
           onClose={() => setModalMode("closed")}
           onSave={handleSave}
         />

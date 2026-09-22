@@ -1,14 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarPlus, CheckCircle2, Pencil, Plus, XCircle } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
 import { LeaveModal, type LeaveFormValues } from "@/components/hr/LeaveModal";
-import { mockLeaveRequests, mockPayrollEntries, mockStaff } from "@/lib/mock-data";
+import {
+  createLeaveRequestRow,
+  createStaffRow,
+  ensurePayrollEntriesForMonth,
+  listLeaveRequests,
+  listPayrollEntries,
+  listStaff,
+  togglePayrollPaid,
+  updateLeaveStatus,
+  updatePayrollEntry,
+  updateStaffRow,
+} from "@/lib/supabase/queries";
 import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -31,52 +43,84 @@ const LEAVE_STATUS_STYLE: Record<LeaveStatus, string> = {
 };
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
+const currentPeriodMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+  .toISOString()
+  .slice(0, 10);
 
 export default function HrPage() {
-  const [staff, setStaff] = useState<Staff[]>(mockStaff);
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(mockLeaveRequests);
-  const [payroll, setPayroll] = useState<PayrollEntry[]>(mockPayrollEntries);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [payroll, setPayroll] = useState<PayrollEntry[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [staffModalMode, setStaffModalMode] = useState<"closed" | "create" | { edit: Staff }>(
     "closed",
   );
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
+  useEffect(() => {
+    async function load() {
+      const [staffRows, leaveRows] = await Promise.all([listStaff(), listLeaveRequests()]);
+      await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
+      const payrollRows = await listPayrollEntries(currentPeriodMonth);
+      setStaff(staffRows);
+      setLeaveRequests(leaveRows);
+      setPayroll(payrollRows);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
   const staffName = (id: string) => staff.find((s) => s.id === id)?.name ?? "—";
 
-  function handleSaveStaff(values: StaffFormValues, avatarColor: string) {
+  async function handleSaveStaff(values: StaffFormValues, avatarColor: string) {
     if (staffModalMode === "create") {
-      setStaff((prev) => [...prev, { ...values, id: crypto.randomUUID(), avatarColor }]);
+      const created = await createStaffRow({ ...values, avatarColor });
+      setStaff((prev) => [...prev, created]);
+      await ensurePayrollEntriesForMonth(currentPeriodMonth, [created]);
+      const payrollRows = await listPayrollEntries(currentPeriodMonth);
+      setPayroll(payrollRows);
     } else if (staffModalMode !== "closed") {
       const { edit } = staffModalMode;
+      await updateStaffRow(edit.id, { ...values, avatarColor });
       setStaff((prev) => prev.map((s) => (s.id === edit.id ? { ...s, ...values } : s)));
     }
-    // TODO: persist via Supabase
     setStaffModalMode("closed");
   }
 
-  function handleSaveLeave(values: LeaveFormValues) {
-    setLeaveRequests((prev) => [
-      { ...values, id: crypto.randomUUID(), status: "pending" },
-      ...prev,
-    ]);
-    // TODO: persist via Supabase
+  async function handleSaveLeave(values: LeaveFormValues) {
+    const created = await createLeaveRequestRow(values);
+    setLeaveRequests((prev) => [created, ...prev]);
     setLeaveModalOpen(false);
   }
 
   function setLeaveStatus(id: string, status: LeaveStatus) {
     setLeaveRequests((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
+    updateLeaveStatus(id, status).catch(console.error);
   }
 
   function updatePayroll(id: string, patch: Partial<Pick<PayrollEntry, "bonus" | "deductions">>) {
     setPayroll((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+    updatePayrollEntry(id, patch).catch(console.error);
   }
 
   function togglePaid(id: string) {
+    const entry = payroll.find((p) => p.id === id);
+    const nowPaid = !entry?.paidAt;
     setPayroll((prev) =>
       prev.map((p) =>
-        p.id === id ? { ...p, paidAt: p.paidAt ? null : new Date().toISOString().slice(0, 10) } : p,
+        p.id === id ? { ...p, paidAt: nowPaid ? new Date().toISOString().slice(0, 10) : null } : p,
       ),
+    );
+    togglePayrollPaid(id, nowPaid).catch(console.error);
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Topbar title="พนักงาน" subtitle="ข้อมูลพนักงาน วันหยุด และเงินเดือน" />
+        <LoadingView />
+      </>
     );
   }
 

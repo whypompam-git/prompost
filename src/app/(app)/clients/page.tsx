@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pencil, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
-import { mockClients } from "@/lib/mock-data";
+import { createClientRow, listClients, updateClientRow } from "@/lib/supabase/queries";
 import type { Client } from "@/lib/types";
 
 const PAYMENT_LABEL = {
@@ -21,25 +22,35 @@ const PAYMENT_STYLE = {
 } as const;
 
 export default function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Client }>("closed");
 
-  function handleSave(values: ClientFormValues) {
+  useEffect(() => {
+    listClients()
+      .then(setClients)
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave(values: ClientFormValues) {
     if (modalMode === "create") {
-      const newClient: Client = {
-        ...values,
-        id: crypto.randomUUID(),
-        portalToken: crypto.randomUUID(),
-      };
-      setClients((prev) => [newClient, ...prev]);
+      const created = await createClientRow(values);
+      setClients((prev) => [created, ...prev]);
     } else if (modalMode !== "closed") {
       const { edit } = modalMode;
-      setClients((prev) =>
-        prev.map((c) => (c.id === edit.id ? { ...c, ...values } : c)),
-      );
+      await updateClientRow(edit.id, values);
+      setClients((prev) => prev.map((c) => (c.id === edit.id ? { ...c, ...values } : c)));
     }
-    // TODO: persist via Supabase — e.g. supabase.from("clients").upsert(...)
     setModalMode("closed");
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Topbar title="ลูกค้า" subtitle="ข้อมูลลูกค้าและสถานะการชำระเงิน" />
+        <LoadingView />
+      </>
+    );
   }
 
   return (
@@ -85,11 +96,12 @@ export default function ClientsPage() {
               </p>
             </Card>
           ))}
+          {clients.length === 0 && (
+            <Card className="text-sm text-gray-400 sm:col-span-2 lg:col-span-3">
+              ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
+            </Card>
+          )}
         </div>
-
-        <Card className="text-sm text-gray-500">
-          เพิ่ม/แก้ไขลูกค้าได้แล้ว (ยังเก็บแค่ในหน้าเว็บ) — ขั้นถัดไปคือเชื่อมข้อมูลจริงจาก Supabase
-        </Card>
       </div>
 
       {modalMode !== "closed" && (

@@ -1,18 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { FileText, Paperclip, Plus, Receipt as ReceiptIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
+import { LoadingView } from "@/components/ui/LoadingView";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
-import { calcQuotationTotals, nextQuoteNo, nextReceiptNo } from "@/lib/accounting";
-import { mockClients, mockQuotations, mockReceipts, mockTransactions } from "@/lib/mock-data";
-import type { Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
+import { calcQuotationTotals } from "@/lib/accounting";
+import {
+  createQuotationRow,
+  createReceiptRow,
+  createTransactionRow,
+  listClients,
+  listQuotations,
+  listReceipts,
+  listTransactions,
+} from "@/lib/supabase/queries";
+import type { Client, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -34,44 +43,55 @@ const QUOTE_STATUS_STYLE: Record<QuotationStatus, string> = {
 type Modal = "closed" | "quotation" | "receipt" | "transaction";
 
 export default function AccountingPage() {
-  const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
-  const [receipts, setReceipts] = useState<Receipt[]>(mockReceipts);
-  const [transactions, setTransactions] = useState<Transaction[]>(mockTransactions);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>("closed");
 
-  const clientName = (id: string) => mockClients.find((c) => c.id === id)?.name ?? "—";
+  useEffect(() => {
+    Promise.all([listClients(), listQuotations(), listReceipts(), listTransactions()])
+      .then(([c, q, r, t]) => {
+        setClients(c);
+        setQuotations(q);
+        setReceipts(r);
+        setTransactions(t);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
 
   const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
-  function handleSaveQuotation(values: QuotationFormValues) {
-    setQuotations((prev) => [
-      {
-        id: crypto.randomUUID(),
-        quoteNo: nextQuoteNo(),
-        status: "draft",
-        createdAt: new Date().toISOString().slice(0, 10),
-        ...values,
-      },
-      ...prev,
-    ]);
-    // TODO: persist via Supabase
+  async function handleSaveQuotation(values: QuotationFormValues) {
+    const created = await createQuotationRow(values);
+    setQuotations((prev) => [created, ...prev]);
     setModal("closed");
   }
 
-  function handleSaveReceipt(values: ReceiptFormValues) {
-    setReceipts((prev) => [
-      { id: crypto.randomUUID(), receiptNo: nextReceiptNo(), createdAt: new Date().toISOString().slice(0, 10), ...values },
-      ...prev,
-    ]);
-    // TODO: persist via Supabase
+  async function handleSaveReceipt(values: ReceiptFormValues) {
+    const created = await createReceiptRow(values);
+    setReceipts((prev) => [created, ...prev]);
     setModal("closed");
   }
 
-  function handleSaveTransaction(values: TransactionFormValues) {
-    setTransactions((prev) => [{ id: crypto.randomUUID(), ...values }, ...prev]);
-    // TODO: persist via Supabase + real file upload to Supabase Storage
+  async function handleSaveTransaction(values: TransactionFormValues) {
+    // slipUrl is still a local object URL until Supabase Storage is wired up.
+    const created = await createTransactionRow(values);
+    setTransactions((prev) => [{ ...created, slipUrl: values.slipUrl }, ...prev]);
     setModal("closed");
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบเสร็จ และรายรับ-รายจ่าย" />
+        <LoadingView />
+      </>
+    );
   }
 
   return (
@@ -258,15 +278,16 @@ export default function AccountingPage() {
         </section>
 
         <Card className="text-sm text-gray-500">
-          ตัวเลขทั้งหมดในหน้านี้ยังเก็บแค่ในหน้าเว็บ — ขั้นถัดไปคือเชื่อมข้อมูลจริงและอัปโหลดสลิปขึ้น Supabase Storage
+          สลิปที่แนบยังเป็นแค่ preview ในเบราว์เซอร์ (object URL) — ยังไม่ได้อัปโหลดขึ้น Supabase
+          Storage จริง ไฟล์จะหายเมื่อรีเฟรช
         </Card>
       </div>
 
       {modal === "quotation" && (
-        <QuotationModal clients={mockClients} onClose={() => setModal("closed")} onSave={handleSaveQuotation} />
+        <QuotationModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveQuotation} />
       )}
       {modal === "receipt" && (
-        <ReceiptModal clients={mockClients} onClose={() => setModal("closed")} onSave={handleSaveReceipt} />
+        <ReceiptModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveReceipt} />
       )}
       {modal === "transaction" && (
         <TransactionModal onClose={() => setModal("closed")} onSave={handleSaveTransaction} />

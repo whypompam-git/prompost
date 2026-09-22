@@ -16,8 +16,9 @@ import type {
 // Thin data-access layer over the schema in supabase/migrations/0001_init.sql.
 // Every function maps the DB's snake_case rows to this app's camelCase types,
 // so nothing outside this file needs to know the column names changed.
-// Not yet wired into any page — pages still import from mock-data.ts until
-// the migration has actually been run against the live project.
+// Wired into every page as of the 0002 migration (RLS policies for the
+// no-auth-yet case). src/lib/mock-data.ts is kept only as sample data for
+// scripts/seed.mjs and offline reference — no page imports it anymore.
 
 const supabase = () => createClient();
 

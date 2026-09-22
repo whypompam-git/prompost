@@ -1,23 +1,46 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { CalendarMatrix } from "@/components/calendar/CalendarMatrix";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
-import { mockClients, mockStaff, mockTasks } from "@/lib/mock-data";
-import type { Task } from "@/lib/types";
+import { LoadingView } from "@/components/ui/LoadingView";
+import { createTaskRow, listClients, listStaff, listTasks } from "@/lib/supabase/queries";
+import type { Client, Staff, Task } from "@/lib/types";
 
 type ModalState = "closed" | { create: { clientId?: string; date?: string } };
 
 export default function CalendarPage() {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<ModalState>("closed");
 
-  function handleSave(values: TaskFormValues) {
-    setTasks((prev) => [{ ...values, id: crypto.randomUUID() }, ...prev]);
-    // TODO: persist via Supabase
+  useEffect(() => {
+    Promise.all([listTasks(), listClients(), listStaff()])
+      .then(([t, c, s]) => {
+        setTasks(t);
+        setClients(c);
+        setStaff(s);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave(values: TaskFormValues) {
+    const created = await createTaskRow(values);
+    setTasks((prev) => [created, ...prev]);
     setModalState("closed");
+  }
+
+  if (loading) {
+    return (
+      <>
+        <Topbar title="ปฏิทินงาน" subtitle="คิวงานของแต่ละลูกค้าตลอดทั้งเดือน" />
+        <LoadingView />
+      </>
+    );
   }
 
   return (
@@ -36,16 +59,16 @@ export default function CalendarPage() {
 
         <CalendarMatrix
           tasks={tasks}
-          clients={mockClients}
-          staff={mockStaff}
+          clients={clients}
+          staff={staff}
           onAddTask={(clientId, date) => setModalState({ create: { clientId, date } })}
         />
       </div>
 
       {modalState !== "closed" && (
         <TaskModal
-          clients={mockClients}
-          staff={mockStaff}
+          clients={clients}
+          staff={staff}
           defaultClientId={modalState.create.clientId}
           defaultDate={modalState.create.date}
           onClose={() => setModalState("closed")}
