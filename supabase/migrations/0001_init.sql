@@ -17,6 +17,7 @@ create table staff (
   email text,
   hire_date date,
   base_salary numeric(12, 2) default 0,
+  avatar_color text not null default 'bg-orange-500', -- Tailwind bg-* class for the avatar circle
   is_active boolean not null default true,
   created_at timestamptz not null default now()
 );
