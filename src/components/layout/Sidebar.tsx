@@ -1,0 +1,58 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  CalendarDays,
+  Users,
+  UserCog,
+  Wallet,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { APP_NAME } from "@/config/branding";
+
+const NAV_ITEMS = [
+  { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
+  { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
+  { href: "/clients", label: "ลูกค้า", icon: Users },
+  { href: "/hr", label: "พนักงาน", icon: UserCog },
+  { href: "/accounting", label: "บัญชี", icon: Wallet },
+];
+
+export function Sidebar() {
+  const pathname = usePathname();
+
+  return (
+    <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-100 bg-white md:flex">
+      <div className="flex h-16 items-center gap-2 px-5">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
+          P
+        </div>
+        <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
+      </div>
+
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {NAV_ITEMS.map((item) => {
+          const active = pathname?.startsWith(item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                active
+                  ? "bg-brand-50 text-brand-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+              )}
+            >
+              <Icon className={cn("h-4.5 w-4.5", active && "text-brand-600")} size={18} />
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
+    </aside>
+  );
+}
