@@ -12,7 +12,7 @@ import {
   subMonths,
 } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -40,10 +40,12 @@ export function CalendarMatrix({
   tasks,
   clients,
   staff,
+  onAddTask,
 }: {
   tasks: Task[];
   clients: Client[];
   staff: Staff[];
+  onAddTask?: (clientId: string, date: string) => void;
 }) {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -129,7 +131,7 @@ export function CalendarMatrix({
                     <td
                       key={client.id}
                       className={cn(
-                        "border-b border-gray-100 px-2 py-2 align-top",
+                        "group border-b border-gray-100 px-2 py-2 align-top",
                         isToday(day) && "bg-brand-50/40",
                       )}
                     >
@@ -147,6 +149,15 @@ export function CalendarMatrix({
                             <span className="truncate">{task.title}</span>
                           </button>
                         ))}
+                        {onAddTask && (
+                          <button
+                            onClick={() => onAddTask(client.id, format(day, "yyyy-MM-dd"))}
+                            className="flex items-center justify-center rounded-lg py-1 text-gray-300 opacity-0 transition hover:bg-gray-50 hover:text-gray-500 group-hover:opacity-100"
+                            aria-label="เพิ่มงาน"
+                          >
+                            <Plus size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   );

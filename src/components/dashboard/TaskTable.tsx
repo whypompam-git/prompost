@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import { Pencil } from "lucide-react";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -26,30 +26,22 @@ export function TaskTable({
   tasks,
   clients,
   staff,
+  onUpdateStatus,
+  onUpdateAssignee,
+  onEdit,
 }: {
   tasks: Task[];
   clients: Client[];
   staff: Staff[];
+  onUpdateStatus: (taskId: string, status: TaskStatus) => void;
+  onUpdateAssignee: (taskId: string, assigneeId: string) => void;
+  onEdit: (task: Task) => void;
 }) {
-  const [rows, setRows] = useState(tasks);
-
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
-
-  function updateStatus(taskId: string, status: TaskStatus) {
-    setRows((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
-    // TODO: persist via Supabase — e.g. supabase.from("tasks").update({ status }).eq("id", taskId)
-  }
-
-  function updateAssignee(taskId: string, assigneeId: string) {
-    setRows((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, assigneeId: assigneeId || null } : t)),
-    );
-    // TODO: persist via Supabase
-  }
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-      <table className="w-full min-w-[720px] text-left text-sm">
+      <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
             <th className="px-5 py-3 font-medium">งาน</th>
@@ -58,10 +50,11 @@ export function TaskTable({
             <th className="px-5 py-3 font-medium">กำหนดส่ง</th>
             <th className="px-5 py-3 font-medium">สถานะ</th>
             <th className="px-5 py-3 font-medium">ผู้รับผิดชอบ</th>
+            <th className="px-5 py-3 font-medium" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
-          {rows.map((task) => (
+          {tasks.map((task) => (
             <tr key={task.id} className="hover:bg-gray-50/60">
               <td className="px-5 py-3 font-medium text-gray-900">{task.title}</td>
               <td className="px-5 py-3 text-gray-600">{clientName(task.clientId)}</td>
@@ -72,7 +65,7 @@ export function TaskTable({
               <td className="px-5 py-3">
                 <select
                   value={task.status}
-                  onChange={(e) => updateStatus(task.id, e.target.value as TaskStatus)}
+                  onChange={(e) => onUpdateStatus(task.id, e.target.value as TaskStatus)}
                   className={cn(
                     "cursor-pointer rounded-lg border px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-300",
                     STATUS_SELECT_STYLE[task.status],
@@ -88,7 +81,7 @@ export function TaskTable({
               <td className="px-5 py-3">
                 <select
                   value={task.assigneeId ?? ""}
-                  onChange={(e) => updateAssignee(task.id, e.target.value)}
+                  onChange={(e) => onUpdateAssignee(task.id, e.target.value)}
                   className="cursor-pointer rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
                 >
                   <option value="">ยังไม่มอบหมาย</option>
@@ -98,6 +91,15 @@ export function TaskTable({
                     </option>
                   ))}
                 </select>
+              </td>
+              <td className="px-5 py-3 text-right">
+                <button
+                  onClick={() => onEdit(task)}
+                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                  aria-label="แก้ไขงาน"
+                >
+                  <Pencil size={14} />
+                </button>
               </td>
             </tr>
           ))}

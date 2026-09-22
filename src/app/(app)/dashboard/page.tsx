@@ -1,13 +1,43 @@
-import { Users, ListTodo, Loader, CheckCircle2 } from "lucide-react";
+"use client";
+
+import { useState } from "react";
+import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable } from "@/components/dashboard/TaskTable";
+import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { mockClients, mockStaff, mockTasks } from "@/lib/mock-data";
+import type { Task, TaskStatus } from "@/lib/types";
 
 export default function DashboardPage() {
+  const [tasks, setTasks] = useState<Task[]>(mockTasks);
+  const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Task }>("closed");
+
   const totalClients = mockClients.length;
-  const countByStatus = (status: (typeof mockTasks)[number]["status"]) =>
-    mockTasks.filter((t) => t.status === status).length;
+  const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
+
+  function updateStatus(taskId: string, status: TaskStatus) {
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
+    // TODO: persist via Supabase — e.g. supabase.from("tasks").update({ status }).eq("id", taskId)
+  }
+
+  function updateAssignee(taskId: string, assigneeId: string) {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, assigneeId: assigneeId || null } : t)),
+    );
+    // TODO: persist via Supabase
+  }
+
+  function handleSave(values: TaskFormValues) {
+    if (modalMode === "create") {
+      setTasks((prev) => [{ ...values, id: crypto.randomUUID() }, ...prev]);
+    } else if (modalMode !== "closed") {
+      const { edit } = modalMode;
+      setTasks((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values } : t)));
+    }
+    // TODO: persist via Supabase
+    setModalMode("closed");
+  }
 
   return (
     <>
@@ -22,10 +52,36 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
-          <TaskTable tasks={mockTasks} clients={mockClients} staff={mockStaff} />
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
+            <button
+              onClick={() => setModalMode("create")}
+              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+            >
+              <Plus size={16} />
+              เพิ่มงานใหม่
+            </button>
+          </div>
+          <TaskTable
+            tasks={tasks}
+            clients={mockClients}
+            staff={mockStaff}
+            onUpdateStatus={updateStatus}
+            onUpdateAssignee={updateAssignee}
+            onEdit={(task) => setModalMode({ edit: task })}
+          />
         </div>
       </div>
+
+      {modalMode !== "closed" && (
+        <TaskModal
+          initial={modalMode === "create" ? undefined : modalMode.edit}
+          clients={mockClients}
+          staff={mockStaff}
+          onClose={() => setModalMode("closed")}
+          onSave={handleSave}
+        />
+      )}
     </>
   );
 }
