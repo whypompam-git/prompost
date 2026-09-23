@@ -213,7 +213,7 @@ export default function StaffSettingsPage() {
                   <p className="truncate font-medium text-gray-900">{s.name}</p>
                   <p className="truncate text-xs text-gray-500">
                     {s.position}
-                    {s.role === "owner" && " · เจ้าของ"}
+                    {s.role === "owner" && !s.position.includes("เจ้าของ") && " · เจ้าของ"}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
