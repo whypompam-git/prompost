@@ -41,6 +41,9 @@ export async function middleware(request: NextRequest) {
   if (pathname.startsWith("/hr") && !claims.canViewHr) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
+  if (pathname.startsWith("/settings") && claims.role !== "owner") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
 
   return NextResponse.next();
 }

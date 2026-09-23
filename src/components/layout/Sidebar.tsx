@@ -10,6 +10,7 @@ import {
   UserCog,
   Wallet,
   Package,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -22,12 +23,16 @@ const NAV_ITEMS = [
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
+  { href: "/settings", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
   const auth = useAuth();
-  const items = NAV_ITEMS.filter((item) => !item.permission || auth[item.permission]);
+  const items = NAV_ITEMS.filter(
+    (item) =>
+      (!item.permission || auth[item.permission]) && (!item.ownerOnly || auth.role === "owner"),
+  );
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-100 bg-white md:flex">

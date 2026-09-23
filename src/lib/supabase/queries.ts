@@ -225,6 +225,40 @@ export async function deleteStaffRow(id: string): Promise<void> {
   if (error) throw error;
 }
 
+// ── Deactivated staff management (Settings page, owner only) ────────────
+export async function listInactiveStaff(): Promise<Staff[]> {
+  const { data, error } = await supabase()
+    .from("staff")
+    .select(STAFF_COLUMNS)
+    .eq("is_active", false)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data as StaffRow[]).map(fromStaffRow);
+}
+
+export async function reactivateStaffRow(id: string): Promise<void> {
+  const { error } = await supabase().from("staff").update({ is_active: true }).eq("id", id);
+  if (error) throw error;
+}
+
+// Purges the staff member's leave/payroll history and unassigns their
+// tasks first, since those rows reference staff.id with no cascade —
+// an explicit, owner-only action for cleaning up test/duplicate rows.
+export async function permanentlyDeleteStaffRow(id: string): Promise<void> {
+  const db = supabase();
+  const [leaveRes, payrollRes, tasksRes] = await Promise.all([
+    db.from("leave_requests").delete().eq("staff_id", id),
+    db.from("payroll_entries").delete().eq("staff_id", id),
+    db.from("tasks").update({ assignee_id: null }).eq("assignee_id", id),
+  ]);
+  if (leaveRes.error) throw leaveRes.error;
+  if (payrollRes.error) throw payrollRes.error;
+  if (tasksRes.error) throw tasksRes.error;
+
+  const { error } = await db.from("staff").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Tasks ──────────────────────────────────────────────────────────────
 type TaskRow = {
   id: string;

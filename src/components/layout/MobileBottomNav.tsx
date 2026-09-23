@@ -13,6 +13,7 @@ import {
   UserCog,
   Wallet,
   Package,
+  Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -26,6 +27,7 @@ const MORE_ITEMS = [
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
+  { href: "/settings", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 
 export function MobileBottomNav() {
@@ -34,7 +36,10 @@ export function MobileBottomNav() {
   const auth = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const moreItems = MORE_ITEMS.filter((item) => !item.permission || auth[item.permission]);
+  const moreItems = MORE_ITEMS.filter(
+    (item) =>
+      (!item.permission || auth[item.permission]) && (!item.ownerOnly || auth.role === "owner"),
+  );
   const moreActive = moreItems.some((item) => pathname?.startsWith(item.href));
 
   return (

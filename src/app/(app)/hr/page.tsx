@@ -67,9 +67,13 @@ export default function HrPage() {
       const [staffRows, leaveRows] = await Promise.all([listStaff(), listLeaveRequests()]);
       await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
       const payrollRows = await listPayrollEntries(currentPeriodMonth);
+      const activeIds = new Set(staffRows.map((s) => s.id));
       setStaff(staffRows);
-      setLeaveRequests(leaveRows);
-      setPayroll(payrollRows);
+      // Hide leave/payroll history for staff who were later removed —
+      // deleteStaffRow only soft-deletes, so old rows can still reference
+      // an inactive staff_id and would otherwise show up with no name.
+      setLeaveRequests(leaveRows.filter((l) => activeIds.has(l.staffId)));
+      setPayroll(payrollRows.filter((p) => activeIds.has(p.staffId)));
       setLoading(false);
     }
     load();
