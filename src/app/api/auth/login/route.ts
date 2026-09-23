@@ -3,6 +3,10 @@ import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE, signSession } from "@/lib/auth/session";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const fetchCache = "force-no-store";
+
 // Verifies a 4-digit PIN against the staff row's pin_hash, server-side only
 // (via the service-role admin client — pin_hash is never sent to the
 // browser anywhere else). On success, sets a signed session cookie.
