@@ -131,10 +131,11 @@ type StaffRow = {
   role: Staff["role"];
   can_view_accounting: boolean;
   can_view_hr: boolean;
+  photo_url: string | null;
 };
 
 const STAFF_COLUMNS =
-  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, can_view_hr";
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, can_view_hr, photo_url";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -146,6 +147,7 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   baseSalary: r.base_salary,
   avatarColor: r.avatar_color,
   role: r.role,
+  photoUrl: r.photo_url ?? undefined,
   canViewAccounting: r.can_view_accounting,
   canViewHr: r.can_view_hr,
 });
@@ -214,6 +216,19 @@ export async function updateStaffRow(
     patch.pin_hash = bcrypt.hashSync(pin, 10);
   }
   const { error } = await supabase().from("staff").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// Self-service — used by /profile, where a staff member edits only their
+// own display name and photo, not the full admin staff record.
+export async function updateOwnProfile(
+  id: string,
+  values: { name: string; photoUrl: string | null },
+): Promise<void> {
+  const { error } = await supabase()
+    .from("staff")
+    .update({ name: values.name, photo_url: values.photoUrl })
+    .eq("id", id);
   if (error) throw error;
 }
 

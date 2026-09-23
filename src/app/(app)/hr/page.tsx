@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { LeaveModal, type LeaveFormValues } from "@/components/hr/LeaveModal";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { getProfile, type Profile } from "@/lib/profile";
 import {
   createLeaveRequestRow,
   ensurePayrollEntriesForMonth,
@@ -50,11 +49,6 @@ export default function MyStaffPage() {
   const [myPayroll, setMyPayroll] = useState<PayrollEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
-  const [profile, setProfile] = useState<Profile>({ name: "", photo: null });
-
-  useEffect(() => {
-    setProfile(getProfile());
-  }, []);
 
   useEffect(() => {
     async function load() {
@@ -113,9 +107,9 @@ export default function MyStaffPage() {
               <div
                 className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-lg font-semibold text-white ${me.avatarColor}`}
               >
-                {profile.photo ? (
+                {me.photoUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={profile.photo} alt="" className="h-full w-full object-cover" />
+                  <img src={me.photoUrl} alt="" className="h-full w-full object-cover" />
                 ) : (
                   me.name.slice(0, 1)
                 )}

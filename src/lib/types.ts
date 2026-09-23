@@ -28,6 +28,7 @@ export interface Staff {
   role: StaffRole;
   canViewAccounting: boolean;
   canViewHr: boolean;
+  photoUrl?: string; // data URL, self-uploaded via /profile
 }
 
 export type TaskType = "shoot" | "edit" | "review" | "deliver" | "other";

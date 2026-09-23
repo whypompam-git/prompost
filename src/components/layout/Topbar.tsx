@@ -4,17 +4,20 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Bell, LogOut } from "lucide-react";
-import { getProfile, type Profile } from "@/lib/profile";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { listStaff } from "@/lib/supabase/queries";
 
 export function Topbar({ title, subtitle }: { title: string; subtitle?: string }) {
   const router = useRouter();
   const auth = useAuth();
-  const [profile, setProfile] = useState<Profile>({ name: "", photo: null });
+  const [me, setMe] = useState<{ name: string; photoUrl?: string } | null>(null);
 
   useEffect(() => {
-    setProfile(getProfile());
-  }, []);
+    listStaff().then((staffRows) => {
+      const found = staffRows.find((s) => s.id === auth.staffId);
+      if (found) setMe({ name: found.name, photoUrl: found.photoUrl });
+    });
+  }, [auth.staffId]);
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -22,7 +25,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
     router.refresh();
   }
 
-  const displayName = profile.name || auth.name;
+  const displayName = me?.name || auth.name;
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
@@ -39,9 +42,9 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
           className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-brand-100 text-sm font-semibold text-brand-700"
           title={displayName}
         >
-          {profile.photo ? (
+          {me?.photoUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.photo} alt="" className="h-full w-full object-cover" />
+            <img src={me.photoUrl} alt="" className="h-full w-full object-cover" />
           ) : (
             (displayName || "A").charAt(0).toUpperCase()
           )}
