@@ -6,6 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { createClientRow, listClients, updateClientRow } from "@/lib/supabase/queries";
 import type { Client } from "@/lib/types";
 
@@ -91,9 +92,7 @@ export default function ClientsPage() {
                 </div>
               </div>
               <p className="text-sm text-gray-500">{client.phone}</p>
-              <p className="truncate text-xs text-gray-400">
-                พอร์ทัลลูกค้า: /portal/{client.portalToken}
-              </p>
+              <CopyLinkButton path={`/portal/${client.portalToken}`} label="คัดลอกลิงก์พอร์ทัลลูกค้า" />
             </Card>
           ))}
           {clients.length === 0 && (
