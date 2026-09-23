@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -8,14 +9,16 @@ import {
   Users,
   UserCog,
   Wallet,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { APP_NAME } from "@/config/branding";
+import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
   { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
   { href: "/clients", label: "ลูกค้า", icon: Users },
+  { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/accounting", label: "บัญชี", icon: Wallet },
 ];
@@ -26,9 +29,7 @@ export function Sidebar() {
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-100 bg-white md:flex">
       <div className="flex h-16 items-center gap-2 px-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500 text-sm font-bold text-white">
-          P
-        </div>
+        <Image src={APP_LOGO_SRC} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
         <span className="text-lg font-semibold tracking-tight">{APP_NAME}</span>
       </div>
 

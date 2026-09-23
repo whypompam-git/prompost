@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
@@ -16,6 +16,7 @@ import {
   listTasks,
   updateTaskRow,
 } from "@/lib/supabase/queries";
+import { queueTaskEdit } from "@/lib/offline/queue";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -25,6 +26,8 @@ export default function DashboardPage() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [clientFilter, setClientFilter] = useState("");
+  const [sortBy, setSortBy] = useState<"dueDate" | "status" | "assignee">("dueDate");
 
   useEffect(() => {
     Promise.all([listTasks(), listClients(), listStaff()])
@@ -38,16 +41,33 @@ export default function DashboardPage() {
 
   const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
 
+  const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, review: 2, done: 3 };
+  const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
+
+  const visibleTasks = useMemo(() => {
+    const filtered = clientFilter ? tasks.filter((t) => t.clientId === clientFilter) : tasks;
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "status") return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+      if (sortBy === "assignee") {
+        const an = staffName(a.assigneeId);
+        const bn = staffName(b.assigneeId);
+        if (!an && bn) return 1;
+        if (an && !bn) return -1;
+        return an.localeCompare(bn, "th");
+      }
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+  }, [tasks, clientFilter, sortBy, staff]);
+
   function updateStatus(taskId: string, status: TaskStatus) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
-    updateTaskRow(taskId, { status }).catch(console.error);
+    updateTaskRow(taskId, { status }).catch(() => queueTaskEdit(taskId, { status }));
   }
 
   function updateAssignee(taskId: string, assigneeId: string) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, assigneeId: assigneeId || null } : t)),
-    );
-    updateTaskRow(taskId, { assigneeId: assigneeId || null }).catch(console.error);
+    const patch = { assigneeId: assigneeId || null };
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
+    updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
   }
 
   async function handleSave(values: TaskFormValues) {
@@ -90,18 +110,41 @@ export default function DashboardPage() {
         </div>
 
         <div>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
-            <button
-              onClick={() => setCreating(true)}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
-            >
-              <Plus size={16} />
-              เพิ่มงานใหม่
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">ลูกค้าทั้งหมด</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="dueDate">เรียงตามกำหนดส่ง</option>
+                <option value="status">เรียงตามสถานะ</option>
+                <option value="assignee">เรียงตามผู้รับผิดชอบ</option>
+              </select>
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                <Plus size={16} />
+                เพิ่มงานใหม่
+              </button>
+            </div>
           </div>
           <TaskTable
-            tasks={tasks}
+            tasks={visibleTasks}
             clients={clients}
             staff={staff}
             onUpdateStatus={updateStatus}

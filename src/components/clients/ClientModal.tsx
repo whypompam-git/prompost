@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { Client, PaymentStatus } from "@/lib/types";
+import type { Client, EntityType, PaymentStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
@@ -40,12 +40,25 @@ export function ClientModal({
     initial?.paymentStatus ?? "unpaid",
   );
   const [colorTag, setColorTag] = useState(initial?.colorTag ?? "orange");
+  const [entityType, setEntityType] = useState<EntityType>(initial?.entityType ?? "company");
+  const [address, setAddress] = useState(initial?.address ?? "");
+  const [taxId, setTaxId] = useState(initial?.taxId ?? "");
 
   const canSave = name.trim().length > 0;
+  const taxIdLabel = entityType === "company" ? "เลขทะเบียนนิติบุคคล" : "เลขประจำตัวผู้เสียภาษี";
 
   function handleSave() {
     if (!canSave) return;
-    onSave({ name: name.trim(), contactName, phone, paymentStatus, colorTag });
+    onSave({
+      name: name.trim(),
+      contactName,
+      phone,
+      paymentStatus,
+      colorTag,
+      entityType,
+      address: address.trim() || undefined,
+      taxId: taxId.trim() || undefined,
+    });
   }
 
   return (
@@ -88,6 +101,48 @@ export function ClientModal({
             <input
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </Field>
+
+          <Field label="ประเภทลูกค้า (สำหรับออกใบเสนอราคา)">
+            <div className="flex overflow-hidden rounded-lg border border-gray-200">
+              {(
+                [
+                  { value: "company", label: "นิติบุคคล / บริษัท" },
+                  { value: "individual", label: "บุคคลธรรมดา" },
+                ] as { value: EntityType; label: string }[]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setEntityType(opt.value)}
+                  className={cn(
+                    "flex-1 py-2 text-sm font-medium transition",
+                    entityType === opt.value
+                      ? "bg-brand-500 text-white"
+                      : "bg-white text-gray-600 hover:bg-gray-50",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </Field>
+
+          <Field label="ที่อยู่ (แสดงบนใบเสนอราคา/ใบเสร็จ)">
+            <textarea
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              rows={2}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </Field>
+
+          <Field label={taxIdLabel}>
+            <input
+              value={taxId}
+              onChange={(e) => setTaxId(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </Field>

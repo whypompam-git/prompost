@@ -10,10 +10,10 @@ import type {
 } from "./types";
 
 export const mockClients: Client[] = [
-  { id: "c1", name: "Siam Coffee Co.", contactName: "คุณมิ้นท์", phone: "0891234567", colorTag: "orange", paymentStatus: "paid", portalToken: "tok-siam-coffee" },
-  { id: "c2", name: "Baan Suan Resort", contactName: "คุณเอก", phone: "0891234568", colorTag: "sky", paymentStatus: "deposit", portalToken: "tok-baan-suan" },
-  { id: "c3", name: "NeoFit Gym", contactName: "คุณต้า", phone: "0891234569", colorTag: "emerald", paymentStatus: "unpaid", portalToken: "tok-neofit" },
-  { id: "c4", name: "Luna Skincare", contactName: "คุณอิง", phone: "0891234570", colorTag: "violet", paymentStatus: "paid", portalToken: "tok-luna" },
+  { id: "c1", name: "Siam Coffee Co.", contactName: "คุณมิ้นท์", phone: "0891234567", colorTag: "orange", paymentStatus: "paid", portalToken: "tok-siam-coffee", entityType: "company" },
+  { id: "c2", name: "Baan Suan Resort", contactName: "คุณเอก", phone: "0891234568", colorTag: "sky", paymentStatus: "deposit", portalToken: "tok-baan-suan", entityType: "company" },
+  { id: "c3", name: "NeoFit Gym", contactName: "คุณต้า", phone: "0891234569", colorTag: "emerald", paymentStatus: "unpaid", portalToken: "tok-neofit", entityType: "individual" },
+  { id: "c4", name: "Luna Skincare", contactName: "คุณอิง", phone: "0891234570", colorTag: "violet", paymentStatus: "paid", portalToken: "tok-luna", entityType: "individual" },
 ];
 
 export const mockStaff: Staff[] = [

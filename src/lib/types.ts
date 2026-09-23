@@ -1,4 +1,5 @@
 export type PaymentStatus = "unpaid" | "deposit" | "paid";
+export type EntityType = "company" | "individual";
 
 export interface Client {
   id: string;
@@ -9,7 +10,8 @@ export interface Client {
   paymentStatus: PaymentStatus;
   portalToken: string;
   address?: string; // printed on quotations/receipts as the buyer's address
-  taxId?: string; // เลขประจำตัวผู้เสียภาษี / เลขทะเบียนนิติบุคคล
+  entityType: EntityType; // controls the taxId field's printed label
+  taxId?: string; // "เลขทะเบียนนิติบุคคล" (company) or "เลขประจำตัวผู้เสียภาษี" (individual)
 }
 
 export interface Staff {
@@ -124,4 +126,20 @@ export interface Transaction {
   description?: string;
   slipUrl?: string; // local object URL preview until real storage is wired up
   occurredAt: string; // ISO date
+}
+
+export interface Package {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  startDate?: string; // ISO date — package's own promo/validity window
+  endDate?: string;
+}
+
+export interface ClientPackage {
+  id: string;
+  clientId: string;
+  packageId: string;
+  assignedAt: string; // ISO date
 }

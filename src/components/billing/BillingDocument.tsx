@@ -31,7 +31,7 @@ export function BillingDocument({
   date: string;
   validUntil?: string;
   seller: AgencySettings;
-  buyer: { name: string; address?: string; phone?: string; taxId?: string };
+  buyer: { name: string; address?: string; phone?: string; taxId?: string; entityType?: "company" | "individual" };
   items: QuotationItem[];
   vatPercent: number;
   whtPercent: number;
@@ -75,7 +75,11 @@ export function BillingDocument({
           <p className="font-semibold">{buyer.name}</p>
           {buyer.address && <p>{buyer.address}</p>}
           {buyer.phone && <p>โทร: {buyer.phone}</p>}
-          {buyer.taxId && <p>เลขทะเบียนนิติบุคคล: {buyer.taxId}</p>}
+          {buyer.taxId && (
+            <p>
+              {buyer.entityType === "individual" ? "เลขประจำตัวผู้เสียภาษี" : "เลขทะเบียนนิติบุคคล"}: {buyer.taxId}
+            </p>
+          )}
         </div>
       </div>
 

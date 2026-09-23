@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Info, Plus, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
-import { createClientRow, deleteClientRow, listClients, updateClientRow } from "@/lib/supabase/queries";
+import { createClientRow, deleteClientRow, listClients } from "@/lib/supabase/queries";
 import type { Client } from "@/lib/types";
 
 const PAYMENT_LABEL = {
@@ -25,7 +26,7 @@ const PAYMENT_STYLE = {
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Client }>("closed");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     listClients()
@@ -34,15 +35,9 @@ export default function ClientsPage() {
   }, []);
 
   async function handleSave(values: ClientFormValues) {
-    if (modalMode === "create") {
-      const created = await createClientRow(values);
-      setClients((prev) => [created, ...prev]);
-    } else if (modalMode !== "closed") {
-      const { edit } = modalMode;
-      await updateClientRow(edit.id, values);
-      setClients((prev) => prev.map((c) => (c.id === edit.id ? { ...c, ...values } : c)));
-    }
-    setModalMode("closed");
+    const created = await createClientRow(values);
+    setClients((prev) => [created, ...prev]);
+    setCreating(false);
   }
 
   async function handleDelete(client: Client) {
@@ -72,7 +67,7 @@ export default function ClientsPage() {
       <div className="flex-1 space-y-4 p-6">
         <div className="flex justify-end">
           <button
-            onClick={() => setModalMode("create")}
+            onClick={() => setCreating(true)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
           >
             <Plus size={16} />
@@ -85,7 +80,9 @@ export default function ClientsPage() {
             <Card key={client.id} className="space-y-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="font-semibold text-gray-900">{client.name}</p>
+                  <Link href={`/clients/${client.id}`} className="font-semibold text-gray-900 hover:text-brand-600 hover:underline">
+                    {client.name}
+                  </Link>
                   <p className="text-sm text-gray-500">{client.contactName}</p>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -94,13 +91,13 @@ export default function ClientsPage() {
                   >
                     {PAYMENT_LABEL[client.paymentStatus]}
                   </span>
-                  <button
-                    onClick={() => setModalMode({ edit: client })}
+                  <Link
+                    href={`/clients/${client.id}/info`}
                     className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    aria-label="แก้ไขลูกค้า"
+                    aria-label="ข้อมูลลูกค้า"
                   >
-                    <Pencil size={14} />
-                  </button>
+                    <Info size={14} />
+                  </Link>
                   <button
                     onClick={() => handleDelete(client)}
                     className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
@@ -122,13 +119,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {modalMode !== "closed" && (
-        <ClientModal
-          initial={modalMode === "create" ? undefined : modalMode.edit}
-          onClose={() => setModalMode("closed")}
-          onSave={handleSave}
-        />
-      )}
+      {creating && <ClientModal onClose={() => setCreating(false)} onSave={handleSave} />}
     </>
   );
 }

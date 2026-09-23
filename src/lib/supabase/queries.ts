@@ -1,8 +1,11 @@
 import { createClient } from "./client";
+import { cachedFetch } from "@/lib/offline/cache";
 import type {
   Client,
+  ClientPackage,
   LeaveRequest,
   LeaveStatus,
+  Package,
   PayrollEntry,
   Quotation,
   QuotationItem,
@@ -33,10 +36,11 @@ type ClientRow = {
   portal_token: string;
   address: string | null;
   tax_id: string | null;
+  entity_type: Client["entityType"];
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, address, tax_id";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, address, tax_id, entity_type";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -48,15 +52,24 @@ const fromClientRow = (r: ClientRow): Client => ({
   portalToken: r.portal_token,
   address: r.address ?? undefined,
   taxId: r.tax_id ?? undefined,
+  entityType: r.entity_type ?? "company",
 });
 
 export async function listClients(): Promise<Client[]> {
-  const { data, error } = await supabase()
-    .from("clients")
-    .select(CLIENT_COLUMNS)
-    .order("created_at", { ascending: false });
+  return cachedFetch("clients", async () => {
+    const { data, error } = await supabase()
+      .from("clients")
+      .select(CLIENT_COLUMNS)
+      .order("created_at", { ascending: false });
+    if (error) throw error;
+    return (data as ClientRow[]).map(fromClientRow);
+  });
+}
+
+export async function getClient(id: string): Promise<Client | null> {
+  const { data, error } = await supabase().from("clients").select(CLIENT_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw error;
-  return (data as ClientRow[]).map(fromClientRow);
+  return data ? fromClientRow(data as ClientRow) : null;
 }
 
 export async function createClientRow(
@@ -72,6 +85,7 @@ export async function createClientRow(
       payment_status: values.paymentStatus,
       address: values.address,
       tax_id: values.taxId,
+      entity_type: values.entityType,
     })
     .select(CLIENT_COLUMNS)
     .single();
@@ -93,6 +107,7 @@ export async function updateClientRow(
       payment_status: values.paymentStatus,
       address: values.address,
       tax_id: values.taxId,
+      entity_type: values.entityType,
     })
     .eq("id", id);
   if (error) throw error;
@@ -127,13 +142,15 @@ const fromStaffRow = (r: StaffRow): Staff => ({
 });
 
 export async function listStaff(): Promise<Staff[]> {
-  const { data, error } = await supabase()
-    .from("staff")
-    .select("id, name, position, phone, email, hire_date, base_salary, avatar_color")
-    .eq("is_active", true)
-    .order("created_at", { ascending: true });
-  if (error) throw error;
-  return (data as StaffRow[]).map(fromStaffRow);
+  return cachedFetch("staff", async () => {
+    const { data, error } = await supabase()
+      .from("staff")
+      .select("id, name, position, phone, email, hire_date, base_salary, avatar_color")
+      .eq("is_active", true)
+      .order("created_at", { ascending: true });
+    if (error) throw error;
+    return (data as StaffRow[]).map(fromStaffRow);
+  });
 }
 
 export async function createStaffRow(
@@ -229,12 +246,14 @@ const fromTaskRow = (r: TaskRow): Task => ({
 });
 
 export async function listTasks(): Promise<Task[]> {
-  const { data, error } = await supabase()
-    .from("tasks")
-    .select(TASK_COLUMNS)
-    .order("scheduled_date", { ascending: true });
-  if (error) throw error;
-  return (data as TaskRow[]).map(fromTaskRow);
+  return cachedFetch("tasks", async () => {
+    const { data, error } = await supabase()
+      .from("tasks")
+      .select(TASK_COLUMNS)
+      .order("scheduled_date", { ascending: true });
+    if (error) throw error;
+    return (data as TaskRow[]).map(fromTaskRow);
+  });
 }
 
 export async function getTask(id: string): Promise<Task | null> {
@@ -713,5 +732,109 @@ export async function createTransactionRow(
 
 export async function deleteTransactionRow(id: string): Promise<void> {
   const { error } = await supabase().from("transactions").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Packages ───────────────────────────────────────────────────────────
+type PackageRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  start_date: string | null;
+  end_date: string | null;
+};
+
+const PACKAGE_COLUMNS = "id, name, description, price, start_date, end_date";
+
+const fromPackageRow = (r: PackageRow): Package => ({
+  id: r.id,
+  name: r.name,
+  description: r.description ?? undefined,
+  price: r.price,
+  startDate: r.start_date ?? undefined,
+  endDate: r.end_date ?? undefined,
+});
+
+export async function listPackages(): Promise<Package[]> {
+  const { data, error } = await supabase()
+    .from("packages")
+    .select(PACKAGE_COLUMNS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as PackageRow[]).map(fromPackageRow);
+}
+
+export async function createPackageRow(values: Omit<Package, "id">): Promise<Package> {
+  const { data, error } = await supabase()
+    .from("packages")
+    .insert({
+      name: values.name,
+      description: values.description,
+      price: values.price,
+      start_date: values.startDate || null,
+      end_date: values.endDate || null,
+    })
+    .select(PACKAGE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromPackageRow(data as PackageRow);
+}
+
+export async function updatePackageRow(id: string, values: Omit<Package, "id">): Promise<void> {
+  const { error } = await supabase()
+    .from("packages")
+    .update({
+      name: values.name,
+      description: values.description,
+      price: values.price,
+      start_date: values.startDate || null,
+      end_date: values.endDate || null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function deletePackageRow(id: string): Promise<void> {
+  const { error } = await supabase().from("packages").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Client ↔ Package assignments ──────────────────────────────────────
+type ClientPackageRow = {
+  id: string;
+  client_id: string;
+  package_id: string;
+  assigned_at: string;
+};
+
+const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
+  id: r.id,
+  clientId: r.client_id,
+  packageId: r.package_id,
+  assignedAt: r.assigned_at,
+});
+
+export async function listClientPackages(): Promise<ClientPackage[]> {
+  const { data, error } = await supabase()
+    .from("client_packages")
+    .select("id, client_id, package_id, assigned_at")
+    .order("assigned_at", { ascending: false });
+  if (error) throw error;
+  return (data as ClientPackageRow[]).map(fromClientPackageRow);
+}
+
+export async function assignPackageToClient(clientId: string, packageId: string): Promise<ClientPackage> {
+  const { data, error } = await supabase()
+    .from("client_packages")
+    .insert({ client_id: clientId, package_id: packageId })
+    .select("id, client_id, package_id, assigned_at")
+    .single();
+  if (error) throw error;
+  return fromClientPackageRow(data as ClientPackageRow);
+}
+
+export async function unassignClientPackage(id: string): Promise<void> {
+  const { error } = await supabase().from("client_packages").delete().eq("id", id);
   if (error) throw error;
 }

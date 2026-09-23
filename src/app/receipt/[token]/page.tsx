@@ -13,7 +13,7 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
   if (!receipt) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
-    supabase.from("clients").select("name, phone, address, tax_id").eq("id", receipt.client_id).maybeSingle(),
+    supabase.from("clients").select("name, phone, address, tax_id, entity_type").eq("id", receipt.client_id).maybeSingle(),
     supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info").eq("id", true).maybeSingle(),
   ]);
 
@@ -35,6 +35,7 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
           phone: client?.phone ?? undefined,
           address: client?.address ?? undefined,
           taxId: client?.tax_id ?? undefined,
+          entityType: client?.entity_type ?? undefined,
         }}
         items={[{ description: "ชำระค่าบริการ", qty: 1, unitPrice: receipt.amount }]}
         vatPercent={0}
