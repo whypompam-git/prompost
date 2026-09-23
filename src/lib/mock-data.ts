@@ -17,10 +17,10 @@ export const mockClients: Client[] = [
 ];
 
 export const mockStaff: Staff[] = [
-  { id: "s1", name: "แนน", position: "Content Creator", avatarColor: "bg-orange-500", phone: "0812223331", email: "nan@prompost.agency", hireDate: "2024-03-01", baseSalary: 22000 },
-  { id: "s2", name: "ปั้น", position: "Video Editor", avatarColor: "bg-sky-500", phone: "0812223332", email: "pun@prompost.agency", hireDate: "2023-11-15", baseSalary: 26000 },
-  { id: "s3", name: "ฝ้าย", position: "Photographer", avatarColor: "bg-emerald-500", phone: "0812223333", email: "fai@prompost.agency", hireDate: "2024-06-01", baseSalary: 24000 },
-  { id: "s4", name: "บอส", position: "Account Manager", avatarColor: "bg-violet-500", phone: "0812223334", email: "boss@prompost.agency", hireDate: "2022-09-10", baseSalary: 32000 },
+  { id: "s1", name: "แนน", position: "Content Creator", avatarColor: "bg-orange-500", phone: "0812223331", email: "nan@prompost.agency", hireDate: "2024-03-01", baseSalary: 22000, role: "staff", canViewAccounting: false, canViewHr: false },
+  { id: "s2", name: "ปั้น", position: "Video Editor", avatarColor: "bg-sky-500", phone: "0812223332", email: "pun@prompost.agency", hireDate: "2023-11-15", baseSalary: 26000, role: "staff", canViewAccounting: false, canViewHr: false },
+  { id: "s3", name: "ฝ้าย", position: "Photographer", avatarColor: "bg-emerald-500", phone: "0812223333", email: "fai@prompost.agency", hireDate: "2024-06-01", baseSalary: 24000, role: "staff", canViewAccounting: false, canViewHr: false },
+  { id: "s4", name: "บอส", position: "Account Manager", avatarColor: "bg-violet-500", phone: "0812223334", email: "boss@prompost.agency", hireDate: "2022-09-10", baseSalary: 32000, role: "owner", canViewAccounting: true, canViewHr: true },
 ];
 
 const today = new Date();

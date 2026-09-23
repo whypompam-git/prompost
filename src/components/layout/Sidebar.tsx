@@ -13,18 +13,21 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
   { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
   { href: "/clients", label: "ลูกค้า", icon: Users },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog },
-  { href: "/accounting", label: "บัญชี", icon: Wallet },
+  { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
+  { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const auth = useAuth();
+  const items = NAV_ITEMS.filter((item) => !item.permission || auth[item.permission]);
 
   return (
     <aside className="hidden w-60 shrink-0 flex-col border-r border-gray-100 bg-white md:flex">
@@ -34,7 +37,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {NAV_ITEMS.map((item) => {
+        {items.map((item) => {
           const active = pathname?.startsWith(item.href);
           const Icon = item.icon;
           return (

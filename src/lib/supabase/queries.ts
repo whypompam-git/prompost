@@ -128,7 +128,13 @@ type StaffRow = {
   hire_date: string | null;
   base_salary: number;
   avatar_color: string;
+  role: Staff["role"];
+  can_view_accounting: boolean;
+  can_view_hr: boolean;
 };
+
+const STAFF_COLUMNS =
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, can_view_hr";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -139,13 +145,16 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   hireDate: r.hire_date ?? undefined,
   baseSalary: r.base_salary,
   avatarColor: r.avatar_color,
+  role: r.role,
+  canViewAccounting: r.can_view_accounting,
+  canViewHr: r.can_view_hr,
 });
 
 export async function listStaff(): Promise<Staff[]> {
   return cachedFetch("staff", async () => {
     const { data, error } = await supabase()
       .from("staff")
-      .select("id, name, position, phone, email, hire_date, base_salary, avatar_color")
+      .select(STAFF_COLUMNS)
       .eq("is_active", true)
       .order("created_at", { ascending: true });
     if (error) throw error;
@@ -153,9 +162,15 @@ export async function listStaff(): Promise<Staff[]> {
   });
 }
 
+// pin, when provided, is hashed client-side with bcryptjs before being sent
+// — the resulting pin_hash column is never selected back to the browser
+// (see STAFF_COLUMNS), and PIN verification only ever happens server-side
+// in /api/auth/login via the service-role admin client.
 export async function createStaffRow(
   values: Omit<Staff, "id">,
+  pin?: string,
 ): Promise<Staff> {
+  const bcrypt = await import("bcryptjs");
   const { data, error } = await supabase()
     .from("staff")
     .insert({
@@ -166,26 +181,39 @@ export async function createStaffRow(
       hire_date: values.hireDate || null,
       base_salary: values.baseSalary,
       avatar_color: values.avatarColor,
+      role: values.role,
+      can_view_accounting: values.canViewAccounting,
+      can_view_hr: values.canViewHr,
+      pin_hash: pin ? bcrypt.hashSync(pin, 10) : null,
     })
-    .select("id, name, position, phone, email, hire_date, base_salary, avatar_color")
+    .select(STAFF_COLUMNS)
     .single();
   if (error) throw error;
   return fromStaffRow(data as StaffRow);
 }
 
-export async function updateStaffRow(id: string, values: Omit<Staff, "id">): Promise<void> {
-  const { error } = await supabase()
-    .from("staff")
-    .update({
-      name: values.name,
-      position: values.position,
-      phone: values.phone,
-      email: values.email,
-      hire_date: values.hireDate || null,
-      base_salary: values.baseSalary,
-      avatar_color: values.avatarColor,
-    })
-    .eq("id", id);
+export async function updateStaffRow(
+  id: string,
+  values: Omit<Staff, "id">,
+  pin?: string,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    name: values.name,
+    position: values.position,
+    phone: values.phone,
+    email: values.email,
+    hire_date: values.hireDate || null,
+    base_salary: values.baseSalary,
+    avatar_color: values.avatarColor,
+    role: values.role,
+    can_view_accounting: values.canViewAccounting,
+    can_view_hr: values.canViewHr,
+  };
+  if (pin) {
+    const bcrypt = await import("bcryptjs");
+    patch.pin_hash = bcrypt.hashSync(pin, 10);
+  }
+  const { error } = await supabase().from("staff").update(patch).eq("id", id);
   if (error) throw error;
 }
 

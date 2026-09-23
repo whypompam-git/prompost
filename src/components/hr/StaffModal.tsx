@@ -22,7 +22,7 @@ export function StaffModal({
 }: {
   initial?: Staff;
   onClose: () => void;
-  onSave: (values: StaffFormValues, avatarColor: string) => void;
+  onSave: (values: StaffFormValues, avatarColor: string, pin?: string) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
@@ -30,16 +30,36 @@ export function StaffModal({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [baseSalary, setBaseSalary] = useState(initial?.baseSalary ?? 0);
+  const [canViewAccounting, setCanViewAccounting] = useState(initial?.canViewAccounting ?? false);
+  const [canViewHr, setCanViewHr] = useState(initial?.canViewHr ?? false);
+  const [pin, setPin] = useState("");
 
-  const canSave = name.trim().length > 0 && position.trim().length > 0;
+  const isNew = !initial;
+  const pinValid = pin === "" || /^\d{4}$/.test(pin);
+  const canSave =
+    name.trim().length > 0 &&
+    position.trim().length > 0 &&
+    pinValid &&
+    (!isNew || /^\d{4}$/.test(pin));
 
   function handleSave() {
     if (!canSave) return;
     const avatarColor =
       initial?.avatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
     onSave(
-      { name: name.trim(), position: position.trim(), phone, email, hireDate, baseSalary },
+      {
+        name: name.trim(),
+        position: position.trim(),
+        phone,
+        email,
+        hireDate,
+        baseSalary,
+        role: initial?.role ?? "staff",
+        canViewAccounting,
+        canViewHr,
+      },
       avatarColor,
+      pin || undefined,
     );
   }
 
@@ -61,7 +81,7 @@ export function StaffModal({
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
           <Field label="ชื่อพนักงาน">
             <input
               value={name}
@@ -111,6 +131,41 @@ export function StaffModal({
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               />
             </Field>
+          </div>
+
+          <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
+            <Field label={isNew ? "ตั้งรหัส PIN 4 หลักสำหรับเข้าระบบ" : "เปลี่ยนรหัส PIN (เว้นว่างถ้าไม่เปลี่ยน)"}>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="เช่น 1234"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </Field>
+            {!pinValid && <p className="text-xs text-rose-600">PIN ต้องเป็นตัวเลข 4 หลัก</p>}
+
+            <p className="text-xs font-medium text-gray-500">สิทธิ์การเข้าถึงหน้า</p>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={canViewAccounting}
+                onChange={(e) => setCanViewAccounting(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
+              />
+              ดูหน้าบัญชี (ยอดขาย/รายรับรายจ่าย)
+            </label>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={canViewHr}
+                onChange={(e) => setCanViewHr(e.target.checked)}
+                className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
+              />
+              ดูหน้าพนักงาน (เงินเดือน/วันลา)
+            </label>
           </div>
         </div>
 

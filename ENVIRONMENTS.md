@@ -13,6 +13,7 @@ Set these under **GitHub repo → Settings → Secrets and variables → Actions
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase Dashboard → Project Settings → API | build (baked into client bundle) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Same page — the **publishable** key (`sb_publishable_...`) | build (baked into client bundle) |
 | `SUPABASE_SECRET_KEY` | Same page — the **secret** key (`sb_secret_...`) | server-only, e.g. `src/lib/supabase/admin.ts` — **never** passed to a client build step |
+| `SESSION_SECRET` | Generate your own: `openssl rand -base64 32` (or any 32+ byte random string) | signs the login session cookie (`src/lib/auth/session.ts`) — server-only, never passed to a client build step. **Must** be set in Vercel → Project → Settings → Environment Variables, or login is broken in production. |
 
 `NEXT_PUBLIC_*` vars get compiled into the browser bundle at build time, so they're not
 secret in the usual sense (anyone can read them from the deployed site) — but they still

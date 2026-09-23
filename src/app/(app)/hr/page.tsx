@@ -24,6 +24,7 @@ import {
 } from "@/lib/supabase/queries";
 import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const LEAVE_TYPE_LABEL: Record<LeaveRequest["leaveType"], string> = {
   personal: "ลากิจ",
@@ -49,6 +50,8 @@ const currentPeriodMonth = new Date(new Date().getFullYear(), new Date().getMont
   .slice(0, 10);
 
 export default function HrPage() {
+  const auth = useAuth();
+  const isOwner = auth.role === "owner";
   const [staff, setStaff] = useState<Staff[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [payroll, setPayroll] = useState<PayrollEntry[]>([]);
@@ -74,16 +77,16 @@ export default function HrPage() {
 
   const staffName = (id: string) => staff.find((s) => s.id === id)?.name ?? "—";
 
-  async function handleSaveStaff(values: StaffFormValues, avatarColor: string) {
+  async function handleSaveStaff(values: StaffFormValues, avatarColor: string, pin?: string) {
     if (staffModalMode === "create") {
-      const created = await createStaffRow({ ...values, avatarColor });
+      const created = await createStaffRow({ ...values, avatarColor }, pin);
       setStaff((prev) => [...prev, created]);
       await ensurePayrollEntriesForMonth(currentPeriodMonth, [created]);
       const payrollRows = await listPayrollEntries(currentPeriodMonth);
       setPayroll(payrollRows);
     } else if (staffModalMode !== "closed") {
       const { edit } = staffModalMode;
-      await updateStaffRow(edit.id, { ...values, avatarColor });
+      await updateStaffRow(edit.id, { ...values, avatarColor }, pin);
       setStaff((prev) => prev.map((s) => (s.id === edit.id ? { ...s, ...values } : s)));
     }
     setStaffModalMode("closed");
@@ -144,13 +147,15 @@ export default function HrPage() {
         <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">รายชื่อพนักงาน</h2>
-            <button
-              onClick={() => setStaffModalMode("create")}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
-            >
-              <Plus size={16} />
-              เพิ่มพนักงาน
-            </button>
+            {isOwner && (
+              <button
+                onClick={() => setStaffModalMode("create")}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                <Plus size={16} />
+                เพิ่มพนักงาน
+              </button>
+            )}
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {staff.map((s) => (
@@ -164,22 +169,24 @@ export default function HrPage() {
                   <p className="truncate font-medium text-gray-900">{s.name}</p>
                   <p className="truncate text-xs text-gray-500">{s.position}</p>
                 </div>
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    onClick={() => setStaffModalMode({ edit: s })}
-                    className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    aria-label="แก้ไขพนักงาน"
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteStaff(s)}
-                    className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                    aria-label="ลบพนักงาน"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
+                {isOwner && (
+                  <div className="flex shrink-0 gap-1">
+                    <button
+                      onClick={() => setStaffModalMode({ edit: s })}
+                      className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                      aria-label="แก้ไขพนักงาน"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteStaff(s)}
+                      className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                      aria-label="ลบพนักงาน"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
               </Card>
             ))}
           </div>

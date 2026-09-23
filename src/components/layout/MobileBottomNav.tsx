@@ -15,6 +15,7 @@ import {
   Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const MAIN_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
@@ -23,16 +24,18 @@ const MAIN_ITEMS = [
 
 const MORE_ITEMS = [
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog },
-  { href: "/accounting", label: "บัญชี", icon: Wallet },
+  { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
+  { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
 ];
 
 export function MobileBottomNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const auth = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const moreActive = MORE_ITEMS.some((item) => pathname?.startsWith(item.href));
+  const moreItems = MORE_ITEMS.filter((item) => !item.permission || auth[item.permission]);
+  const moreActive = moreItems.some((item) => pathname?.startsWith(item.href));
 
   return (
     <>
@@ -50,7 +53,7 @@ export function MobileBottomNav() {
               </button>
             </div>
             <div className="space-y-1">
-              {MORE_ITEMS.map((item) => {
+              {moreItems.map((item) => {
                 const Icon = item.icon;
                 const active = pathname?.startsWith(item.href);
                 return (

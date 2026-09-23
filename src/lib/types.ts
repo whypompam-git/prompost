@@ -14,6 +14,8 @@ export interface Client {
   taxId?: string; // "เลขทะเบียนนิติบุคคล" (company) or "เลขประจำตัวผู้เสียภาษี" (individual)
 }
 
+export type StaffRole = "owner" | "staff";
+
 export interface Staff {
   id: string;
   name: string;
@@ -23,6 +25,9 @@ export interface Staff {
   email?: string;
   hireDate?: string; // ISO date
   baseSalary: number;
+  role: StaffRole;
+  canViewAccounting: boolean;
+  canViewHr: boolean;
 }
 
 export type TaskType = "shoot" | "edit" | "review" | "deliver" | "other";
