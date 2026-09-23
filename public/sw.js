@@ -4,7 +4,7 @@
 // so it can't ever intercept/break a mutation — that's handled separately by
 // the app-level offline queue (src/lib/offline/*).
 
-const CACHE_NAME = "prompost-shell-v1";
+const CACHE_NAME = "prompost-shell-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -22,10 +22,13 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
+  const url = new URL(req.url);
+
   // Only ever handle same-origin GET requests — everything else (POST/
   // PATCH/DELETE, or any cross-origin call like Supabase) passes straight
-  // through untouched.
-  if (req.method !== "GET" || new URL(req.url).origin !== self.location.origin) {
+  // through untouched. API routes are always live data (staff list, auth) —
+  // never cache them, or the UI can show stale data after it's changed.
+  if (req.method !== "GET" || url.origin !== self.location.origin || url.pathname.startsWith("/api/")) {
     return;
   }
 
