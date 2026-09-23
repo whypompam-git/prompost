@@ -21,9 +21,9 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
   { href: "/clients", label: "ลูกค้า", icon: Users },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
+  { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
-  { href: "/settings", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
+  { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 
 export function Sidebar() {

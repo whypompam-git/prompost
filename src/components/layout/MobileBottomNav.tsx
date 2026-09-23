@@ -25,9 +25,9 @@ const MAIN_ITEMS = [
 
 const MORE_ITEMS = [
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog, permission: "canViewHr" as const },
+  { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "canViewAccounting" as const },
-  { href: "/settings", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
+  { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 
 export function MobileBottomNav() {

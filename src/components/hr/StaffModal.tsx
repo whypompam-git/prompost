@@ -31,7 +31,6 @@ export function StaffModal({
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [baseSalary, setBaseSalary] = useState(initial?.baseSalary ?? 0);
   const [canViewAccounting, setCanViewAccounting] = useState(initial?.canViewAccounting ?? false);
-  const [canViewHr, setCanViewHr] = useState(initial?.canViewHr ?? false);
   const [pin, setPin] = useState("");
 
   const isNew = !initial;
@@ -56,7 +55,7 @@ export function StaffModal({
         baseSalary,
         role: initial?.role ?? "staff",
         canViewAccounting,
-        canViewHr,
+        canViewHr: false,
       },
       avatarColor,
       pin || undefined,
@@ -157,15 +156,9 @@ export function StaffModal({
               />
               ดูหน้าบัญชี (ยอดขาย/รายรับรายจ่าย)
             </label>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={canViewHr}
-                onChange={(e) => setCanViewHr(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
-              />
-              ดูหน้าพนักงาน (เงินเดือน/วันลา)
-            </label>
+            <p className="text-xs text-gray-400">
+              รายชื่อพนักงาน เงินเดือน และสิทธิ์การเข้าถึง ดูได้เฉพาะเจ้าของเท่านั้น
+            </p>
           </div>
         </div>
 
