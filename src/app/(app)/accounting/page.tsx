@@ -7,7 +7,9 @@ import {
   FileText,
   Paperclip,
   Plus,
+  Printer,
   Receipt as ReceiptIcon,
+  Settings,
   Trash2,
   TrendingDown,
   TrendingUp,
@@ -17,9 +19,11 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
+import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
 import { calcQuotationTotals } from "@/lib/accounting";
 import {
   createQuotationRow,
@@ -28,12 +32,14 @@ import {
   deleteQuotationRow,
   deleteReceiptRow,
   deleteTransactionRow,
+  getAgencySettings,
   listClients,
   listQuotations,
   listReceipts,
   listTransactions,
+  saveAgencySettings,
 } from "@/lib/supabase/queries";
-import type { Client, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
+import type { AgencySettings, Client, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -52,26 +58,40 @@ const QUOTE_STATUS_STYLE: Record<QuotationStatus, string> = {
   rejected: "bg-rose-100 text-rose-700",
 };
 
-type Modal = "closed" | "quotation" | "receipt" | "transaction";
+type Modal = "closed" | "quotation" | "receipt" | "transaction" | "agencySettings";
 
 export default function AccountingPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>("closed");
 
   useEffect(() => {
-    Promise.all([listClients(), listQuotations(), listReceipts(), listTransactions()])
-      .then(([c, q, r, t]) => {
+    Promise.all([
+      listClients(),
+      listQuotations(),
+      listReceipts(),
+      listTransactions(),
+      getAgencySettings(),
+    ])
+      .then(([c, q, r, t, agency]) => {
         setClients(c);
         setQuotations(q);
         setReceipts(r);
         setTransactions(t);
+        setAgencySettings(agency);
       })
       .finally(() => setLoading(false));
   }, []);
+
+  async function handleSaveAgencySettings(values: AgencySettings) {
+    await saveAgencySettings(values);
+    setAgencySettings(values);
+    setModal("closed");
+  }
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
 
@@ -146,6 +166,16 @@ export default function AccountingPage() {
     <>
       <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบเสร็จ และรายรับ-รายจ่าย" />
       <div className="flex-1 space-y-6 p-6">
+        <div className="flex justify-end">
+          <button
+            onClick={() => setModal("agencySettings")}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Settings size={15} />
+            ข้อมูลผู้เสนอราคา
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <StatCard label="รายรับรวม" value={`฿${currency(totalIncome)}`} icon={TrendingUp} tone="emerald" />
           <StatCard label="รายจ่ายรวม" value={`฿${currency(totalExpense)}`} icon={TrendingDown} tone="amber" />
@@ -194,14 +224,26 @@ export default function AccountingPage() {
                           {QUOTE_STATUS_LABEL[q.status]}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <button
-                          onClick={() => handleDeleteQuotation(q)}
-                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                          aria-label="ลบใบเสนอราคา"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <a
+                            href={`/print/quotation/${q.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            aria-label="พิมพ์/ดาวน์โหลด"
+                          >
+                            <Printer size={14} />
+                          </a>
+                          <CopyLinkButton path={`/quote/${q.shareToken}`} label="ลิงก์" />
+                          <button
+                            onClick={() => handleDeleteQuotation(q)}
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                            aria-label="ลบใบเสนอราคา"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -252,14 +294,26 @@ export default function AccountingPage() {
                       {format(new Date(r.createdAt), "d MMM yyyy", { locale: th })}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-900">฿{currency(r.amount)}</td>
-                    <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => handleDeleteReceipt(r)}
-                        className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                        aria-label="ลบใบเสร็จ"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <a
+                          href={`/print/receipt/${r.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          aria-label="พิมพ์/ดาวน์โหลด"
+                        >
+                          <Printer size={14} />
+                        </a>
+                        <CopyLinkButton path={`/receipt/${r.shareToken}`} label="ลิงก์" />
+                        <button
+                          onClick={() => handleDeleteReceipt(r)}
+                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                          aria-label="ลบใบเสร็จ"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -369,6 +423,13 @@ export default function AccountingPage() {
       )}
       {modal === "transaction" && (
         <TransactionModal onClose={() => setModal("closed")} onSave={handleSaveTransaction} />
+      )}
+      {modal === "agencySettings" && agencySettings && (
+        <AgencySettingsModal
+          initial={agencySettings}
+          onClose={() => setModal("closed")}
+          onSave={handleSaveAgencySettings}
+        />
       )}
     </>
   );

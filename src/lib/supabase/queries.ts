@@ -31,7 +31,12 @@ type ClientRow = {
   color_tag: string;
   payment_status: Client["paymentStatus"];
   portal_token: string;
+  address: string | null;
+  tax_id: string | null;
 };
+
+const CLIENT_COLUMNS =
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, address, tax_id";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -41,12 +46,14 @@ const fromClientRow = (r: ClientRow): Client => ({
   colorTag: r.color_tag,
   paymentStatus: r.payment_status,
   portalToken: r.portal_token,
+  address: r.address ?? undefined,
+  taxId: r.tax_id ?? undefined,
 });
 
 export async function listClients(): Promise<Client[]> {
   const { data, error } = await supabase()
     .from("clients")
-    .select("id, name, contact_name, phone, color_tag, payment_status, portal_token")
+    .select(CLIENT_COLUMNS)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as ClientRow[]).map(fromClientRow);
@@ -63,8 +70,10 @@ export async function createClientRow(
       phone: values.phone,
       color_tag: values.colorTag,
       payment_status: values.paymentStatus,
+      address: values.address,
+      tax_id: values.taxId,
     })
-    .select("id, name, contact_name, phone, color_tag, payment_status, portal_token")
+    .select(CLIENT_COLUMNS)
     .single();
   if (error) throw error;
   return fromClientRow(data as ClientRow);
@@ -82,6 +91,8 @@ export async function updateClientRow(
       phone: values.phone,
       color_tag: values.colorTag,
       payment_status: values.paymentStatus,
+      address: values.address,
+      tax_id: values.taxId,
     })
     .eq("id", id);
   if (error) throw error;
@@ -180,12 +191,20 @@ type TaskRow = {
   scheduled_date: string;
   due_date: string;
   notes: string | null;
-  script_url: string | null;
   footage_url: string | null;
+  ref_link: string | null;
+  content_category: Task["contentCategory"] | null;
+  script_text: string | null;
+  shots: string[] | null;
+  equipment: string[] | null;
+  post_date: string | null;
+  final_url: string | null;
+  start_time: string | null;
+  end_time: string | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, script_url, footage_url";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, start_time, end_time";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -197,8 +216,16 @@ const fromTaskRow = (r: TaskRow): Task => ({
   scheduledDate: r.scheduled_date,
   dueDate: r.due_date,
   notes: r.notes ?? undefined,
-  scriptUrl: r.script_url ?? undefined,
   footageUrl: r.footage_url ?? undefined,
+  refLink: r.ref_link ?? undefined,
+  contentCategory: r.content_category ?? undefined,
+  scriptText: r.script_text ?? undefined,
+  shots: r.shots ?? [],
+  equipment: r.equipment ?? [],
+  postDate: r.post_date ?? undefined,
+  finalUrl: r.final_url ?? undefined,
+  startTime: r.start_time?.slice(0, 5) ?? undefined,
+  endTime: r.end_time?.slice(0, 5) ?? undefined,
 });
 
 export async function listTasks(): Promise<Task[]> {
@@ -208,6 +235,29 @@ export async function listTasks(): Promise<Task[]> {
     .order("scheduled_date", { ascending: true });
   if (error) throw error;
   return (data as TaskRow[]).map(fromTaskRow);
+}
+
+export async function getTask(id: string): Promise<Task | null> {
+  const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? fromTaskRow(data as TaskRow) : null;
+}
+
+// Distinct shots/equipment values used across every task, for the tag
+// inputs' "remember what was typed before" suggestions.
+export async function listDistinctShotsAndEquipment(): Promise<{
+  shots: string[];
+  equipment: string[];
+}> {
+  const { data, error } = await supabase().from("tasks").select("shots, equipment");
+  if (error) throw error;
+  const shots = new Set<string>();
+  const equipment = new Set<string>();
+  for (const row of data as { shots: string[] | null; equipment: string[] | null }[]) {
+    (row.shots ?? []).forEach((s) => shots.add(s));
+    (row.equipment ?? []).forEach((e) => equipment.add(e));
+  }
+  return { shots: [...shots].sort(), equipment: [...equipment].sort() };
 }
 
 export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
@@ -222,8 +272,16 @@ export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
       scheduled_date: values.scheduledDate,
       due_date: values.dueDate,
       notes: values.notes,
-      script_url: values.scriptUrl,
       footage_url: values.footageUrl,
+      ref_link: values.refLink,
+      content_category: values.contentCategory,
+      script_text: values.scriptText,
+      shots: values.shots ?? [],
+      equipment: values.equipment ?? [],
+      post_date: values.postDate || null,
+      final_url: values.finalUrl,
+      start_time: values.startTime || null,
+      end_time: values.endTime || null,
     })
     .select(TASK_COLUMNS)
     .single();
@@ -241,8 +299,16 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.scheduledDate !== undefined) patch.scheduled_date = values.scheduledDate;
   if (values.dueDate !== undefined) patch.due_date = values.dueDate;
   if (values.notes !== undefined) patch.notes = values.notes;
-  if (values.scriptUrl !== undefined) patch.script_url = values.scriptUrl;
   if (values.footageUrl !== undefined) patch.footage_url = values.footageUrl;
+  if (values.refLink !== undefined) patch.ref_link = values.refLink;
+  if (values.contentCategory !== undefined) patch.content_category = values.contentCategory;
+  if (values.scriptText !== undefined) patch.script_text = values.scriptText;
+  if (values.shots !== undefined) patch.shots = values.shots;
+  if (values.equipment !== undefined) patch.equipment = values.equipment;
+  if (values.postDate !== undefined) patch.post_date = values.postDate || null;
+  if (values.finalUrl !== undefined) patch.final_url = values.finalUrl;
+  if (values.startTime !== undefined) patch.start_time = values.startTime || null;
+  if (values.endTime !== undefined) patch.end_time = values.endTime || null;
   patch.updated_at = new Date().toISOString();
 
   const { error } = await supabase().from("tasks").update(patch).eq("id", id);
@@ -380,7 +446,15 @@ type QuotationRow = {
   wht_percent: number;
   status: Quotation["status"];
   created_at: string;
+  valid_until: string | null;
+  payment_note: string | null;
+  notes: string | null;
+  client_feedback: string | null;
+  share_token: string;
 };
+
+const QUOTATION_COLUMNS =
+  "id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at, valid_until, payment_note, notes, client_feedback, share_token";
 
 const fromQuotationRow = (r: QuotationRow): Quotation => ({
   id: r.id,
@@ -391,15 +465,38 @@ const fromQuotationRow = (r: QuotationRow): Quotation => ({
   whtPercent: r.wht_percent,
   status: r.status,
   createdAt: r.created_at,
+  validUntil: r.valid_until ?? undefined,
+  paymentNote: r.payment_note ?? undefined,
+  notes: r.notes ?? undefined,
+  clientFeedback: r.client_feedback ?? undefined,
+  shareToken: r.share_token,
 });
 
 export async function listQuotations(): Promise<Quotation[]> {
   const { data, error } = await supabase()
     .from("quotations")
-    .select("id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at")
+    .select(QUOTATION_COLUMNS)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as QuotationRow[]).map(fromQuotationRow);
+}
+
+export async function getQuotationByShareToken(token: string): Promise<Quotation | null> {
+  const { data, error } = await supabase()
+    .from("quotations")
+    .select(QUOTATION_COLUMNS)
+    .eq("share_token", token)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? fromQuotationRow(data as QuotationRow) : null;
+}
+
+export async function submitQuotationFeedback(shareToken: string, feedback: string): Promise<void> {
+  const { error } = await supabase()
+    .from("quotations")
+    .update({ client_feedback: feedback })
+    .eq("share_token", shareToken);
+  if (error) throw error;
 }
 
 // Doc numbers are assigned by counting existing rows for the current
@@ -419,6 +516,9 @@ export async function createQuotationRow(values: {
   items: QuotationItem[];
   vatPercent: number;
   whtPercent: number;
+  validUntil?: string;
+  paymentNote?: string;
+  notes?: string;
 }): Promise<Quotation> {
   const quoteNo = await nextDocNo("quotations", "QT");
   const { data, error } = await supabase()
@@ -429,11 +529,19 @@ export async function createQuotationRow(values: {
       items: values.items,
       vat_percent: values.vatPercent,
       wht_percent: values.whtPercent,
+      valid_until: values.validUntil || null,
+      payment_note: values.paymentNote,
+      notes: values.notes,
     })
-    .select("id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at")
+    .select(QUOTATION_COLUMNS)
     .single();
   if (error) throw error;
   return fromQuotationRow(data as QuotationRow);
+}
+
+export async function updateQuotationStatus(id: string, status: Quotation["status"]): Promise<void> {
+  const { error } = await supabase().from("quotations").update({ status }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteQuotationRow(id: string): Promise<void> {
@@ -448,7 +556,11 @@ type ReceiptRow = {
   receipt_no: string;
   amount: number;
   created_at: string;
+  notes: string | null;
+  share_token: string;
 };
+
+const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, share_token";
 
 const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   id: r.id,
@@ -456,26 +568,44 @@ const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   receiptNo: r.receipt_no,
   amount: r.amount,
   createdAt: r.created_at,
+  notes: r.notes ?? undefined,
+  shareToken: r.share_token,
 });
 
 export async function listReceipts(): Promise<Receipt[]> {
   const { data, error } = await supabase()
     .from("receipts")
-    .select("id, client_id, receipt_no, amount, created_at")
+    .select(RECEIPT_COLUMNS)
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as ReceiptRow[]).map(fromReceiptRow);
 }
 
+export async function getReceiptByShareToken(token: string): Promise<Receipt | null> {
+  const { data, error } = await supabase()
+    .from("receipts")
+    .select(RECEIPT_COLUMNS)
+    .eq("share_token", token)
+    .maybeSingle();
+  if (error) throw error;
+  return data ? fromReceiptRow(data as ReceiptRow) : null;
+}
+
 export async function createReceiptRow(values: {
   clientId: string;
   amount: number;
+  notes?: string;
 }): Promise<Receipt> {
   const receiptNo = await nextDocNo("receipts", "RC");
   const { data, error } = await supabase()
     .from("receipts")
-    .insert({ client_id: values.clientId, receipt_no: receiptNo, amount: values.amount })
-    .select("id, client_id, receipt_no, amount, created_at")
+    .insert({
+      client_id: values.clientId,
+      receipt_no: receiptNo,
+      amount: values.amount,
+      notes: values.notes,
+    })
+    .select(RECEIPT_COLUMNS)
     .single();
   if (error) throw error;
   return fromReceiptRow(data as ReceiptRow);
@@ -483,6 +613,52 @@ export async function createReceiptRow(values: {
 
 export async function deleteReceiptRow(id: string): Promise<void> {
   const { error } = await supabase().from("receipts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Agency settings (single row — the "seller" info on printed docs) ────
+type AgencySettingsRow = {
+  name: string | null;
+  address: string | null;
+  phone: string | null;
+  tax_id: string | null;
+  bank_info: string | null;
+};
+
+export async function getAgencySettings() {
+  const { data, error } = await supabase()
+    .from("agency_settings")
+    .select("name, address, phone, tax_id, bank_info")
+    .eq("id", true)
+    .maybeSingle();
+  if (error) throw error;
+  const r = data as AgencySettingsRow | null;
+  return {
+    name: r?.name ?? "",
+    address: r?.address ?? "",
+    phone: r?.phone ?? "",
+    taxId: r?.tax_id ?? "",
+    bankInfo: r?.bank_info ?? "",
+  };
+}
+
+export async function saveAgencySettings(values: {
+  name: string;
+  address: string;
+  phone: string;
+  taxId: string;
+  bankInfo: string;
+}): Promise<void> {
+  const { error } = await supabase()
+    .from("agency_settings")
+    .upsert({
+      id: true,
+      name: values.name,
+      address: values.address,
+      phone: values.phone,
+      tax_id: values.taxId,
+      bank_info: values.bankInfo,
+    });
   if (error) throw error;
 }
 

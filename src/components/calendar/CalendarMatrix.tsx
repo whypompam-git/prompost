@@ -1,20 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  addMonths,
-  eachDayOfInterval,
-  endOfMonth,
-  format,
-  isSameDay,
-  isToday,
-  startOfMonth,
-  subMonths,
-} from "date-fns";
+import Link from "next/link";
+import { format, isSameDay, isToday } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
-import { StatusBadge } from "@/components/ui/StatusBadge";
-import type { Client, Staff, Task } from "@/lib/types";
+import { Plus } from "lucide-react";
+import type { Client, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // Tailwind can't see dynamically-built class names at build time, so client
@@ -36,58 +26,24 @@ const TYPE_STYLE: Record<Task["type"], { label: string; dot: string; chip: strin
   other: { label: "อื่นๆ", dot: "bg-gray-400", chip: "bg-gray-50 text-gray-600" },
 };
 
+// A pure date x client grid — used for both the Month and Week views, which
+// only differ in how many `days` the parent hands it.
 export function CalendarMatrix({
+  days,
   tasks,
   clients,
-  staff,
   onAddTask,
 }: {
+  days: Date[];
   tasks: Task[];
   clients: Client[];
-  staff: Staff[];
   onAddTask?: (clientId: string, date: string) => void;
 }) {
-  const [month, setMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-
-  const days = useMemo(
-    () => eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) }),
-    [month],
-  );
-
   const tasksFor = (clientId: string, day: Date) =>
     tasks.filter((t) => t.clientId === clientId && isSameDay(new Date(t.scheduledDate), day));
 
-  const assigneeName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "ยังไม่มอบหมาย";
-
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900">
-          {format(month, "MMMM yyyy", { locale: th })}
-        </h2>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => setMonth((m) => subMonths(m, 1))}
-            className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
-          >
-            <ChevronLeft size={16} />
-          </button>
-          <button
-            onClick={() => setMonth(startOfMonth(new Date()))}
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-          >
-            วันนี้
-          </button>
-          <button
-            onClick={() => setMonth((m) => addMonths(m, 1))}
-            className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      </div>
-
       <div className="overflow-auto rounded-2xl border border-gray-100 bg-white shadow-card">
         <table className="min-w-full border-separate border-spacing-0 text-sm">
           <thead>
@@ -137,17 +93,18 @@ export function CalendarMatrix({
                     >
                       <div className="flex flex-col gap-1">
                         {dayTasks.map((task) => (
-                          <button
+                          <Link
                             key={task.id}
-                            onClick={() => setSelectedTask(task)}
+                            href={`/tasks/${task.id}`}
                             className={cn(
                               "flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-xs font-medium transition hover:brightness-95",
                               TYPE_STYLE[task.type].chip,
                             )}
                           >
                             <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", TYPE_STYLE[task.type].dot)} />
+                            {task.startTime && <span className="shrink-0 tabular-nums">{task.startTime}</span>}
                             <span className="truncate">{task.title}</span>
-                          </button>
+                          </Link>
                         ))}
                         {onAddTask && (
                           <button
@@ -176,59 +133,6 @@ export function CalendarMatrix({
           </div>
         ))}
       </div>
-
-      {selectedTask && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setSelectedTask(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-400">
-                  {TYPE_STYLE[selectedTask.type].label}
-                </p>
-                <h3 className="mt-1 text-base font-semibold text-gray-900">{selectedTask.title}</h3>
-              </div>
-              <button
-                onClick={() => setSelectedTask(null)}
-                className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            <div className="space-y-2 text-sm">
-              <Row label="ลูกค้า" value={clients.find((c) => c.id === selectedTask.clientId)?.name ?? "—"} />
-              <Row
-                label="วันที่ถ่าย/ทำงาน"
-                value={format(new Date(selectedTask.scheduledDate), "d MMMM yyyy", { locale: th })}
-              />
-              <Row label="กำหนดส่ง" value={format(new Date(selectedTask.dueDate), "d MMMM yyyy", { locale: th })} />
-              <Row label="ผู้รับผิดชอบ" value={assigneeName(selectedTask.assigneeId)} />
-              <div className="flex items-center justify-between py-1">
-                <span className="text-gray-500">สถานะ</span>
-                <StatusBadge status={selectedTask.status} />
-              </div>
-              {selectedTask.notes && (
-                <div className="rounded-xl bg-gray-50 p-3 text-gray-600">{selectedTask.notes}</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between py-1">
-      <span className="text-gray-500">{label}</span>
-      <span className="font-medium text-gray-800">{value}</span>
     </div>
   );
 }

@@ -73,11 +73,12 @@ export const mockQuotations: Quotation[] = [
     whtPercent: 3,
     status: "sent",
     createdAt: iso(-5),
+    shareToken: "tok-q1",
   },
 ];
 
 export const mockReceipts: Receipt[] = [
-  { id: "r1", clientId: "c4", receiptNo: "RC2569-014", amount: 18500, createdAt: iso(-2) },
+  { id: "r1", clientId: "c4", receiptNo: "RC2569-014", amount: 18500, createdAt: iso(-2), shareToken: "tok-r1" },
 ];
 
 export const mockTransactions: Transaction[] = [

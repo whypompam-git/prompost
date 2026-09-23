@@ -1,19 +1,11 @@
 import { notFound } from "next/navigation";
-import { FileText, Film, Receipt as ReceiptIcon, ScrollText } from "lucide-react";
+import { FileText, Film, Receipt as ReceiptIcon } from "lucide-react";
 import { APP_NAME } from "@/config/branding";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Card } from "@/components/ui/Card";
+import { PortalTaskCard } from "@/components/portal/PortalTaskCard";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { createClient } from "@/lib/supabase/server";
 import type { QuotationItem, QuotationStatus, TaskStatus, TaskType } from "@/lib/types";
-
-const TYPE_LABEL: Record<TaskType, string> = {
-  shoot: "ถ่ายทำ",
-  edit: "ตัดต่อ",
-  review: "ตรวจสอบ",
-  deliver: "ส่งมอบ",
-  other: "อื่นๆ",
-};
 
 const QUOTE_STATUS_LABEL: Record<QuotationStatus, string> = {
   draft: "ร่าง",
@@ -46,7 +38,7 @@ export default async function ClientPortalPage({ params }: { params: { token: st
   const [{ data: tasks }, { data: quotations }, { data: receipts }] = await Promise.all([
     supabase
       .from("tasks")
-      .select("id, title, type, status, script_url, footage_url")
+      .select("id, title, type, status, script_text, footage_url, final_url")
       .eq("client_id", client.id)
       .order("scheduled_date", { ascending: false }),
     supabase
@@ -66,8 +58,9 @@ export default async function ClientPortalPage({ params }: { params: { token: st
     title: string;
     type: TaskType;
     status: TaskStatus;
-    script_url: string | null;
+    script_text: string | null;
     footage_url: string | null;
+    final_url: string | null;
   }[];
 
   const total = taskList.length;
@@ -97,41 +90,15 @@ export default async function ClientPortalPage({ params }: { params: { token: st
           </h2>
           <Card className="space-y-2">
             {taskList.map((task) => (
-              <div key={task.id} className="rounded-xl bg-gray-50 px-4 py-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-800">{task.title}</p>
-                    <p className="text-xs text-gray-400">{TYPE_LABEL[task.type]}</p>
-                  </div>
-                  <StatusBadge status={task.status} />
-                </div>
-                {(task.script_url || task.footage_url) && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {task.script_url && (
-                      <a
-                        href={task.script_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        <ScrollText size={13} />
-                        ดูสคริปต์
-                      </a>
-                    )}
-                    {task.footage_url && (
-                      <a
-                        href={task.footage_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                      >
-                        <Film size={13} />
-                        ดู Footage
-                      </a>
-                    )}
-                  </div>
-                )}
-              </div>
+              <PortalTaskCard
+                key={task.id}
+                title={task.title}
+                type={task.type}
+                status={task.status}
+                scriptText={task.script_text}
+                footageUrl={task.footage_url}
+                finalUrl={task.final_url}
+              />
             ))}
             {taskList.length === 0 && (
               <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีงานสำหรับลูกค้ารายนี้</p>

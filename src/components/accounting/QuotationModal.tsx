@@ -10,6 +10,9 @@ export type QuotationFormValues = {
   items: QuotationItem[];
   vatPercent: number;
   whtPercent: number;
+  validUntil?: string;
+  paymentNote?: string;
+  notes?: string;
 };
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2 });
@@ -28,6 +31,9 @@ export function QuotationModal({
   const [items, setItems] = useState<QuotationItem[]>([emptyItem()]);
   const [vatPercent, setVatPercent] = useState(7);
   const [whtPercent, setWhtPercent] = useState(0);
+  const [validUntil, setValidUntil] = useState("");
+  const [paymentNote, setPaymentNote] = useState("");
+  const [notes, setNotes] = useState("");
 
   const totals = calcQuotationTotals(items, vatPercent, whtPercent);
   const canSave =
@@ -48,6 +54,9 @@ export function QuotationModal({
       items: items.filter((i) => i.description.trim().length > 0),
       vatPercent,
       whtPercent,
+      validUntil: validUntil || undefined,
+      paymentNote: paymentNote.trim() || undefined,
+      notes: notes.trim() || undefined,
     });
   }
 
@@ -168,6 +177,38 @@ export function QuotationModal({
               <span>฿{currency(totals.total)}</span>
             </div>
           </div>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">ยืนราคาถึง</span>
+            <input
+              type="date"
+              value={validUntil}
+              onChange={(e) => setValidUntil(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">ช่องทางการชำระเงิน</span>
+            <textarea
+              value={paymentNote}
+              onChange={(e) => setPaymentNote(e.target.value)}
+              rows={2}
+              placeholder="เช่น ธนาคารกรุงไทย 664-5-11304-8 ชื่อบัญชี ..."
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">หมายเหตุ</span>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              placeholder="เช่น มัดจำ 50% ก่อนเริ่มงาน"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">

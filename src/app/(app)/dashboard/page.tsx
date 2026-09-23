@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -18,11 +19,12 @@ import {
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Task }>("closed");
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     Promise.all([listTasks(), listClients(), listStaff()])
@@ -49,15 +51,9 @@ export default function DashboardPage() {
   }
 
   async function handleSave(values: TaskFormValues) {
-    if (modalMode === "create") {
-      const created = await createTaskRow(values);
-      setTasks((prev) => [created, ...prev]);
-    } else if (modalMode !== "closed") {
-      const { edit } = modalMode;
-      await updateTaskRow(edit.id, values);
-      setTasks((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values } : t)));
-    }
-    setModalMode("closed");
+    const created = await createTaskRow(values);
+    setCreating(false);
+    router.push(`/tasks/${created.id}`);
   }
 
   async function handleDelete(task: Task) {
@@ -97,7 +93,7 @@ export default function DashboardPage() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
             <button
-              onClick={() => setModalMode("create")}
+              onClick={() => setCreating(true)}
               className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
             >
               <Plus size={16} />
@@ -110,18 +106,16 @@ export default function DashboardPage() {
             staff={staff}
             onUpdateStatus={updateStatus}
             onUpdateAssignee={updateAssignee}
-            onEdit={(task) => setModalMode({ edit: task })}
             onDelete={handleDelete}
           />
         </div>
       </div>
 
-      {modalMode !== "closed" && (
+      {creating && (
         <TaskModal
-          initial={modalMode === "create" ? undefined : modalMode.edit}
           clients={clients}
           staff={staff}
-          onClose={() => setModalMode("closed")}
+          onClose={() => setCreating(false)}
           onSave={handleSave}
         />
       )}

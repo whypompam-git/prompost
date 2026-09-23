@@ -2,6 +2,7 @@
 
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
+import Link from "next/link";
 import { Pencil, Trash2 } from "lucide-react";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
@@ -28,7 +29,6 @@ export function TaskTable({
   staff,
   onUpdateStatus,
   onUpdateAssignee,
-  onEdit,
   onDelete,
 }: {
   tasks: Task[];
@@ -36,7 +36,6 @@ export function TaskTable({
   staff: Staff[];
   onUpdateStatus: (taskId: string, status: TaskStatus) => void;
   onUpdateAssignee: (taskId: string, assigneeId: string) => void;
-  onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
 }) {
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
@@ -58,7 +57,11 @@ export function TaskTable({
         <tbody className="divide-y divide-gray-50">
           {tasks.map((task) => (
             <tr key={task.id} className="hover:bg-gray-50/60">
-              <td className="px-5 py-3 font-medium text-gray-900">{task.title}</td>
+              <td className="px-5 py-3 font-medium text-gray-900">
+                <Link href={`/tasks/${task.id}`} className="hover:text-brand-600 hover:underline">
+                  {task.title}
+                </Link>
+              </td>
               <td className="px-5 py-3 text-gray-600">{clientName(task.clientId)}</td>
               <td className="px-5 py-3 text-gray-600">{TYPE_LABEL[task.type]}</td>
               <td className="px-5 py-3 text-gray-600">
@@ -96,13 +99,13 @@ export function TaskTable({
               </td>
               <td className="px-5 py-3 text-right">
                 <div className="flex justify-end gap-1">
-                  <button
-                    onClick={() => onEdit(task)}
+                  <Link
+                    href={`/tasks/${task.id}`}
                     className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    aria-label="แก้ไขงาน"
+                    aria-label="ดู/แก้ไขงาน"
                   >
                     <Pencil size={14} />
-                  </button>
+                  </Link>
                   <button
                     onClick={() => onDelete(task)}
                     className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"

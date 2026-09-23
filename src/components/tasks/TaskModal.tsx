@@ -17,8 +17,10 @@ export type TaskFormValues = Omit<Task, "id">;
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
+// Quick-create only — everything else (script, ref link, shots, equipment,
+// footage/final links, post date...) is filled in on the task's own detail
+// page (/tasks/[id]) right after creation, not in this popup.
 export function TaskModal({
-  initial,
   clients,
   staff,
   defaultClientId,
@@ -26,7 +28,6 @@ export function TaskModal({
   onClose,
   onSave,
 }: {
-  initial?: Task;
   clients: Client[];
   staff: Staff[];
   defaultClientId?: string;
@@ -34,20 +35,13 @@ export function TaskModal({
   onClose: () => void;
   onSave: (values: TaskFormValues) => void;
 }) {
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [clientId, setClientId] = useState(
-    initial?.clientId ?? defaultClientId ?? clients[0]?.id ?? "",
-  );
-  const [type, setType] = useState<TaskType>(initial?.type ?? "shoot");
-  const [status, setStatus] = useState<TaskStatus>(initial?.status ?? "todo");
-  const [assigneeId, setAssigneeId] = useState(initial?.assigneeId ?? "");
-  const [scheduledDate, setScheduledDate] = useState(
-    initial?.scheduledDate ?? defaultDate ?? todayIso(),
-  );
-  const [dueDate, setDueDate] = useState(initial?.dueDate ?? defaultDate ?? todayIso());
-  const [notes, setNotes] = useState(initial?.notes ?? "");
-  const [scriptUrl, setScriptUrl] = useState(initial?.scriptUrl ?? "");
-  const [footageUrl, setFootageUrl] = useState(initial?.footageUrl ?? "");
+  const [title, setTitle] = useState("");
+  const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? "");
+  const [type, setType] = useState<TaskType>("shoot");
+  const [status, setStatus] = useState<TaskStatus>("todo");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [scheduledDate, setScheduledDate] = useState(defaultDate ?? todayIso());
+  const [dueDate, setDueDate] = useState(defaultDate ?? todayIso());
 
   const canSave = title.trim().length > 0 && clientId.length > 0;
 
@@ -61,9 +55,6 @@ export function TaskModal({
       assigneeId: assigneeId || null,
       scheduledDate,
       dueDate,
-      notes: notes.trim() || undefined,
-      scriptUrl: scriptUrl.trim() || undefined,
-      footageUrl: footageUrl.trim() || undefined,
     });
   }
 
@@ -77,21 +68,20 @@ export function TaskModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">
-            {initial ? "แก้ไขงาน" : "เพิ่มงานใหม่"}
-          </h3>
+          <h3 className="text-base font-semibold text-gray-900">เพิ่มงานใหม่</h3>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-100">
             <X size={16} />
           </button>
         </div>
 
-        <div className="max-h-[70vh] space-y-3 overflow-y-auto pr-1">
+        <div className="space-y-3">
           <Field label="ชื่องาน">
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="เช่น ถ่ายภาพสินค้าใหม่ประจำเดือน"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              autoFocus
             />
           </Field>
 
@@ -155,7 +145,7 @@ export function TaskModal({
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="วันที่ถ่าย/ทำงาน">
+            <Field label="วันที่ถ่าย">
               <input
                 type="date"
                 value={scheduledDate}
@@ -173,32 +163,10 @@ export function TaskModal({
             </Field>
           </div>
 
-          <Field label="โน้ตเพิ่มเติม">
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-          </Field>
-
-          <Field label="ลิงก์สคริปต์ (Google Drive) — ลูกค้าจะกดเข้าไปตรวจสอบได้">
-            <input
-              value={scriptUrl}
-              onChange={(e) => setScriptUrl(e.target.value)}
-              placeholder="https://drive.google.com/..."
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-          </Field>
-
-          <Field label="ลิงก์ Footage สุดท้าย (Google Drive)">
-            <input
-              value={footageUrl}
-              onChange={(e) => setFootageUrl(e.target.value)}
-              placeholder="https://drive.google.com/..."
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
-          </Field>
+          <p className="text-xs text-gray-400">
+            รายละเอียดอื่นๆ (สคริปต์, Ref Link, Shot, อุปกรณ์, ลิงก์ Footage/Final)
+            ใส่เพิ่มได้ในหน้ารายละเอียดงานหลังจากสร้างแล้ว
+          </p>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -213,7 +181,7 @@ export function TaskModal({
             disabled={!canSave}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            บันทึก
+            สร้างงาน
           </button>
         </div>
       </div>

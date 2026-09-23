@@ -8,6 +8,8 @@ export interface Client {
   colorTag: string; // tailwind color stem used for calendar column accent, e.g. "orange"
   paymentStatus: PaymentStatus;
   portalToken: string;
+  address?: string; // printed on quotations/receipts as the buyer's address
+  taxId?: string; // เลขประจำตัวผู้เสียภาษี / เลขทะเบียนนิติบุคคล
 }
 
 export interface Staff {
@@ -23,6 +25,7 @@ export interface Staff {
 
 export type TaskType = "shoot" | "edit" | "review" | "deliver" | "other";
 export type TaskStatus = "todo" | "in_progress" | "review" | "done";
+export type ContentCategory = "mass" | "royalty" | "sell";
 
 export interface Task {
   id: string;
@@ -31,11 +34,19 @@ export interface Task {
   type: TaskType;
   status: TaskStatus;
   assigneeId: string | null;
-  scheduledDate: string; // ISO date, used for the calendar matrix
+  scheduledDate: string; // ISO date — "วันที่ถ่าย"
   dueDate: string; // ISO date
   notes?: string;
-  scriptUrl?: string; // Google Drive link — client reviews the script
-  footageUrl?: string; // Google Drive link — final delivered footage
+  footageUrl?: string; // Google Drive link — raw footage from the shoot
+  refLink?: string; // Ref Link Video
+  contentCategory?: ContentCategory; // Mass / Royalty / Sell
+  scriptText?: string; // typed in-app; **bold** / __underline__ markers, see ScriptEditor
+  shots?: string[]; // free-typed, remembered/suggested across tasks
+  equipment?: string[]; // free-typed, remembered/suggested across tasks
+  postDate?: string; // ISO date — "วันที่โพส"
+  finalUrl?: string; // Google Drive link — final delivered video
+  startTime?: string; // "HH:mm" — optional, like Google Calendar's timed vs all-day
+  endTime?: string; // "HH:mm"
 }
 
 export type LeaveType = "personal" | "sick" | "vacation";
@@ -78,6 +89,11 @@ export interface Quotation {
   whtPercent: number;
   status: QuotationStatus;
   createdAt: string; // ISO date
+  validUntil?: string; // ISO date — ยืนราคาถึง
+  paymentNote?: string; // ช่องทางการชำระเงิน
+  notes?: string;
+  clientFeedback?: string; // client's requested changes, left via the share link
+  shareToken: string; // /quote/:shareToken — public read + feedback link
 }
 
 export interface Receipt {
@@ -86,6 +102,16 @@ export interface Receipt {
   receiptNo: string;
   amount: number;
   createdAt: string; // ISO date
+  notes?: string;
+  shareToken: string; // /receipt/:shareToken
+}
+
+export interface AgencySettings {
+  name: string;
+  address: string;
+  phone: string;
+  taxId: string;
+  bankInfo: string;
 }
 
 export type TransactionType = "income" | "expense";
