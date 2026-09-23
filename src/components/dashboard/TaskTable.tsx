@@ -3,10 +3,12 @@
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import Link from "next/link";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+export type TaskSortKey = "title" | "client" | "type" | "dueDate" | "status" | "assignee";
 
 const TYPE_LABEL: Record<Task["type"], string> = {
   shoot: "ถ่ายทำ",
@@ -23,10 +25,22 @@ const STATUS_SELECT_STYLE: Record<TaskStatus, string> = {
   done: "border-emerald-200 bg-emerald-50 text-emerald-700",
 };
 
+const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
+  { key: "title", label: "งาน" },
+  { key: "client", label: "ลูกค้า" },
+  { key: "type", label: "ประเภท" },
+  { key: "dueDate", label: "กำหนดส่ง" },
+  { key: "status", label: "สถานะ" },
+  { key: "assignee", label: "ผู้รับผิดชอบ" },
+];
+
 export function TaskTable({
   tasks,
   clients,
   staff,
+  sortBy,
+  sortDir,
+  onSort,
   onUpdateStatus,
   onUpdateAssignee,
   onDelete,
@@ -34,6 +48,9 @@ export function TaskTable({
   tasks: Task[];
   clients: Client[];
   staff: Staff[];
+  sortBy: TaskSortKey;
+  sortDir: "asc" | "desc";
+  onSort: (key: TaskSortKey) => void;
   onUpdateStatus: (taskId: string, status: TaskStatus) => void;
   onUpdateAssignee: (taskId: string, assigneeId: string) => void;
   onDelete: (task: Task) => void;
@@ -45,12 +62,25 @@ export function TaskTable({
       <table className="w-full min-w-[760px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-            <th className="px-5 py-3 font-medium">งาน</th>
-            <th className="px-5 py-3 font-medium">ลูกค้า</th>
-            <th className="px-5 py-3 font-medium">ประเภท</th>
-            <th className="px-5 py-3 font-medium">กำหนดส่ง</th>
-            <th className="px-5 py-3 font-medium">สถานะ</th>
-            <th className="px-5 py-3 font-medium">ผู้รับผิดชอบ</th>
+            {SORT_COLUMNS.map((col) => (
+              <th key={col.key} className="px-5 py-3 font-medium">
+                <button
+                  onClick={() => onSort(col.key)}
+                  className="flex items-center gap-1 hover:text-gray-600"
+                >
+                  {col.label}
+                  {sortBy === col.key ? (
+                    sortDir === "asc" ? (
+                      <ChevronUp size={12} />
+                    ) : (
+                      <ChevronDown size={12} />
+                    )
+                  ) : (
+                    <ChevronsUpDown size={12} className="opacity-40" />
+                  )}
+                </button>
+              </th>
+            ))}
             <th className="px-5 py-3 font-medium" />
           </tr>
         </thead>

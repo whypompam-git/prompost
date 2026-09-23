@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
-import { TaskTable } from "@/components/dashboard/TaskTable";
+import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
@@ -20,14 +20,24 @@ import { queueTaskEdit } from "@/lib/offline/queue";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
 export default function DashboardPage() {
+  return (
+    <Suspense fallback={<LoadingView />}>
+      <DashboardPageInner />
+    </Suspense>
+  );
+}
+
+function DashboardPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [clientFilter, setClientFilter] = useState("");
-  const [sortBy, setSortBy] = useState<"dueDate" | "status" | "assignee">("dueDate");
+  const [sortBy, setSortBy] = useState<TaskSortKey>("dueDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     Promise.all([listTasks(), listClients(), listStaff()])
@@ -39,6 +49,13 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (searchParams.get("new") === "1") {
+      setCreating(true);
+      router.replace("/dashboard");
+    }
+  }, [searchParams, router]);
+
   const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
 
   const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, review: 2, done: 3 };
@@ -46,18 +63,39 @@ export default function DashboardPage() {
 
   const visibleTasks = useMemo(() => {
     const filtered = clientFilter ? tasks.filter((t) => t.clientId === clientFilter) : tasks;
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "status") return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
-      if (sortBy === "assignee") {
-        const an = staffName(a.assigneeId);
-        const bn = staffName(b.assigneeId);
-        if (!an && bn) return 1;
-        if (an && !bn) return -1;
-        return an.localeCompare(bn, "th");
+    const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case "title":
+          return a.title.localeCompare(b.title, "th");
+        case "client":
+          return clientName(a.clientId).localeCompare(clientName(b.clientId), "th");
+        case "type":
+          return a.type.localeCompare(b.type);
+        case "status":
+          return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
+        case "assignee": {
+          const an = staffName(a.assigneeId);
+          const bn = staffName(b.assigneeId);
+          if (!an && bn) return 1;
+          if (an && !bn) return -1;
+          return an.localeCompare(bn, "th");
+        }
+        default:
+          return a.dueDate.localeCompare(b.dueDate);
       }
-      return a.dueDate.localeCompare(b.dueDate);
     });
-  }, [tasks, clientFilter, sortBy, staff]);
+    return sortDir === "desc" ? sorted.reverse() : sorted;
+  }, [tasks, clients, clientFilter, sortBy, sortDir, staff]);
+
+  function handleSort(key: TaskSortKey) {
+    if (key === sortBy) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("asc");
+    }
+  }
 
   function updateStatus(taskId: string, status: TaskStatus) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
@@ -125,15 +163,6 @@ export default function DashboardPage() {
                   </option>
                 ))}
               </select>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
-              >
-                <option value="dueDate">เรียงตามกำหนดส่ง</option>
-                <option value="status">เรียงตามสถานะ</option>
-                <option value="assignee">เรียงตามผู้รับผิดชอบ</option>
-              </select>
               <button
                 onClick={() => setCreating(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
@@ -147,6 +176,9 @@ export default function DashboardPage() {
             tasks={visibleTasks}
             clients={clients}
             staff={staff}
+            sortBy={sortBy}
+            sortDir={sortDir}
+            onSort={handleSort}
             onUpdateStatus={updateStatus}
             onUpdateAssignee={updateAssignee}
             onDelete={handleDelete}
