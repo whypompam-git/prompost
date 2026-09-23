@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Pencil, Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
-import { createClientRow, listClients, updateClientRow } from "@/lib/supabase/queries";
+import { createClientRow, deleteClientRow, listClients, updateClientRow } from "@/lib/supabase/queries";
 import type { Client } from "@/lib/types";
 
 const PAYMENT_LABEL = {
@@ -43,6 +43,18 @@ export default function ClientsPage() {
       setClients((prev) => prev.map((c) => (c.id === edit.id ? { ...c, ...values } : c)));
     }
     setModalMode("closed");
+  }
+
+  async function handleDelete(client: Client) {
+    if (!window.confirm(`ลบลูกค้า "${client.name}" ใช่ไหม? งานที่เกี่ยวข้องทั้งหมดจะถูกลบไปด้วย`)) return;
+    setClients((prev) => prev.filter((c) => c.id !== client.id));
+    try {
+      await deleteClientRow(client.id);
+    } catch (err) {
+      console.error(err);
+      setClients((prev) => [client, ...prev]);
+      window.alert("ลบไม่สำเร็จ — อาจมีใบเสนอราคา/ใบเสร็จผูกอยู่ ลบรายการเหล่านั้นก่อน");
+    }
   }
 
   if (loading) {
@@ -88,6 +100,13 @@ export default function ClientsPage() {
                     aria-label="แก้ไขลูกค้า"
                   >
                     <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(client)}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label="ลบลูกค้า"
+                  >
+                    <Trash2 size={14} />
                   </button>
                 </div>
               </div>

@@ -87,6 +87,11 @@ export async function updateClientRow(
   if (error) throw error;
 }
 
+export async function deleteClientRow(id: string): Promise<void> {
+  const { error } = await supabase().from("clients").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Staff ──────────────────────────────────────────────────────────────
 type StaffRow = {
   id: string;
@@ -156,6 +161,14 @@ export async function updateStaffRow(id: string, values: Omit<Staff, "id">): Pro
   if (error) throw error;
 }
 
+// Soft delete — tasks/payroll/leave rows reference staff.id with no cascade,
+// so a hard delete would fail once a staff member has any history. Matches
+// listStaff()'s own `eq("is_active", true)` filter.
+export async function deleteStaffRow(id: string): Promise<void> {
+  const { error } = await supabase().from("staff").update({ is_active: false }).eq("id", id);
+  if (error) throw error;
+}
+
 // ── Tasks ──────────────────────────────────────────────────────────────
 type TaskRow = {
   id: string;
@@ -167,7 +180,12 @@ type TaskRow = {
   scheduled_date: string;
   due_date: string;
   notes: string | null;
+  script_url: string | null;
+  footage_url: string | null;
 };
+
+const TASK_COLUMNS =
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, script_url, footage_url";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -179,12 +197,14 @@ const fromTaskRow = (r: TaskRow): Task => ({
   scheduledDate: r.scheduled_date,
   dueDate: r.due_date,
   notes: r.notes ?? undefined,
+  scriptUrl: r.script_url ?? undefined,
+  footageUrl: r.footage_url ?? undefined,
 });
 
 export async function listTasks(): Promise<Task[]> {
   const { data, error } = await supabase()
     .from("tasks")
-    .select("id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes")
+    .select(TASK_COLUMNS)
     .order("scheduled_date", { ascending: true });
   if (error) throw error;
   return (data as TaskRow[]).map(fromTaskRow);
@@ -202,8 +222,10 @@ export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
       scheduled_date: values.scheduledDate,
       due_date: values.dueDate,
       notes: values.notes,
+      script_url: values.scriptUrl,
+      footage_url: values.footageUrl,
     })
-    .select("id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes")
+    .select(TASK_COLUMNS)
     .single();
   if (error) throw error;
   return fromTaskRow(data as TaskRow);
@@ -219,9 +241,16 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.scheduledDate !== undefined) patch.scheduled_date = values.scheduledDate;
   if (values.dueDate !== undefined) patch.due_date = values.dueDate;
   if (values.notes !== undefined) patch.notes = values.notes;
+  if (values.scriptUrl !== undefined) patch.script_url = values.scriptUrl;
+  if (values.footageUrl !== undefined) patch.footage_url = values.footageUrl;
   patch.updated_at = new Date().toISOString();
 
   const { error } = await supabase().from("tasks").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteTaskRow(id: string): Promise<void> {
+  const { error } = await supabase().from("tasks").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -407,6 +436,11 @@ export async function createQuotationRow(values: {
   return fromQuotationRow(data as QuotationRow);
 }
 
+export async function deleteQuotationRow(id: string): Promise<void> {
+  const { error } = await supabase().from("quotations").delete().eq("id", id);
+  if (error) throw error;
+}
+
 // ── Receipts ───────────────────────────────────────────────────────────
 type ReceiptRow = {
   id: string;
@@ -445,6 +479,11 @@ export async function createReceiptRow(values: {
     .single();
   if (error) throw error;
   return fromReceiptRow(data as ReceiptRow);
+}
+
+export async function deleteReceiptRow(id: string): Promise<void> {
+  const { error } = await supabase().from("receipts").delete().eq("id", id);
+  if (error) throw error;
 }
 
 // ── Transactions ───────────────────────────────────────────────────────
@@ -494,4 +533,9 @@ export async function createTransactionRow(
     .single();
   if (error) throw error;
   return fromTransactionRow(data as TransactionRow);
+}
+
+export async function deleteTransactionRow(id: string): Promise<void> {
+  const { error } = await supabase().from("transactions").delete().eq("id", id);
+  if (error) throw error;
 }

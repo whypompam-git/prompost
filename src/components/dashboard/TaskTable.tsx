@@ -2,7 +2,7 @@
 
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Pencil } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export function TaskTable({
   onUpdateStatus,
   onUpdateAssignee,
   onEdit,
+  onDelete,
 }: {
   tasks: Task[];
   clients: Client[];
@@ -36,6 +37,7 @@ export function TaskTable({
   onUpdateStatus: (taskId: string, status: TaskStatus) => void;
   onUpdateAssignee: (taskId: string, assigneeId: string) => void;
   onEdit: (task: Task) => void;
+  onDelete: (task: Task) => void;
 }) {
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
 
@@ -93,13 +95,22 @@ export function TaskTable({
                 </select>
               </td>
               <td className="px-5 py-3 text-right">
-                <button
-                  onClick={() => onEdit(task)}
-                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                  aria-label="แก้ไขงาน"
-                >
-                  <Pencil size={14} />
-                </button>
+                <div className="flex justify-end gap-1">
+                  <button
+                    onClick={() => onEdit(task)}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="แก้ไขงาน"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => onDelete(task)}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label="ลบงาน"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

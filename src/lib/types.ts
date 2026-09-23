@@ -34,6 +34,8 @@ export interface Task {
   scheduledDate: string; // ISO date, used for the calendar matrix
   dueDate: string; // ISO date
   notes?: string;
+  scriptUrl?: string; // Google Drive link — client reviews the script
+  footageUrl?: string; // Google Drive link — final delivered footage
 }
 
 export type LeaveType = "personal" | "sick" | "vacation";

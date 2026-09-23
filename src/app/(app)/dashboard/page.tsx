@@ -9,6 +9,7 @@ import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
   createTaskRow,
+  deleteTaskRow,
   listClients,
   listStaff,
   listTasks,
@@ -59,6 +60,18 @@ export default function DashboardPage() {
     setModalMode("closed");
   }
 
+  async function handleDelete(task: Task) {
+    if (!window.confirm(`ลบงาน "${task.title}" ใช่ไหม?`)) return;
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    try {
+      await deleteTaskRow(task.id);
+    } catch (err) {
+      console.error(err);
+      setTasks((prev) => [task, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -98,6 +111,7 @@ export default function DashboardPage() {
             onUpdateStatus={updateStatus}
             onUpdateAssignee={updateAssignee}
             onEdit={(task) => setModalMode({ edit: task })}
+            onDelete={handleDelete}
           />
         </div>
       </div>

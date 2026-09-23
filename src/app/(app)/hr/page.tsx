@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { CalendarPlus, CheckCircle2, Pencil, Plus, XCircle } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Pencil, Plus, Trash2, XCircle } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -12,6 +12,7 @@ import { LeaveModal, type LeaveFormValues } from "@/components/hr/LeaveModal";
 import {
   createLeaveRequestRow,
   createStaffRow,
+  deleteStaffRow,
   ensurePayrollEntriesForMonth,
   listLeaveRequests,
   listPayrollEntries,
@@ -88,6 +89,18 @@ export default function HrPage() {
     setStaffModalMode("closed");
   }
 
+  async function handleDeleteStaff(s: Staff) {
+    if (!window.confirm(`ลบพนักงาน "${s.name}" ใช่ไหม?`)) return;
+    setStaff((prev) => prev.filter((x) => x.id !== s.id));
+    try {
+      await deleteStaffRow(s.id);
+    } catch (err) {
+      console.error(err);
+      setStaff((prev) => [...prev, s]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
   async function handleSaveLeave(values: LeaveFormValues) {
     const created = await createLeaveRequestRow(values);
     setLeaveRequests((prev) => [created, ...prev]);
@@ -151,13 +164,22 @@ export default function HrPage() {
                   <p className="truncate font-medium text-gray-900">{s.name}</p>
                   <p className="truncate text-xs text-gray-500">{s.position}</p>
                 </div>
-                <button
-                  onClick={() => setStaffModalMode({ edit: s })}
-                  className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                  aria-label="แก้ไขพนักงาน"
-                >
-                  <Pencil size={14} />
-                </button>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    onClick={() => setStaffModalMode({ edit: s })}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="แก้ไขพนักงาน"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteStaff(s)}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label="ลบพนักงาน"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </Card>
             ))}
           </div>

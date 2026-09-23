@@ -3,7 +3,16 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { FileText, Paperclip, Plus, Receipt as ReceiptIcon, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import {
+  FileText,
+  Paperclip,
+  Plus,
+  Receipt as ReceiptIcon,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -16,6 +25,9 @@ import {
   createQuotationRow,
   createReceiptRow,
   createTransactionRow,
+  deleteQuotationRow,
+  deleteReceiptRow,
+  deleteTransactionRow,
   listClients,
   listQuotations,
   listReceipts,
@@ -85,6 +97,42 @@ export default function AccountingPage() {
     setModal("closed");
   }
 
+  async function handleDeleteQuotation(q: Quotation) {
+    if (!window.confirm(`ลบใบเสนอราคา ${q.quoteNo} ใช่ไหม?`)) return;
+    setQuotations((prev) => prev.filter((x) => x.id !== q.id));
+    try {
+      await deleteQuotationRow(q.id);
+    } catch (err) {
+      console.error(err);
+      setQuotations((prev) => [q, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handleDeleteReceipt(r: Receipt) {
+    if (!window.confirm(`ลบใบเสร็จ ${r.receiptNo} ใช่ไหม?`)) return;
+    setReceipts((prev) => prev.filter((x) => x.id !== r.id));
+    try {
+      await deleteReceiptRow(r.id);
+    } catch (err) {
+      console.error(err);
+      setReceipts((prev) => [r, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handleDeleteTransaction(t: Transaction) {
+    if (!window.confirm(`ลบรายการ "${t.category}" ใช่ไหม?`)) return;
+    setTransactions((prev) => prev.filter((x) => x.id !== t.id));
+    try {
+      await deleteTransactionRow(t.id);
+    } catch (err) {
+      console.error(err);
+      setTransactions((prev) => [t, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
   if (loading) {
     return (
       <>
@@ -127,6 +175,7 @@ export default function AccountingPage() {
                   <th className="px-5 py-3 font-medium">วันที่</th>
                   <th className="px-5 py-3 font-medium">ยอดสุทธิ</th>
                   <th className="px-5 py-3 font-medium">สถานะ</th>
+                  <th className="px-5 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -145,12 +194,21 @@ export default function AccountingPage() {
                           {QUOTE_STATUS_LABEL[q.status]}
                         </span>
                       </td>
+                      <td className="px-5 py-3 text-right">
+                        <button
+                          onClick={() => handleDeleteQuotation(q)}
+                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                          aria-label="ลบใบเสนอราคา"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
                 {quotations.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-400">
+                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
                       ยังไม่มีใบเสนอราคา
                     </td>
                   </tr>
@@ -182,6 +240,7 @@ export default function AccountingPage() {
                   <th className="px-5 py-3 font-medium">ลูกค้า</th>
                   <th className="px-5 py-3 font-medium">วันที่</th>
                   <th className="px-5 py-3 font-medium">จำนวนเงิน</th>
+                  <th className="px-5 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -193,11 +252,20 @@ export default function AccountingPage() {
                       {format(new Date(r.createdAt), "d MMM yyyy", { locale: th })}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-900">฿{currency(r.amount)}</td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        onClick={() => handleDeleteReceipt(r)}
+                        className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                        aria-label="ลบใบเสร็จ"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {receipts.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-sm text-gray-400">
+                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-400">
                       ยังไม่มีใบเสร็จ
                     </td>
                   </tr>
@@ -230,6 +298,7 @@ export default function AccountingPage() {
                   <th className="px-5 py-3 font-medium">รายละเอียด</th>
                   <th className="px-5 py-3 font-medium">สลิป</th>
                   <th className="px-5 py-3 font-medium text-right">จำนวนเงิน</th>
+                  <th className="px-5 py-3 font-medium" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -263,11 +332,20 @@ export default function AccountingPage() {
                     >
                       {t.type === "income" ? "+" : "-"}฿{currency(t.amount)}
                     </td>
+                    <td className="px-5 py-3 text-right">
+                      <button
+                        onClick={() => handleDeleteTransaction(t)}
+                        className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                        aria-label="ลบรายการ"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
                   </tr>
                 ))}
                 {transactions.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-400">
+                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
                       ยังไม่มีรายการ
                     </td>
                   </tr>

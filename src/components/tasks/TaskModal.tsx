@@ -46,6 +46,8 @@ export function TaskModal({
   );
   const [dueDate, setDueDate] = useState(initial?.dueDate ?? defaultDate ?? todayIso());
   const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [scriptUrl, setScriptUrl] = useState(initial?.scriptUrl ?? "");
+  const [footageUrl, setFootageUrl] = useState(initial?.footageUrl ?? "");
 
   const canSave = title.trim().length > 0 && clientId.length > 0;
 
@@ -60,6 +62,8 @@ export function TaskModal({
       scheduledDate,
       dueDate,
       notes: notes.trim() || undefined,
+      scriptUrl: scriptUrl.trim() || undefined,
+      footageUrl: footageUrl.trim() || undefined,
     });
   }
 
@@ -174,6 +178,24 @@ export function TaskModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </Field>
+
+          <Field label="ลิงก์สคริปต์ (Google Drive) — ลูกค้าจะกดเข้าไปตรวจสอบได้">
+            <input
+              value={scriptUrl}
+              onChange={(e) => setScriptUrl(e.target.value)}
+              placeholder="https://drive.google.com/..."
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </Field>
+
+          <Field label="ลิงก์ Footage สุดท้าย (Google Drive)">
+            <input
+              value={footageUrl}
+              onChange={(e) => setFootageUrl(e.target.value)}
+              placeholder="https://drive.google.com/..."
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </Field>
