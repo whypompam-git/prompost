@@ -53,7 +53,7 @@ div.fixed.inset-0.z-50 > div { animation: pp-pop 0.22s cubic-bezier(0.22, 1, 0.3
 /* mobile "อื่นๆ" sheet */
 div.fixed.inset-0.z-40 > div:last-child { animation: pp-sheet 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-tbody tr { animation: pp-fade-in 0.25s ease-out both; }
+tbody tr { animation: pp-fade-in 0.25s ease-out backwards; }
 
 button, a, select, input, textarea {
   transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,

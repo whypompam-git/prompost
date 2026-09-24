@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { ExternalLink, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,7 +83,8 @@ export function TaskLinkButton({
         {label}
       </button>
 
-      {editing && (
+      {editing &&
+        createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
         >
@@ -129,7 +131,8 @@ export function TaskLinkButton({
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
