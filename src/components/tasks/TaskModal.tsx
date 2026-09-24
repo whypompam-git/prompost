@@ -3,15 +3,8 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
+import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, Staff, Task, TaskStatus, TaskType } from "@/lib/types";
-
-const TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: "shoot", label: "ถ่ายทำ" },
-  { value: "edit", label: "ตัดต่อ" },
-  { value: "review", label: "ตรวจสอบ" },
-  { value: "deliver", label: "ส่งมอบ" },
-  { value: "other", label: "อื่นๆ" },
-];
 
 export type TaskFormValues = Omit<Task, "id">;
 
@@ -37,6 +30,7 @@ export function TaskModal({
 }) {
   const [title, setTitle] = useState("");
   const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? "");
+  const { types } = useTaskSettings();
   const [type, setType] = useState<TaskType>("shoot");
   const [status, setStatus] = useState<TaskStatus>("todo");
   const [assigneeId, setAssigneeId] = useState("");
@@ -106,8 +100,8 @@ export function TaskModal({
                 onChange={(e) => setType(e.target.value as TaskType)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               >
-                {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                {types.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
                     {opt.label}
                   </option>
                 ))}

@@ -9,20 +9,14 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { useTaskSettings } from "@/lib/useTaskSettings";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
 import { getClient, listTasks } from "@/lib/supabase/queries";
 import type { Client, Task, TaskStatus } from "@/lib/types";
 
-const TYPE_LABEL: Record<Task["type"], string> = {
-  shoot: "ถ่ายทำ",
-  edit: "ตัดต่อ",
-  review: "ตรวจสอบ",
-  deliver: "ส่งมอบ",
-  other: "อื่นๆ",
-};
-
 export default function ClientContentDashboardPage() {
+  const { typeLabel } = useTaskSettings();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
@@ -99,7 +93,7 @@ export default function ClientContentDashboardPage() {
                     onClick={() => router.push(`/tasks/${task.id}`)}
                   >
                     <td className="px-5 py-3 font-medium text-gray-900">{task.title}</td>
-                    <td className="px-5 py-3 text-gray-600">{TYPE_LABEL[task.type]}</td>
+                    <td className="px-5 py-3 text-gray-600">{typeLabel(task.type)}</td>
                     <td className="px-5 py-3 text-gray-600">
                       {format(new Date(task.dueDate), "d MMM yyyy", { locale: th })}
                     </td>

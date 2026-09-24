@@ -17,15 +17,8 @@ import {
   listStaff,
   updateTaskRow,
 } from "@/lib/supabase/queries";
+import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType } from "@/lib/types";
-
-const TYPE_OPTIONS: { value: TaskType; label: string }[] = [
-  { value: "shoot", label: "ถ่ายทำ" },
-  { value: "edit", label: "ตัดต่อ" },
-  { value: "review", label: "ตรวจสอบ" },
-  { value: "deliver", label: "ส่งมอบ" },
-  { value: "other", label: "อื่นๆ" },
-];
 
 const CATEGORY_OPTIONS: { value: ContentCategory; label: string }[] = [
   { value: "mass", label: "Mass" },
@@ -38,6 +31,7 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
 export default function TaskDetailPage() {
+  const { types } = useTaskSettings();
   const params = useParams<{ id: string }>();
   const router = useRouter();
 
@@ -212,8 +206,8 @@ export default function TaskDetailPage() {
                 onChange={(e) => patch({ type: e.target.value as TaskType })}
                 className={inputClass}
               >
-                {TYPE_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
+                {types.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
                     {opt.label}
                   </option>
                 ))}

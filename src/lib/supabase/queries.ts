@@ -13,6 +13,7 @@ import type {
   Receipt,
   Staff,
   Task,
+  TaskSettings,
   TaskStatus,
   Transaction,
 } from "../types";
@@ -1039,5 +1040,26 @@ export async function assignPackageToClient(clientId: string, packageId: string)
 
 export async function unassignClientPackage(id: string): Promise<void> {
   const { error } = await supabase().from("client_packages").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Task settings (owner-configurable types + status colors) ───────────
+export async function getTaskSettings(): Promise<TaskSettings> {
+  const { mergeTaskSettings } = await import("@/lib/taskSettings");
+  const { data, error } = await supabase()
+    .from("task_settings")
+    .select("types, status_colors")
+    .eq("id", true)
+    .maybeSingle();
+  if (error) throw error;
+  return mergeTaskSettings(
+    data ? { types: data.types ?? undefined, statusColors: data.status_colors ?? undefined } : null,
+  );
+}
+
+export async function saveTaskSettings(values: TaskSettings): Promise<void> {
+  const { error } = await supabase()
+    .from("task_settings")
+    .upsert({ id: true, types: values.types, status_colors: values.statusColors });
   if (error) throw error;
 }

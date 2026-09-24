@@ -7,7 +7,7 @@ import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const TYPE_LABEL: Record<TaskType, string> = {
+const TYPE_LABEL: Record<string, string> = {
   shoot: "ถ่ายทำ",
   edit: "ตัดต่อ",
   review: "ตรวจสอบ",
@@ -50,7 +50,7 @@ export function PortalTaskCard({
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-800">{title}</p>
-          <p className="text-xs text-gray-400">{TYPE_LABEL[type]}</p>
+          <p className="text-xs text-gray-400">{TYPE_LABEL[type] ?? type}</p>
           {equipment.length > 0 && (
             <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
               <Camera size={12} className="mt-0.5 shrink-0" />

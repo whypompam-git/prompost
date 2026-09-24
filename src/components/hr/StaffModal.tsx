@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { COLOR_STEMS, PALETTE } from "@/lib/colors";
 import type { Staff } from "@/lib/types";
 
 const AVATAR_COLORS = [
@@ -32,6 +33,9 @@ export function StaffModal({
   const [baseSalary, setBaseSalary] = useState(initial?.baseSalary ?? 0);
   const [canViewAccounting, setCanViewAccounting] = useState(initial?.canViewAccounting ?? false);
   const [pin, setPin] = useState("");
+  const [color, setColor] = useState(
+    initial?.avatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
+  );
 
   const isNew = !initial;
   const pinValid = pin === "" || /^\d{4}$/.test(pin);
@@ -43,8 +47,7 @@ export function StaffModal({
 
   function handleSave() {
     if (!canSave) return;
-    const avatarColor =
-      initial?.avatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)];
+    const avatarColor = color;
     onSave(
       {
         name: name.trim(),
@@ -131,6 +134,25 @@ export function StaffModal({
               />
             </Field>
           </div>
+
+          <Field label="สีประจำตัว (ใช้แสดงในตารางงาน)">
+            <div className="flex flex-wrap gap-2">
+              {COLOR_STEMS.map((stem) => {
+                const cls = `bg-${stem}-500`;
+                return (
+                  <button
+                    key={stem}
+                    type="button"
+                    onClick={() => setColor(cls)}
+                    aria-label={PALETTE[stem].label}
+                    className={`h-7 w-7 rounded-full ${PALETTE[stem].solid} ${
+                      color === cls ? "ring-2 ring-gray-900 ring-offset-2" : ""
+                    }`}
+                  />
+                );
+              })}
+            </div>
+          </Field>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
             <Field label={isNew ? "ตั้งรหัส PIN 4 หลักสำหรับเข้าระบบ" : "เปลี่ยนรหัส PIN (เว้นว่างถ้าไม่เปลี่ยน)"}>

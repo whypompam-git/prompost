@@ -31,7 +31,18 @@ export interface Staff {
   photoUrl?: string; // data URL, self-uploaded via /profile
 }
 
-export type TaskType = "shoot" | "edit" | "review" | "deliver" | "other";
+export type TaskType = string; // key of an entry in TaskSettings.types
+
+export interface TaskTypeOption {
+  key: string;
+  label: string;
+  color: string; // palette stem, see lib/colors
+}
+
+export interface TaskSettings {
+  types: TaskTypeOption[];
+  statusColors: Record<"todo" | "in_progress" | "review" | "done", string>;
+}
 export type TaskStatus = "todo" | "in_progress" | "review" | "done";
 export type ContentCategory = "mass" | "royalty" | "sell";
 

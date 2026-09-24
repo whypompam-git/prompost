@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -106,7 +107,7 @@ export default function StaffSettingsPage() {
     } else if (staffModalMode !== "closed") {
       const { edit } = staffModalMode;
       await updateStaffRow(edit.id, { ...values, avatarColor }, pin);
-      setStaff((prev) => prev.map((s) => (s.id === edit.id ? { ...s, ...values } : s)));
+      setStaff((prev) => prev.map((s) => (s.id === edit.id ? { ...s, ...values, avatarColor } : s)));
     }
     setStaffModalMode("closed");
   }
@@ -180,7 +181,8 @@ export default function StaffSettingsPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="พนักงาน" subtitle="รายชื่อ เงินเดือน สิทธิ์การเข้าถึง และวันลา" />
+        <Topbar title="ตั้งค่า" subtitle="รายชื่อ เงินเดือน สิทธิ์การเข้าถึง และวันลา" />
+      <SettingsTabs />
         <LoadingView />
       </>
     );
@@ -188,7 +190,8 @@ export default function StaffSettingsPage() {
 
   return (
     <>
-      <Topbar title="พนักงาน" subtitle="รายชื่อ เงินเดือน สิทธิ์การเข้าถึง และวันลา" />
+      <Topbar title="ตั้งค่า" subtitle="รายชื่อ เงินเดือน สิทธิ์การเข้าถึง และวันลา" />
+      <SettingsTabs />
       <div className="flex-1 space-y-6 p-6">
         <section>
           <div className="mb-3 flex items-center justify-between">
