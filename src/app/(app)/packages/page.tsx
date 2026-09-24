@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Package as PackageIcon, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { Check, Package as PackageIcon, Pencil, Plus, Trash2, UserPlus, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -30,7 +30,8 @@ export default function PackagesPage() {
   const [loading, setLoading] = useState(true);
   const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Package }>("closed");
   const [assigningTo, setAssigningTo] = useState<Package | null>(null);
-  const [pickedClientId, setPickedClientId] = useState("");
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([listPackages(), listClients(), listClientPackages()])
@@ -69,11 +70,21 @@ export default function PackagesPage() {
   }
 
   async function handleAssign() {
-    if (!assigningTo || !pickedClientId) return;
-    const created = await assignPackageToClient(pickedClientId, assigningTo.id);
-    setAssignments((prev) => [created, ...prev]);
-    setAssigningTo(null);
-    setPickedClientId("");
+    if (!assigningTo || pickedIds.length === 0) return;
+    setSaving(true);
+    try {
+      for (const clientId of pickedIds) {
+        const created = await assignPackageToClient(clientId, assigningTo.id);
+        setAssignments((prev) => [created, ...prev]);
+      }
+      setAssigningTo(null);
+      setPickedIds([]);
+    } catch (err) {
+      console.error(err);
+      window.alert("เพิ่มไม่สำเร็จบางราย ลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleUnassign(assignment: ClientPackage) {
@@ -212,45 +223,71 @@ export default function PackagesPage() {
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
         >
           <div
-            className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+            className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-base font-semibold text-gray-900">
-                เพิ่มลูกค้าเข้าแพ็คเกจ &quot;{assigningTo.name}&quot;
+                เลือกลูกค้าสำหรับแพ็คเกจ &quot;{assigningTo.name}&quot;
               </h3>
               <button
-                onClick={() => setAssigningTo(null)}
+                onClick={() => {
+                  setAssigningTo(null);
+                  setPickedIds([]);
+                }}
                 className="rounded-full p-1 text-gray-400 hover:bg-gray-100"
               >
                 <X size={16} />
               </button>
             </div>
-            <select
-              value={pickedClientId}
-              onChange={(e) => setPickedClientId(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            >
-              <option value="">เลือกลูกค้า</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-gray-100 p-1">
+              {clients.map((c) => {
+                const already = assignments.some((x) => x.packageId === assigningTo.id && x.clientId === c.id);
+                const on = already || pickedIds.includes(c.id);
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    disabled={already}
+                    onClick={() =>
+                      setPickedIds((prev) => (prev.includes(c.id) ? prev.filter((x) => x !== c.id) : [...prev, c.id]))
+                    }
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                  >
+                    <span
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border ${
+                        on ? "border-brand-500 bg-brand-500 text-white" : "border-gray-300"
+                      }`}
+                    >
+                      {on && <Check size={13} />}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    {already && <span className="text-xs text-gray-400">มีแพ็คเกจนี้แล้ว</span>}
+                  </button>
+                );
+              })}
+            </div>
+            {assigningTo.clipCount > 0 && pickedIds.length > 0 && (
+              <p className="mt-2 text-xs text-gray-400">
+                จะสร้างงาน {assigningTo.clipCount} คลิปให้ลูกค้าแต่ละรายอัตโนมัติ
+              </p>
+            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
-                onClick={() => setAssigningTo(null)}
+                onClick={() => {
+                  setAssigningTo(null);
+                  setPickedIds([]);
+                }}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
               >
                 ยกเลิก
               </button>
               <button
                 onClick={handleAssign}
-                disabled={!pickedClientId}
+                disabled={pickedIds.length === 0 || saving}
                 className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                เพิ่ม
+                {saving ? "กำลังเพิ่ม..." : `เพิ่ม ${pickedIds.length || ""} ราย`}
               </button>
             </div>
           </div>

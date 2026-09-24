@@ -7,7 +7,7 @@ import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { FileText, Package as PackageIcon, Printer, Receipt as ReceiptIcon, Save } from "lucide-react";
+import { FileText, Package as PackageIcon, Plus, Printer, Receipt as ReceiptIcon, Save, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -16,7 +16,9 @@ import { ClientSubNav } from "@/components/clients/ClientSubNav";
 import { calcQuotationTotals } from "@/lib/accounting";
 import {
   getClient,
+  assignPackageToClient,
   listClientPackages,
+  unassignClientPackage,
   listPackages,
   listInvoices,
   listQuotations,
@@ -42,6 +44,8 @@ export default function ClientInfoPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [allPackages, setAllPackages] = useState<Package[]>([]);
+  const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -50,6 +54,7 @@ export default function ClientInfoPage() {
     Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices()])
       .then(([c, assignments, packages, q, r, inv]) => {
         setInvoices(inv.filter((x) => x.clientId === params.id));
+        setAllPackages(packages);
         if (!c) {
           setNotFound(true);
           return;
@@ -68,6 +73,34 @@ export default function ClientInfoPage() {
 
   function patch(fields: Partial<Client>) {
     setClient((prev) => (prev ? { ...prev, ...fields } : prev));
+  }
+
+  async function addPackage(pkg: Package) {
+    if (!client) return;
+    const clips = pkg.clipCount > 0 ? ` และสร้างงาน ${pkg.clipCount} คลิปให้อัตโนมัติ` : "";
+    if (!window.confirm(`เพิ่มแพ็คเกจ "${pkg.name}" ให้ ${client.name}${clips}?`)) return;
+    setAssigning(true);
+    try {
+      const created = await assignPackageToClient(client.id, pkg.id);
+      setMyPackages((prev) => [{ assignment: created, pkg }, ...prev]);
+    } catch (err) {
+      console.error(err);
+      window.alert("เพิ่มแพ็คเกจไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  async function removePackage(assignmentId: string) {
+    if (!window.confirm("เอาแพ็คเกจนี้ออกจากลูกค้า? (งานที่สร้างไปแล้วจะไม่ถูกลบ)")) return;
+    const prev = myPackages;
+    setMyPackages((cur) => cur.filter((x) => x.assignment.id !== assignmentId));
+    try {
+      await unassignClientPackage(assignmentId);
+    } catch (err) {
+      console.error(err);
+      setMyPackages(prev);
+    }
   }
 
   async function handleSave() {
@@ -238,13 +271,39 @@ export default function ClientInfoPage() {
                   <p className="text-sm font-medium text-gray-800">{pkg?.name ?? "—"}</p>
                   <p className="text-xs text-gray-400">เริ่มใช้ {dateLabel(assignment.assignedAt)}</p>
                 </div>
-                {pkg && <p className="text-sm font-semibold text-gray-900">฿{currency(pkg.price)}</p>}
+                <div className="flex items-center gap-3">
+                  {pkg && <p className="text-sm font-semibold text-gray-900">฿{currency(pkg.price)}</p>}
+                  <button
+                    onClick={() => removePackage(assignment.id)}
+                    className="rounded-full p-1 text-gray-300 hover:bg-rose-50 hover:text-rose-500"
+                    aria-label="เอาแพ็คเกจออก"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
             ))}
             {myPackages.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">
-                ยังไม่มีแพ็คเกจ — ไปเพิ่มได้ที่หน้า &quot;แพ็คเกจ&quot;
-              </p>
+              <p className="py-4 text-center text-sm text-gray-400">ยังไม่มีแพ็คเกจ — เลือกด้านล่างได้เลย</p>
+            )}
+            {allPackages.length > 0 && (
+              <div className="border-t border-gray-50 pt-3">
+                <p className="mb-2 text-xs font-medium text-gray-500">เลือกแพ็คเกจให้ลูกค้า</p>
+                <div className="flex flex-wrap gap-2">
+                  {allPackages.map((p) => (
+                    <button
+                      key={p.id}
+                      disabled={assigning}
+                      onClick={() => addPackage(p)}
+                      className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
+                    >
+                      <Plus size={12} />
+                      {p.name}
+                      {p.clipCount > 0 && <span className="opacity-70">· {p.clipCount} คลิป</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </Card>
         </section>
