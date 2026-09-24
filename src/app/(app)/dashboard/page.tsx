@@ -9,6 +9,7 @@ import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
+import { Toast } from "@/components/ui/Toast";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
   createTaskRow,
@@ -39,6 +40,7 @@ function DashboardPageInner() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [toast, setToast] = useState("");
   const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<TaskSortKey>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -123,12 +125,14 @@ function DashboardPageInner() {
     await createTasksBulk(values);
     setTasks(await listTasks());
     setBulkOpen(false);
+    setToast("สำเร็จ");
   }
 
   async function handleSave(values: TaskFormValues) {
     const created = await createTaskRow(values);
+    setTasks((prev) => [created, ...prev]);
     setCreating(false);
-    router.push(`/tasks/${created.id}`);
+    setToast("สำเร็จ");
   }
 
   async function handleDelete(task: Task) {
@@ -200,6 +204,7 @@ function DashboardPageInner() {
         </div>
       </div>
 
+      {toast && <Toast message={toast} onDone={() => setToast("")} />}
       {bulkOpen && (
         <BulkTaskModal
           clients={clients}
