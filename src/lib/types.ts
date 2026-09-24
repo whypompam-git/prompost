@@ -1,3 +1,5 @@
+import type { Permissions } from "@/lib/permissions";
+
 export type PaymentStatus = "unpaid" | "deposit" | "paid";
 export type EntityType = "company" | "individual";
 
@@ -26,8 +28,7 @@ export interface Staff {
   hireDate?: string; // ISO date
   baseSalary: number;
   role: StaffRole;
-  canViewAccounting: boolean;
-  canViewHr: boolean;
+  permissions: Permissions;
   photoUrl?: string; // data URL, self-uploaded via /profile
 }
 

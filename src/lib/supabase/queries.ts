@@ -1,5 +1,6 @@
 import { createClient } from "./client";
 import { cachedFetch } from "@/lib/offline/cache";
+import { normalizePermissions } from "@/lib/permissions";
 import type {
   Client,
   ClientPackage,
@@ -132,12 +133,12 @@ type StaffRow = {
   avatar_color: string;
   role: Staff["role"];
   can_view_accounting: boolean;
-  can_view_hr: boolean;
+  permissions: Record<string, boolean> | null;
   photo_url: string | null;
 };
 
 const STAFF_COLUMNS =
-  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, can_view_hr, photo_url";
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -150,8 +151,7 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   avatarColor: r.avatar_color,
   role: r.role,
   photoUrl: r.photo_url ?? undefined,
-  canViewAccounting: r.can_view_accounting,
-  canViewHr: r.can_view_hr,
+  permissions: normalizePermissions(r.permissions, r.can_view_accounting),
 });
 
 export async function listStaff(): Promise<Staff[]> {
@@ -186,8 +186,8 @@ export async function createStaffRow(
       base_salary: values.baseSalary,
       avatar_color: values.avatarColor,
       role: values.role,
-      can_view_accounting: values.canViewAccounting,
-      can_view_hr: values.canViewHr,
+      can_view_accounting: values.permissions.accounting,
+      permissions: values.permissions,
       pin_hash: pin ? bcrypt.hashSync(pin, 10) : null,
     })
     .select(STAFF_COLUMNS)
@@ -210,8 +210,8 @@ export async function updateStaffRow(
     base_salary: values.baseSalary,
     avatar_color: values.avatarColor,
     role: values.role,
-    can_view_accounting: values.canViewAccounting,
-    can_view_hr: values.canViewHr,
+    can_view_accounting: values.permissions.accounting,
+    permissions: values.permissions,
   };
   if (pin) {
     const bcrypt = await import("bcryptjs");
@@ -516,6 +516,20 @@ export async function ensurePayrollEntriesForMonth(
     .from("payroll_entries")
     .upsert(rows, { onConflict: "staff_id,period_month", ignoreDuplicates: true });
   if (error) throw error;
+
+  // Entries are created once per month with the salary at that moment, so a
+  // salary set or changed afterwards was never reflected. Unpaid rows follow
+  // the staff member's current base salary; paid rows stay as they were paid.
+  await Promise.all(
+    staff.map((s) =>
+      supabase()
+        .from("payroll_entries")
+        .update({ base_salary: s.baseSalary })
+        .eq("staff_id", s.id)
+        .eq("period_month", periodMonth)
+        .is("paid_at", null),
+    ),
+  );
 }
 
 export async function updatePayrollEntry(

@@ -3,174 +3,43 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import {
-  FileText,
-  Paperclip,
-  Plus,
-  Printer,
-  Receipt as ReceiptIcon,
-  Settings,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  Wallet,
-} from "lucide-react";
+import { Paperclip, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
-import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
-import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
-import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
-import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/InvoiceModal";
-import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
-import { calcQuotationTotals } from "@/lib/accounting";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
-  createInvoiceRow,
-  createQuotationRow,
-  createReceiptRow,
   createTransactionRow,
-  deleteInvoiceRow,
-  deleteQuotationRow,
-  deleteReceiptRow,
   deleteTransactionRow,
-  getAgencySettings,
-  listClients,
-  listInvoices,
-  listQuotations,
-  listReceipts,
   listTransactions,
-  saveAgencySettings,
-  updateInvoiceStatus,
   uploadSlip,
 } from "@/lib/supabase/queries";
-import type { AgencySettings, Client, Invoice, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
+import type { Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 
-const QUOTE_STATUS_LABEL: Record<QuotationStatus, string> = {
-  draft: "ร่าง",
-  sent: "ส่งแล้ว",
-  accepted: "ลูกค้ายอมรับ",
-  rejected: "ลูกค้าปฏิเสธ",
-};
-
-const QUOTE_STATUS_STYLE: Record<QuotationStatus, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  sent: "bg-sky-100 text-sky-700",
-  accepted: "bg-emerald-100 text-emerald-700",
-  rejected: "bg-rose-100 text-rose-700",
-};
-
-type Modal = "closed" | "quotation" | "invoice" | "receipt" | "transaction" | "agencySettings";
-
 export default function AccountingPage() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const auth = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal] = useState<Modal>("closed");
+  const [modalOpen, setModalOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([
-      listClients(),
-      listQuotations(),
-      listReceipts(),
-      listTransactions(),
-      getAgencySettings(),
-      listInvoices(),
-    ])
-      .then(([c, q, r, t, agency, inv]) => {
-        setInvoices(inv);
-        setClients(c);
-        setQuotations(q);
-        setReceipts(r);
-        setTransactions(t);
-        setAgencySettings(agency);
-      })
+    listTransactions()
+      .then(setTransactions)
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSaveAgencySettings(values: AgencySettings) {
-    await saveAgencySettings(values);
-    setAgencySettings(values);
-    setModal("closed");
-  }
-
-  const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
-
   const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
-
-  async function handleSaveQuotation(values: QuotationFormValues) {
-    const created = await createQuotationRow(values);
-    setQuotations((prev) => [created, ...prev]);
-    setModal("closed");
-  }
-
-  async function handleSaveReceipt(values: ReceiptFormValues) {
-    const created = await createReceiptRow(values);
-    setReceipts((prev) => [created, ...prev]);
-    setModal("closed");
-  }
-
-  async function handleSaveInvoice(values: InvoiceFormValues) {
-    const created = await createInvoiceRow(values);
-    setInvoices((prev) => [created, ...prev]);
-    setModal("closed");
-  }
 
   async function handleSaveTransaction({ slipFile, ...values }: TransactionFormValues) {
     const slipUrl = slipFile ? await uploadSlip(slipFile) : undefined;
     const created = await createTransactionRow({ ...values, slipUrl });
     setTransactions((prev) => [created, ...prev]);
-    setModal("closed");
-  }
-
-  function toggleInvoicePaid(inv: Invoice) {
-    const status = inv.status === "paid" ? "unpaid" : "paid";
-    setInvoices((prev) => prev.map((x) => (x.id === inv.id ? { ...x, status } : x)));
-    updateInvoiceStatus(inv.id, status).catch(console.error);
-  }
-
-  async function handleDeleteInvoice(inv: Invoice) {
-    if (!window.confirm(`ลบใบแจ้งหนี้ ${inv.invoiceNo} ใช่ไหม?`)) return;
-    setInvoices((prev) => prev.filter((x) => x.id !== inv.id));
-    try {
-      await deleteInvoiceRow(inv.id);
-    } catch (err) {
-      console.error(err);
-      setInvoices((prev) => [inv, ...prev]);
-      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
-    }
-  }
-
-  async function handleDeleteQuotation(q: Quotation) {
-    if (!window.confirm(`ลบใบเสนอราคา ${q.quoteNo} ใช่ไหม?`)) return;
-    setQuotations((prev) => prev.filter((x) => x.id !== q.id));
-    try {
-      await deleteQuotationRow(q.id);
-    } catch (err) {
-      console.error(err);
-      setQuotations((prev) => [q, ...prev]);
-      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
-    }
-  }
-
-  async function handleDeleteReceipt(r: Receipt) {
-    if (!window.confirm(`ลบใบเสร็จ ${r.receiptNo} ใช่ไหม?`)) return;
-    setReceipts((prev) => prev.filter((x) => x.id !== r.id));
-    try {
-      await deleteReceiptRow(r.id);
-    } catch (err) {
-      console.error(err);
-      setReceipts((prev) => [r, ...prev]);
-      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
-    }
+    setModalOpen(false);
   }
 
   async function handleDeleteTransaction(t: Transaction) {
@@ -188,7 +57,7 @@ export default function AccountingPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ และรายรับ-รายจ่าย" />
+        <Topbar title="บัญชี" subtitle="รายรับ-รายจ่าย" />
         <LoadingView />
       </>
     );
@@ -196,263 +65,15 @@ export default function AccountingPage() {
 
   return (
     <>
-      <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ และรายรับ-รายจ่าย" />
-      <div className="flex-1 space-y-6 p-6">
-        <div className="flex justify-end">
-          <button
-            onClick={() => setModal("agencySettings")}
-            className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <Settings size={15} />
-            ข้อมูลผู้เสนอราคา
-          </button>
-        </div>
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <StatCard label="รายรับรวม" value={`฿${currency(totalIncome)}`} icon={TrendingUp} tone="emerald" />
-          <StatCard label="รายจ่ายรวม" value={`฿${currency(totalExpense)}`} icon={TrendingDown} tone="amber" />
-          <StatCard label="กำไรสุทธิ" value={`฿${currency(totalIncome - totalExpense)}`} icon={Wallet} tone="orange" />
-        </div>
-
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-              <FileText size={16} />
-              ใบเสนอราคา
-            </h2>
-            <button
-              onClick={() => setModal("quotation")}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
-            >
-              <Plus size={16} />
-              สร้างใบเสนอราคา
-            </button>
+      <Topbar title="บัญชี" subtitle="รายรับ-รายจ่าย" />
+      <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
+        {auth.permissions.financialTotals && (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3 sm:gap-4">
+            <StatCard label="รายรับรวม" value={`฿${currency(totalIncome)}`} icon={TrendingUp} tone="emerald" />
+            <StatCard label="รายจ่ายรวม" value={`฿${currency(totalExpense)}`} icon={TrendingDown} tone="amber" />
+            <StatCard label="กำไรสุทธิ" value={`฿${currency(totalIncome - totalExpense)}`} icon={Wallet} tone="orange" />
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                  <th className="px-5 py-3 font-medium">เลขที่</th>
-                  <th className="px-5 py-3 font-medium">ลูกค้า</th>
-                  <th className="px-5 py-3 font-medium">วันที่</th>
-                  <th className="px-5 py-3 font-medium">ยอดสุทธิ</th>
-                  <th className="px-5 py-3 font-medium">สถานะ</th>
-                  <th className="px-5 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {quotations.map((q) => {
-                  const totals = calcQuotationTotals(q.items, q.vatPercent, q.whtPercent);
-                  return (
-                    <tr key={q.id} className="hover:bg-gray-50/60">
-                      <td className="px-5 py-3 font-medium text-gray-900">
-                        {q.quoteNo}
-                        {q.clientFeedback && (
-                          <p className="mt-1 max-w-[220px] whitespace-pre-wrap rounded-lg bg-amber-50 px-2 py-1 text-xs font-normal text-amber-700">
-                            ลูกค้าแจ้ง: {q.clientFeedback}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-5 py-3 text-gray-600">{clientName(q.clientId)}</td>
-                      <td className="px-5 py-3 text-gray-600">
-                        {format(new Date(q.createdAt), "d MMM yyyy", { locale: th })}
-                      </td>
-                      <td className="px-5 py-3 font-medium text-gray-900">฿{currency(totals.total)}</td>
-                      <td className="px-5 py-3">
-                        <span className={cn("rounded-full px-2.5 py-1 text-xs font-medium", QUOTE_STATUS_STYLE[q.status])}>
-                          {QUOTE_STATUS_LABEL[q.status]}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <a
-                            href={`/print/quotation/${q.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                            aria-label="พิมพ์/ดาวน์โหลด"
-                          >
-                            <Printer size={14} />
-                          </a>
-                          <CopyLinkButton path={`/quote/${q.shareToken}`} label="ลิงก์" />
-                          <button
-                            onClick={() => handleDeleteQuotation(q)}
-                            className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                            aria-label="ลบใบเสนอราคา"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {quotations.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
-                      ยังไม่มีใบเสนอราคา
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-              <FileText size={16} />
-              ใบแจ้งหนี้
-            </h2>
-            <button
-              onClick={() => setModal("invoice")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Plus size={16} />
-              สร้างใบแจ้งหนี้
-            </button>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                  <th className="px-5 py-3 font-medium">เลขที่</th>
-                  <th className="px-5 py-3 font-medium">ลูกค้า</th>
-                  <th className="px-5 py-3 font-medium">ครบกำหนด</th>
-                  <th className="px-5 py-3 font-medium">ยอดสุทธิ</th>
-                  <th className="px-5 py-3 font-medium">สถานะ</th>
-                  <th className="px-5 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {invoices.map((inv) => {
-                  const totals = calcQuotationTotals(inv.items, inv.vatPercent, inv.whtPercent);
-                  return (
-                    <tr key={inv.id} className="hover:bg-gray-50/60">
-                      <td className="px-5 py-3 font-medium text-gray-900">{inv.invoiceNo}</td>
-                      <td className="px-5 py-3 text-gray-600">{clientName(inv.clientId)}</td>
-                      <td className="px-5 py-3 text-gray-600">
-                        {inv.dueDate ? format(new Date(inv.dueDate), "d MMM yyyy", { locale: th }) : "—"}
-                      </td>
-                      <td className="px-5 py-3 font-medium text-gray-900">฿{currency(totals.total)}</td>
-                      <td className="px-5 py-3">
-                        <button
-                          onClick={() => toggleInvoicePaid(inv)}
-                          className={cn(
-                            "rounded-full px-2.5 py-1 text-xs font-medium",
-                            inv.status === "paid"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700",
-                          )}
-                        >
-                          {inv.status === "paid" ? "ชำระแล้ว" : "ค้างชำระ"}
-                        </button>
-                      </td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <a
-                            href={`/print/invoice/${inv.id}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                            aria-label="พิมพ์/ดาวน์โหลด"
-                          >
-                            <Printer size={14} />
-                          </a>
-                          <CopyLinkButton path={`/invoice/${inv.shareToken}`} label="ลิงก์" />
-                          <button
-                            onClick={() => handleDeleteInvoice(inv)}
-                            className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                            aria-label="ลบใบแจ้งหนี้"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-                {invoices.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
-                      ยังไม่มีใบแจ้งหนี้
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section>
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-              <ReceiptIcon size={16} />
-              ใบเสร็จรับเงิน
-            </h2>
-            <button
-              onClick={() => setModal("receipt")}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Plus size={16} />
-              ออกใบเสร็จ
-            </button>
-          </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                  <th className="px-5 py-3 font-medium">เลขที่</th>
-                  <th className="px-5 py-3 font-medium">ลูกค้า</th>
-                  <th className="px-5 py-3 font-medium">วันที่</th>
-                  <th className="px-5 py-3 font-medium">จำนวนเงิน</th>
-                  <th className="px-5 py-3 font-medium" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {receipts.map((r) => (
-                  <tr key={r.id} className="hover:bg-gray-50/60">
-                    <td className="px-5 py-3 font-medium text-gray-900">{r.receiptNo}</td>
-                    <td className="px-5 py-3 text-gray-600">{clientName(r.clientId)}</td>
-                    <td className="px-5 py-3 text-gray-600">
-                      {format(new Date(r.createdAt), "d MMM yyyy", { locale: th })}
-                    </td>
-                    <td className="px-5 py-3 font-medium text-gray-900">฿{currency(r.amount)}</td>
-                    <td className="px-5 py-3">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <a
-                          href={`/print/receipt/${r.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          aria-label="พิมพ์/ดาวน์โหลด"
-                        >
-                          <Printer size={14} />
-                        </a>
-                        <CopyLinkButton path={`/receipt/${r.shareToken}`} label="ลิงก์" />
-                        <button
-                          onClick={() => handleDeleteReceipt(r)}
-                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                          aria-label="ลบใบเสร็จ"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-                {receipts.length === 0 && (
-                  <tr>
-                    <td colSpan={5} className="px-5 py-6 text-center text-sm text-gray-400">
-                      ยังไม่มีใบเสร็จ
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
+        )}
 
         <section>
           <div className="mb-3 flex items-center justify-between">
@@ -461,7 +82,7 @@ export default function AccountingPage() {
               รายรับ-รายจ่าย
             </h2>
             <button
-              onClick={() => setModal("transaction")}
+              onClick={() => setModalOpen(true)}
               className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
             >
               <Plus size={16} />
@@ -533,28 +154,9 @@ export default function AccountingPage() {
             </table>
           </div>
         </section>
-
       </div>
 
-      {modal === "quotation" && (
-        <QuotationModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveQuotation} />
-      )}
-      {modal === "invoice" && (
-        <InvoiceModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveInvoice} />
-      )}
-      {modal === "receipt" && (
-        <ReceiptModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveReceipt} />
-      )}
-      {modal === "transaction" && (
-        <TransactionModal onClose={() => setModal("closed")} onSave={handleSaveTransaction} />
-      )}
-      {modal === "agencySettings" && agencySettings && (
-        <AgencySettingsModal
-          initial={agencySettings}
-          onClose={() => setModal("closed")}
-          onSave={handleSaveAgencySettings}
-        />
-      )}
+      {modalOpen && <TransactionModal onClose={() => setModalOpen(false)} onSave={handleSaveTransaction} />}
     </>
   );
 }

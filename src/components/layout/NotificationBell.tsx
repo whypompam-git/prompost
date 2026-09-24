@@ -53,7 +53,7 @@ export function NotificationBell() {
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const out: Notice[] = [];
 
-    if (isOwner || auth.canViewAccounting) {
+    if (isOwner || auth.permissions.documents || auth.permissions.accounting) {
       const [quotations, invoices] = await Promise.all([listQuotations(), listInvoices()]);
       for (const q of quotations) {
         if (q.clientFeedback) {
@@ -62,7 +62,7 @@ export function NotificationBell() {
             icon: "feedback",
             title: `${clientName(q.clientId)} ส่งข้อความเกี่ยวกับ ${q.quoteNo}`,
             detail: q.clientFeedback,
-            href: "/accounting",
+            href: "/documents",
           });
         }
       }
@@ -74,7 +74,7 @@ export function NotificationBell() {
             icon: "invoice",
             title: `${inv.invoiceNo} เลยกำหนดชำระ`,
             detail: clientName(inv.clientId),
-            href: "/accounting",
+            href: "/documents",
           });
         }
       }
@@ -113,7 +113,7 @@ export function NotificationBell() {
     }
 
     setNotices(out);
-  }, [auth.canViewAccounting, auth.staffId, isOwner]);
+  }, [auth.permissions.documents, auth.permissions.accounting, auth.staffId, isOwner]);
 
   useEffect(() => {
     setSeen(readSeen());

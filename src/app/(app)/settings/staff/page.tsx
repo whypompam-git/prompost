@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
@@ -207,11 +208,7 @@ export default function StaffSettingsPage() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {staff.map((s) => (
               <Card key={s.id} className="flex items-center gap-3">
-                <div
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${s.avatarColor}`}
-                >
-                  {s.name.slice(0, 1)}
-                </div>
+                <StaffAvatar staff={s} />
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-gray-900">{s.name}</p>
                   <p className="truncate text-xs text-gray-500">
@@ -375,11 +372,7 @@ export default function StaffSettingsPage() {
           <Card className="space-y-2">
             {inactiveStaff.map((s) => (
               <div key={s.id} className="flex items-center gap-3 rounded-xl bg-gray-50 px-4 py-3">
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-white ${s.avatarColor}`}
-                >
-                  {s.name.slice(0, 1)}
-                </div>
+                <StaffAvatar staff={s} className="h-9 w-9" />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-gray-800">{s.name}</p>
                   <p className="truncate text-xs text-gray-400">{s.position}</p>

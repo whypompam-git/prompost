@@ -54,7 +54,7 @@ export function PortalTaskCard({
           {equipment.length > 0 && (
             <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
               <Camera size={12} className="mt-0.5 shrink-0" />
-              <span>อุปกรณ์: {equipment.join(", ")}</span>
+              <span>เตรียม: {equipment.join(", ")}</span>
             </p>
           )}
         </div>

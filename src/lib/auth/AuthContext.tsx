@@ -1,21 +1,23 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { SessionClaims } from "@/lib/auth/session";
+import type { Permissions } from "@/lib/permissions";
+import type { StaffRole } from "@/lib/types";
 
-const AuthContext = createContext<SessionClaims | null>(null);
+export type AuthInfo = {
+  staffId: string;
+  name: string;
+  role: StaffRole;
+  permissions: Permissions;
+};
 
-export function AuthProvider({
-  claims,
-  children,
-}: {
-  claims: SessionClaims;
-  children: React.ReactNode;
-}) {
-  return <AuthContext.Provider value={claims}>{children}</AuthContext.Provider>;
+const AuthContext = createContext<AuthInfo | null>(null);
+
+export function AuthProvider({ auth, children }: { auth: AuthInfo; children: React.ReactNode }) {
+  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>;
 }
 
-export function useAuth(): SessionClaims {
+export function useAuth(): AuthInfo {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;

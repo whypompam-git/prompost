@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data: staff, error } = await supabase
     .from("staff")
-    .select("id, name, pin_hash, role, can_view_accounting, can_view_hr")
+    .select("id, name, pin_hash, role")
     .eq("id", staffId)
     .eq("is_active", true)
     .maybeSingle();
@@ -38,8 +38,6 @@ export async function POST(request: Request) {
     staffId: staff.id,
     name: staff.name,
     role: staff.role,
-    canViewAccounting: staff.can_view_accounting,
-    canViewHr: staff.can_view_hr,
   });
 
   const res = NextResponse.json({ ok: true });

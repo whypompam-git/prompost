@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { SESSION_COOKIE, verifySession } from "@/lib/auth/session";
+import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PREFIXES = [
   "/login",
@@ -36,11 +36,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/accounting") && !claims.canViewAccounting) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
-  }
-  if (pathname.startsWith("/settings") && claims.role !== "owner") {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+  const gate = pathname.startsWith("/accounting")
+    ? "accounting"
+    : pathname.startsWith("/documents")
+      ? "documents"
+      : pathname.startsWith("/settings")
+        ? "owner"
+        : null;
+  if (gate) {
+    const live = await fetchLiveAccess(claims.staffId);
+    const role = live?.role ?? claims.role;
+    const allowed =
+      gate === "owner" ? role === "owner" : Boolean(live?.permissions[gate]) || role === "owner";
+    if (!allowed || (live && !live.active)) {
+      return NextResponse.redirect(new URL("/dashboard", request.url));
+    }
   }
 
   return NextResponse.next();

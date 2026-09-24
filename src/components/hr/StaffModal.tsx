@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import { COLOR_STEMS, PALETTE } from "@/lib/colors";
+import { ALL_PERMISSIONS, PERMISSION_KEYS, PERMISSION_LABELS, type Permissions } from "@/lib/permissions";
 import type { Staff } from "@/lib/types";
 
 const AVATAR_COLORS = [
@@ -31,7 +32,9 @@ export function StaffModal({
   const [email, setEmail] = useState(initial?.email ?? "");
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [baseSalary, setBaseSalary] = useState(initial?.baseSalary ?? 0);
-  const [canViewAccounting, setCanViewAccounting] = useState(initial?.canViewAccounting ?? false);
+  const [permissions, setPermissions] = useState<Permissions>(
+    initial?.permissions ?? { ...ALL_PERMISSIONS, accounting: false, documents: false, financialTotals: false, staffList: false, othersPayroll: false },
+  );
   const [pin, setPin] = useState("");
   const [color, setColor] = useState(
     initial?.avatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
@@ -57,8 +60,7 @@ export function StaffModal({
         hireDate,
         baseSalary,
         role: initial?.role ?? "staff",
-        canViewAccounting,
-        canViewHr: false,
+        permissions: initial?.role === "owner" ? ALL_PERMISSIONS : permissions,
       },
       avatarColor,
       pin || undefined,
@@ -168,18 +170,27 @@ export function StaffModal({
             </Field>
             {!pinValid && <p className="text-xs text-rose-600">PIN ต้องเป็นตัวเลข 4 หลัก</p>}
 
-            <p className="text-xs font-medium text-gray-500">สิทธิ์การเข้าถึงหน้า</p>
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={canViewAccounting}
-                onChange={(e) => setCanViewAccounting(e.target.checked)}
-                className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
-              />
-              ดูหน้าบัญชี (ยอดขาย/รายรับรายจ่าย)
-            </label>
+            <p className="text-xs font-medium text-gray-500">สิทธิ์การเข้าถึง</p>
+            {initial?.role === "owner" ? (
+              <p className="text-xs text-gray-400">เจ้าของมีสิทธิ์เข้าถึงทุกอย่างเสมอ</p>
+            ) : (
+              PERMISSION_KEYS.map((k) => (
+                <label key={k} className="flex items-start gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={permissions[k]}
+                    onChange={(e) => setPermissions((p) => ({ ...p, [k]: e.target.checked }))}
+                    className="mt-0.5 h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-300"
+                  />
+                  <span>
+                    {PERMISSION_LABELS[k].label}
+                    <span className="block text-xs text-gray-400">{PERMISSION_LABELS[k].hint}</span>
+                  </span>
+                </label>
+              ))
+            )}
             <p className="text-xs text-gray-400">
-              รายชื่อพนักงาน เงินเดือน และสิทธิ์การเข้าถึง ดูได้เฉพาะเจ้าของเท่านั้น
+              การตั้งค่าพนักงาน (เพิ่ม/แก้ไข/ลบ) และตั้งค่าระบบ เป็นของเจ้าของเท่านั้น
             </p>
           </div>
         </div>

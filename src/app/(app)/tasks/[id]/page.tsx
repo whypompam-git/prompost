@@ -334,12 +334,12 @@ export default function TaskDetailPage() {
             />
           </div>
           <div>
-            <label className={labelClass}>อุปกรณ์</label>
+            <label className={labelClass}>เตรียม</label>
             <TagInput
               values={task.equipment ?? []}
               onChange={(v) => patch({ equipment: v })}
               suggestions={equipmentSuggestions}
-              placeholder="พิมพ์ชื่ออุปกรณ์แล้ว Enter"
+              placeholder="พิมพ์สิ่งที่ต้องเตรียมแล้ว Enter"
             />
           </div>
         </Card>

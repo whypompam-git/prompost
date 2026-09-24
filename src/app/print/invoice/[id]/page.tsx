@@ -21,7 +21,7 @@ export default async function PrintInvoicePage({ params }: { params: { id: strin
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar backHref="/accounting" fileName={invoice.invoice_no} />
+      <PrintToolbar backHref="/documents" fileName={invoice.invoice_no} />
       <div className="py-8">
         <BillingDocument
           docType="invoice"

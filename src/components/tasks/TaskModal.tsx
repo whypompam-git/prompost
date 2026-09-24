@@ -158,7 +158,7 @@ export function TaskModal({
           </div>
 
           <p className="text-xs text-gray-400">
-            รายละเอียดอื่นๆ (สคริปต์, Ref Link, Shot, อุปกรณ์, ลิงก์ Footage/Final)
+            รายละเอียดอื่นๆ (สคริปต์, Ref Link, Shot, สิ่งที่ต้องเตรียม, ลิงก์ Footage/Final)
             ใส่เพิ่มได้ในหน้ารายละเอียดงานหลังจากสร้างแล้ว
           </p>
         </div>

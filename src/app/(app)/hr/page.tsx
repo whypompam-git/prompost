@@ -7,6 +7,7 @@ import { CalendarPlus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { LeaveModal, type LeaveFormValues } from "@/components/hr/LeaveModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -49,12 +50,15 @@ export default function MyStaffPage() {
   const [myPayroll, setMyPayroll] = useState<PayrollEntry | null>(null);
   const [loading, setLoading] = useState(true);
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [team, setTeam] = useState<Staff[]>([]);
+  const [allPayroll, setAllPayroll] = useState<PayrollEntry[]>([]);
 
   useEffect(() => {
     async function load() {
       const staffRows = await listStaff();
       const self = staffRows.find((s) => s.id === auth.staffId) ?? null;
       setMe(self);
+      if (auth.permissions.staffList || auth.permissions.othersPayroll) setTeam(staffRows);
 
       if (self) {
         const [leaveRows] = await Promise.all([
@@ -64,11 +68,16 @@ export default function MyStaffPage() {
         setMyLeave(leaveRows.filter((l) => l.staffId === self.id));
         const payrollRows = await listPayrollEntries(currentPeriodMonth);
         setMyPayroll(payrollRows.find((p) => p.staffId === self.id) ?? null);
+        if (auth.permissions.othersPayroll) {
+          await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
+          const everyone = await listPayrollEntries(currentPeriodMonth);
+          setAllPayroll(everyone.filter((p) => staffRows.some((s) => s.id === p.staffId)));
+        }
       }
       setLoading(false);
     }
     load();
-  }, [auth.staffId]);
+  }, [auth.staffId, auth.permissions.staffList, auth.permissions.othersPayroll]);
 
   async function handleSaveLeave(values: LeaveFormValues) {
     const created = await createLeaveRequestRow(values);
@@ -104,16 +113,7 @@ export default function MyStaffPage() {
           <h2 className="mb-3 text-sm font-semibold text-gray-700">ข้อมูลของฉัน</h2>
           <Card className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="flex items-center gap-3">
-              <div
-                className={`flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full text-lg font-semibold text-white ${me.avatarColor}`}
-              >
-                {me.photoUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={me.photoUrl} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  me.name.slice(0, 1)
-                )}
-              </div>
+              <StaffAvatar staff={me} className="h-14 w-14 text-lg" />
               <div>
                 <p className="text-base font-semibold text-gray-900">{me.name}</p>
                 <p className="text-sm text-gray-500">{me.position}</p>
@@ -231,6 +231,52 @@ export default function MyStaffPage() {
             </table>
           </div>
         </section>
+
+        {auth.permissions.staffList && (
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-gray-700">ทีมงาน</h2>
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+              {team.map((s) => (
+                <Card key={s.id} className="flex items-center gap-3 !p-3">
+                  <StaffAvatar staff={s} />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-gray-900">{s.name}</p>
+                    <p className="truncate text-xs text-gray-500">{s.position}</p>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {auth.permissions.othersPayroll && (
+          <section>
+            <h2 className="mb-3 text-sm font-semibold text-gray-700">เงินเดือนของทุกคน (เดือนนี้)</h2>
+            <div className="divide-y divide-gray-50 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
+              {allPayroll.map((p) => {
+                const s = team.find((x) => x.id === p.staffId);
+                const net = p.baseSalary + p.bonus - p.deductions;
+                return (
+                  <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                    {s && <StaffAvatar staff={s} className="h-9 w-9" />}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900">{s?.name ?? "—"}</p>
+                      <p className="text-xs text-gray-400">
+                        ฐาน ฿{currency(p.baseSalary)} · โบนัส ฿{currency(p.bonus)} · หัก ฿{currency(p.deductions)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-gray-900">฿{currency(net)}</p>
+                      <p className={cn("text-xs", p.paidAt ? "text-emerald-600" : "text-gray-400")}>
+                        {p.paidAt ? "จ่ายแล้ว" : "ยังไม่จ่าย"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        )}
       </div>
 
       {leaveModalOpen && (

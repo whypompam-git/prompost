@@ -164,7 +164,7 @@ export function TaskTable({
         {tasks.map((task) => {
           const assignee = staff.find((s) => s.id === task.assigneeId);
           return (
-            <div key={task.id} className="space-y-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
+            <div key={task.id} className="space-y-1.5 rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
               <div className="flex items-start justify-between gap-2">
                 <Link
                   href={`/tasks/${task.id}`}
@@ -181,16 +181,15 @@ export function TaskTable({
                 </button>
               </div>
 
-              <span
-                className={cn(
-                  "inline-block max-w-full truncate rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                  pillClass(isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)?.colorTag : "orange"),
-                )}
-              >
-                {clientName(task.clientId)}
-              </span>
-
               <div className="flex flex-wrap items-center gap-1.5">
+                <span
+                  className={cn(
+                    "inline-block max-w-[46%] truncate rounded-full px-2.5 py-1 text-[11px] font-medium",
+                    pillClass(isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)?.colorTag : "orange"),
+                  )}
+                >
+                  {clientName(task.clientId)}
+                </span>
                 <PillDate
                   prefix="ถ่าย"
                   value={task.scheduledDate}
@@ -221,9 +220,6 @@ export function TaskTable({
                   options={assigneeOptions}
                   onChange={(v) => onUpdateAssignee(task.id, v)}
                 />
-              </div>
-
-              <div className="flex items-center gap-1.5">
                 <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
                 <TaskLinkButton label="Draft" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
                 <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
