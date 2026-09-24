@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BalanceSummary } from "@/components/billing/BalanceSummary";
+import { clientBalance } from "@/lib/accounting";
 import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -16,11 +18,12 @@ import {
   getClient,
   listClientPackages,
   listPackages,
+  listInvoices,
   listQuotations,
   listReceipts,
   updateClientRow,
 } from "@/lib/supabase/queries";
-import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt } from "@/lib/types";
+import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt , Invoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -38,13 +41,15 @@ export default function ClientInfoPage() {
   const [myPackages, setMyPackages] = useState<{ assignment: ClientPackage; pkg: Package | undefined }[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts()])
-      .then(([c, assignments, packages, q, r]) => {
+    Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices()])
+      .then(([c, assignments, packages, q, r, inv]) => {
+        setInvoices(inv.filter((x) => x.clientId === params.id));
         if (!c) {
           setNotFound(true);
           return;
@@ -119,6 +124,8 @@ export default function ClientInfoPage() {
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
         </div>
+
+        <BalanceSummary {...clientBalance(invoices, receipts)} />
 
         <Card className="space-y-4">
           <div>

@@ -2,30 +2,35 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { Client } from "@/lib/types";
+import { calcQuotationTotals } from "@/lib/accounting";
+import type { Client, Invoice } from "@/lib/types";
 
-export type ReceiptFormValues = { clientId: string; amount: number; issuedAt: string };
+export type ReceiptFormValues = { clientId: string; amount: number; issuedAt: string; invoiceId?: string };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function ReceiptModal({
   clients,
+  invoices,
   onClose,
   onSave,
 }: {
   clients: Client[];
+  invoices: Invoice[];
   onClose: () => void;
   onSave: (values: ReceiptFormValues) => void;
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [amount, setAmount] = useState(0);
+  const [invoiceId, setInvoiceId] = useState("");
   const [issuedAt, setIssuedAt] = useState(todayIso());
 
+  const openInvoices = invoices.filter((i) => i.clientId === clientId && i.status === "unpaid");
   const canSave = clientId.length > 0 && amount > 0 && issuedAt.length > 0;
 
   function handleSave() {
     if (!canSave) return;
-    onSave({ clientId, amount, issuedAt });
+    onSave({ clientId, amount, issuedAt, invoiceId: invoiceId || undefined });
   }
 
   return (
@@ -48,7 +53,10 @@ export function ReceiptModal({
             <span className="mb-1 block text-xs font-medium text-gray-500">ลูกค้า</span>
             <select
               value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
+              onChange={(e) => {
+                setClientId(e.target.value);
+                setInvoiceId("");
+              }}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             >
               {clients.map((c) => (
@@ -58,6 +66,27 @@ export function ReceiptModal({
               ))}
             </select>
           </label>
+          {openInvoices.length > 0 && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">รับชำระใบแจ้งหนี้ (ไม่บังคับ)</span>
+              <select
+                value={invoiceId}
+                onChange={(e) => {
+                  setInvoiceId(e.target.value);
+                  const inv = openInvoices.find((i) => i.id === e.target.value);
+                  if (inv) setAmount(calcQuotationTotals(inv.items, inv.vatPercent, inv.whtPercent).total);
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">ไม่อ้างอิงใบแจ้งหนี้</option>
+                {openInvoices.map((i) => (
+                  <option key={i.id} value={i.id}>
+                    {i.invoiceNo} — ฿{calcQuotationTotals(i.items, i.vatPercent, i.whtPercent).total.toLocaleString("th-TH")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">วันที่ในใบเสร็จ</span>
             <input

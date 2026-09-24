@@ -393,10 +393,12 @@ export default function DocumentsPage() {
       {modal === "receipt" && (
         <ReceiptModal
           clients={clients}
+          invoices={invoices}
           onClose={() => setModal("closed")}
           onSave={async (v: ReceiptFormValues) => {
             const created = await createReceiptRow(v);
             setReceipts((prev) => [created, ...prev]);
+            setInvoices(await listInvoices());
             setModal("closed");
           }}
         />

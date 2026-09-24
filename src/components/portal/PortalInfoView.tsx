@@ -6,6 +6,7 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { findPortalClient } from "@/lib/portalClient";
 import { PortalTabs } from "@/components/portal/PortalTabs";
+import { BalanceSummary } from "@/components/billing/BalanceSummary";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { createClient } from "@/lib/supabase/server";
 import type { QuotationItem, QuotationStatus } from "@/lib/types";
@@ -65,6 +66,21 @@ export async function PortalInfoView({ clientKey, basePath }: { clientKey: strin
         <PortalHeader title={`ข้อมูลลูกค้า ${client.name}`} />
 
         <PortalTabs basePath={basePath} active="info" />
+
+        <BalanceSummary
+          billed={(invoices ?? []).reduce(
+            (s, i) => s + calcQuotationTotals(i.items as QuotationItem[], i.vat_percent, i.wht_percent).total,
+            0,
+          )}
+          paid={(receipts ?? []).reduce((s, r) => s + Number(r.amount), 0)}
+          outstanding={Math.max(
+            (invoices ?? []).reduce(
+              (s, i) => s + calcQuotationTotals(i.items as QuotationItem[], i.vat_percent, i.wht_percent).total,
+              0,
+            ) - (receipts ?? []).reduce((s, r) => s + Number(r.amount), 0),
+            0,
+          )}
+        />
 
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">

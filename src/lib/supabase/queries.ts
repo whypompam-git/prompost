@@ -2,6 +2,7 @@ import { createClient } from "./client";
 import { cachedFetch } from "@/lib/offline/cache";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
+import { calcQuotationTotals } from "@/lib/accounting";
 import type {
   Client,
   ClientPackage,
@@ -689,10 +690,11 @@ type ReceiptRow = {
   amount: number;
   created_at: string;
   notes: string | null;
+  invoice_id: string | null;
   share_token: string;
 };
 
-const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, share_token";
+const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, invoice_id, share_token";
 
 const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   id: r.id,
@@ -701,6 +703,7 @@ const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   amount: r.amount,
   createdAt: r.created_at,
   notes: r.notes ?? undefined,
+  invoiceId: r.invoice_id ?? undefined,
   shareToken: r.share_token,
 });
 
@@ -728,6 +731,7 @@ export async function createReceiptRow(values: {
   amount: number;
   notes?: string;
   issuedAt?: string; // ISO date the receipt is dated — defaults to now
+  invoiceId?: string;
 }): Promise<Receipt> {
   const receiptNo = await nextDocNo("receipts", "RC");
   const { data, error } = await supabase()
@@ -737,12 +741,40 @@ export async function createReceiptRow(values: {
       receipt_no: receiptNo,
       amount: values.amount,
       notes: values.notes,
+      invoice_id: values.invoiceId ?? null,
       ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(RECEIPT_COLUMNS)
     .single();
   if (error) throw error;
-  return fromReceiptRow(data as ReceiptRow);
+  const receipt = fromReceiptRow(data as ReceiptRow);
+
+  // The books: a receipt is income. Deleting the receipt removes this row
+  // (transactions.receipt_id cascades).
+  const { data: client } = await supabase().from("clients").select("name").eq("id", values.clientId).maybeSingle();
+  const { error: txError } = await supabase().from("transactions").insert({
+    type: "income",
+    category: "รับชำระค่างาน",
+    amount: values.amount,
+    description: `ใบเสร็จ ${receipt.receiptNo}${client ? ` — ${client.name}` : ""}`,
+    occurred_at: (values.issuedAt ?? new Date().toISOString()).slice(0, 10),
+    receipt_id: receipt.id,
+  });
+  if (txError) throw txError;
+
+  // Settling an invoice in full marks it paid.
+  if (values.invoiceId) {
+    const { data: inv } = await supabase()
+      .from("invoices")
+      .select("items, vat_percent, wht_percent")
+      .eq("id", values.invoiceId)
+      .maybeSingle();
+    if (inv) {
+      const total = calcQuotationTotals(inv.items as QuotationItem[], inv.vat_percent, inv.wht_percent).total;
+      if (values.amount >= total) await updateInvoiceStatus(values.invoiceId, "paid");
+    }
+  }
+  return receipt;
 }
 
 export async function deleteReceiptRow(id: string): Promise<void> {

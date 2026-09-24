@@ -127,6 +127,7 @@ export interface Receipt {
   amount: number;
   createdAt: string; // ISO date
   notes?: string;
+  invoiceId?: string; // invoice this receipt settles
   shareToken: string; // /receipt/:shareToken
 }
 
