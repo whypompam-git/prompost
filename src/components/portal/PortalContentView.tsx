@@ -24,7 +24,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, type, status, script_text, footage_url, final_url, equipment, shots")
+    .select("id, title, type, status, script_text, ref_link, footage_url, final_url, equipment, shots")
     .eq("client_id", client.id)
     .order("scheduled_date", { ascending: false });
 
@@ -34,6 +34,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
     type: TaskType;
     status: TaskStatus;
     script_text: string | null;
+    ref_link: string | null;
     footage_url: string | null;
     final_url: string | null;
     equipment: string[] | null;

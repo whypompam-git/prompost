@@ -13,6 +13,7 @@ export type PortalTask = {
   type: TaskType;
   status: TaskStatus;
   script_text: string | null;
+  ref_link: string | null;
   footage_url: string | null;
   final_url: string | null;
   equipment: string[] | null;
@@ -79,6 +80,7 @@ export function PortalTaskList({ tasks }: { tasks: PortalTask[] }) {
             type={task.type}
             status={task.status}
             scriptText={task.script_text}
+            refUrl={task.ref_link}
             footageUrl={task.footage_url}
             finalUrl={task.final_url}
             equipment={task.equipment ?? []}

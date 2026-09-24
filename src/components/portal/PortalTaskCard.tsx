@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, ChevronDown, Film, ListChecks, ScrollText } from "lucide-react";
+import { Camera, ChevronDown, ExternalLink, ListChecks, ScrollText } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
@@ -20,6 +20,7 @@ export function PortalTaskCard({
   type,
   status,
   scriptText,
+  refUrl,
   footageUrl,
   finalUrl,
   equipment,
@@ -29,6 +30,7 @@ export function PortalTaskCard({
   type: TaskType;
   status: TaskStatus;
   scriptText: string | null;
+  refUrl: string | null;
   footageUrl: string | null;
   finalUrl: string | null;
   equipment: string[];
@@ -36,7 +38,12 @@ export function PortalTaskCard({
 }) {
   const [open, setOpen] = useState(false);
   const hasScript = Boolean(scriptText?.trim());
-  const expandable = hasScript || shots.length > 0 || footageUrl || finalUrl;
+  const expandable = hasScript || shots.length > 0;
+  const links = [
+    { label: "Ref", url: refUrl },
+    { label: "File", url: footageUrl },
+    { label: "Final", url: finalUrl },
+  ].filter((l) => l.url);
 
   return (
     <div className="rounded-xl bg-gray-50">
@@ -66,6 +73,23 @@ export function PortalTaskCard({
         </div>
       </button>
 
+      {links.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+          {links.map((l) => (
+            <a
+              key={l.label}
+              href={l.url!.startsWith("http") ? l.url! : `https://${l.url}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+            >
+              <ExternalLink size={11} />
+              {l.label}
+            </a>
+          ))}
+        </div>
+      )}
+
       {open && expandable && (
         <div className="space-y-3 border-t border-gray-100 px-4 py-3">
           {shots.length > 0 && (
@@ -88,34 +112,6 @@ export function PortalTaskCard({
                 สคริปต์
               </p>
               <ScriptText text={scriptText!} className="rounded-lg bg-white p-3 text-sm text-gray-700" />
-            </div>
-          )}
-          {(footageUrl || finalUrl) && (
-            <div className="flex flex-wrap gap-2">
-              {footageUrl && (
-                <a
-                  href={footageUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                >
-                  <Film size={13} />
-                  ดู Footage
-                </a>
-              )}
-              {finalUrl && (
-                <a
-                  href={finalUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={(e) => e.stopPropagation()}
-                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
-                >
-                  <Film size={13} />
-                  ดูวิดีโอ Final
-                </a>
-              )}
             </div>
           )}
         </div>

@@ -241,7 +241,7 @@ export function TaskTable({
                   onChange={(v) => onUpdateAssignee(task.id, v)}
                 />
                 <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
-                <TaskLinkButton label="Draft" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
+                <TaskLinkButton label="File" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
                 <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
               </div>
             </div>
@@ -330,7 +330,7 @@ export function TaskTable({
                   <td className="px-5 py-3">
                     <div className="flex gap-1.5">
                       <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
-                      <TaskLinkButton label="Draft" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
+                      <TaskLinkButton label="File" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
                       <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
                     </div>
                   </td>
