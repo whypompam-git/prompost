@@ -2,7 +2,6 @@
 
 import { useRef } from "react";
 import { Bold, Underline } from "lucide-react";
-import { ScriptText } from "./ScriptText";
 
 // Plain textarea + a toolbar that wraps the current selection in **bold**
 // or __underline__ markers — the same markers ScriptText knows how to
@@ -60,12 +59,6 @@ export function ScriptEditor({
         placeholder="พิมพ์สคริปต์ที่นี่ — เลือกข้อความแล้วกดปุ่มด้านบนเพื่อทำตัวหนา/ขีดเส้นใต้"
         className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-brand-300"
       />
-      {value.trim() && (
-        <div className="mt-2 rounded-lg border border-gray-100 bg-gray-50 p-3 text-sm">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-gray-400">ตัวอย่าง</p>
-          <ScriptText text={value} />
-        </div>
-      )}
     </div>
   );
 }
