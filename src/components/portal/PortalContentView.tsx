@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import { Film } from "lucide-react";
-import { Card } from "@/components/ui/Card";
-import { PortalTaskCard } from "@/components/portal/PortalTaskCard";
+import { PortalTaskList } from "@/components/portal/PortalTaskList";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { findPortalClient } from "@/lib/portalClient";
@@ -65,24 +64,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
             <Film size={15} />
             รายการงาน/คลิป
           </h2>
-          <Card className="space-y-2">
-            {taskList.map((task) => (
-              <PortalTaskCard
-                key={task.id}
-                title={task.title}
-                type={task.type}
-                status={task.status}
-                scriptText={task.script_text}
-                footageUrl={task.footage_url}
-                finalUrl={task.final_url}
-                equipment={task.equipment ?? []}
-                shots={task.shots ?? []}
-              />
-            ))}
-            {taskList.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีงานสำหรับลูกค้ารายนี้</p>
-            )}
-          </Card>
+          <PortalTaskList tasks={taskList} />
         </section>
       </div>
     </div>
