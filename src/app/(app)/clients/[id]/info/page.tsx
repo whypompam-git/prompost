@@ -80,7 +80,7 @@ export default function ClientInfoPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="ลูกค้า" subtitle="" />
+        <Topbar back="/clients" title="ลูกค้า" subtitle="" />
         <LoadingView />
       </>
     );
@@ -89,7 +89,7 @@ export default function ClientInfoPage() {
   if (notFound || !client) {
     return (
       <>
-        <Topbar title="ไม่พบลูกค้ารายนี้" subtitle="" />
+        <Topbar back="/clients" title="ไม่พบลูกค้ารายนี้" subtitle="" />
         <div className="p-6">
           <button onClick={() => router.push("/clients")} className="text-sm text-brand-600 hover:underline">
             &larr; กลับไปหน้าลูกค้า
@@ -103,7 +103,7 @@ export default function ClientInfoPage() {
 
   return (
     <>
-      <Topbar title={client.name} subtitle="ข้อมูลลูกค้า" />
+      <Topbar back="/clients" title={client.name} subtitle="ข้อมูลลูกค้า" />
       <ClientSubNav clientId={client.id} />
       <div className="flex-1 space-y-4 p-6">
         <div className="flex justify-end">

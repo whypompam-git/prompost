@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
+import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
 import type { QuotationItem } from "@/lib/types";
 
@@ -20,7 +21,9 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-gray-100">
+      <PrintToolbar fileName={invoice.invoice_no} />
+      <div className="overflow-x-auto py-8">
       <BillingDocument
         docType="invoice"
         docNo={invoice.invoice_no}
@@ -46,6 +49,7 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
         paymentNote={invoice.payment_note ?? undefined}
         notes={invoice.notes ?? undefined}
       />
+      </div>
     </div>
   );
 }

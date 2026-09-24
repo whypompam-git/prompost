@@ -47,7 +47,7 @@ export function BillingDocument({
   const title = DOC_TITLE[docType];
 
   return (
-    <div className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
+    <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold">{title.th}</h1>

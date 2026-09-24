@@ -21,7 +21,7 @@ export default async function PrintQuotationPage({ params }: { params: { id: str
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar backHref="/accounting" />
+      <PrintToolbar backHref="/accounting" fileName={quotation.quote_no} />
       <div className="py-8">
         <BillingDocument
           docType="quotation"

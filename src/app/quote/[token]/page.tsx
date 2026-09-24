@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
+import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { QuotationFeedbackForm } from "@/components/billing/QuotationFeedbackForm";
 import { createClient } from "@/lib/supabase/server";
 import type { QuotationItem } from "@/lib/types";
@@ -25,7 +26,9 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-gray-100">
+      <PrintToolbar fileName={quotation.quote_no} />
+      <div className="overflow-x-auto py-8">
       <BillingDocument
         docType="quotation"
         docNo={quotation.quote_no}
@@ -51,6 +54,7 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
         paymentNote={quotation.payment_note ?? undefined}
         notes={quotation.notes ?? undefined}
       />
+      </div>
       <QuotationFeedbackForm shareToken={quotation.share_token} initialFeedback={quotation.client_feedback ?? undefined} />
     </div>
   );

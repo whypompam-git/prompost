@@ -20,7 +20,7 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar backHref="/accounting" />
+      <PrintToolbar backHref="/accounting" fileName={receipt.receipt_no} />
       <div className="py-8">
         <BillingDocument
           docType="receipt"

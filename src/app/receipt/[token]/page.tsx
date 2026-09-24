@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
+import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function ReceiptSharePage({ params }: { params: { token: string } }) {
@@ -18,7 +19,9 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
   ]);
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8">
+    <div className="min-h-screen bg-gray-100">
+      <PrintToolbar fileName={receipt.receipt_no} />
+      <div className="overflow-x-auto py-8">
       <BillingDocument
         docType="receipt"
         docNo={receipt.receipt_no}
@@ -42,6 +45,7 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
         whtPercent={0}
         notes={receipt.notes ?? undefined}
       />
+      </div>
     </div>
   );
 }

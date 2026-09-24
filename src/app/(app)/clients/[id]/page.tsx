@@ -48,7 +48,7 @@ export default function ClientContentDashboardPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="ลูกค้า" subtitle="" />
+        <Topbar back="/clients" title="ลูกค้า" subtitle="" />
         <LoadingView />
       </>
     );
@@ -57,7 +57,7 @@ export default function ClientContentDashboardPage() {
   if (notFound || !client) {
     return (
       <>
-        <Topbar title="ไม่พบลูกค้ารายนี้" subtitle="" />
+        <Topbar back="/clients" title="ไม่พบลูกค้ารายนี้" subtitle="" />
         <div className="p-6">
           <button onClick={() => router.push("/clients")} className="text-sm text-brand-600 hover:underline">
             &larr; กลับไปหน้าลูกค้า
@@ -69,7 +69,7 @@ export default function ClientContentDashboardPage() {
 
   return (
     <>
-      <Topbar title={client.name} subtitle="รายงานคอนเทนต์" />
+      <Topbar back="/clients" title={client.name} subtitle="รายงานคอนเทนต์" />
       <ClientSubNav clientId={client.id} />
       <div className="flex-1 space-y-6 p-6">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -75,7 +75,7 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <>
-        <Topbar title="โปรไฟล์" subtitle="แก้ไขชื่อและรูปโปรไฟล์ของคุณ" />
+        <Topbar back="/dashboard" title="โปรไฟล์" subtitle="แก้ไขชื่อและรูปโปรไฟล์ของคุณ" />
         <LoadingView />
       </>
     );
@@ -83,7 +83,7 @@ export default function ProfilePage() {
 
   return (
     <>
-      <Topbar title="โปรไฟล์" subtitle="แก้ไขชื่อและรูปโปรไฟล์ของคุณ" />
+      <Topbar back="/dashboard" title="โปรไฟล์" subtitle="แก้ไขชื่อและรูปโปรไฟล์ของคุณ" />
       <div className="flex-1 space-y-6 p-6">
         <div className="max-w-sm space-y-6 rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
           <div className="flex flex-col items-center gap-3">
