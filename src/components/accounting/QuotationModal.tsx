@@ -63,7 +63,6 @@ export function QuotationModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-      onClick={onClose}
     >
       <div
         className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-xl"

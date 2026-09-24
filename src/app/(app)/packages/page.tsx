@@ -210,7 +210,6 @@ export default function PackagesPage() {
       {assigningTo && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-          onClick={() => setAssigningTo(null)}
         >
           <div
             className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"

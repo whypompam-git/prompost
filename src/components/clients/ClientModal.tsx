@@ -72,10 +72,9 @@ export function ClientModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-      onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -87,7 +86,7 @@ export function ClientModal({
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div className="grid max-h-[68vh] grid-cols-1 gap-x-4 gap-y-3 overflow-y-auto pr-1 md:grid-cols-2">
           <Field label="ชื่อลูกค้า / ร้าน">
             <input
               value={name}
@@ -98,7 +97,7 @@ export function ClientModal({
           </Field>
 
           {!initial && packages.length > 0 && (
-            <Field label="แพ็คเกจที่ลูกค้าซื้อ (ไม่บังคับ)">
+            <Field label="แพ็คเกจที่ลูกค้าซื้อ (ไม่บังคับ)" wide>
               <select
                 value={packageId}
                 onChange={(e) => setPackageId(e.target.value)}
@@ -146,7 +145,7 @@ export function ClientModal({
             />
           </Field>
 
-          <Field label="ประเภทลูกค้า (สำหรับออกใบเสนอราคา)">
+          <Field label="ประเภทลูกค้า (สำหรับออกใบเสนอราคา)" wide>
             <div className="flex overflow-hidden rounded-lg border border-gray-200">
               {(
                 [
@@ -171,7 +170,7 @@ export function ClientModal({
             </div>
           </Field>
 
-          <Field label="ชื่อสำหรับออกใบเสนอราคา (ชื่อบริษัท / ชื่อลูกค้า)">
+          <Field label="ชื่อสำหรับออกใบเสนอราคา (ชื่อบริษัท / ชื่อลูกค้า)" wide>
             <input
               value={billingName}
               onChange={(e) => setBillingName(e.target.value)}
@@ -180,7 +179,7 @@ export function ClientModal({
             />
           </Field>
 
-          <Field label="ที่อยู่ (แสดงบนใบเสนอราคา/ใบเสร็จ)">
+          <Field label="ที่อยู่ (แสดงบนใบเสนอราคา/ใบเสร็จ)" wide>
             <textarea
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -211,7 +210,7 @@ export function ClientModal({
             </select>
           </Field>
 
-          <Field label="สีประจำลูกค้า (ใช้ในปฏิทิน)">
+          <Field label="สีประจำลูกค้า (ใช้ในปฏิทิน)" wide>
             <div className="flex gap-2">
               {COLOR_OPTIONS.map((color) => (
                 <button
@@ -250,9 +249,9 @@ export function ClientModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
-    <label className="block">
+    <label className={wide ? "block md:col-span-2" : "block"}>
       <span className="mb-1 block text-xs font-medium text-gray-500">{label}</span>
       {children}
     </label>
