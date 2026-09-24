@@ -114,6 +114,23 @@ export interface Receipt {
   shareToken: string; // /receipt/:shareToken
 }
 
+export type InvoiceStatus = "unpaid" | "paid";
+
+export interface Invoice {
+  id: string;
+  clientId: string;
+  invoiceNo: string;
+  items: QuotationItem[];
+  vatPercent: number;
+  whtPercent: number;
+  status: InvoiceStatus;
+  createdAt: string; // ISO date
+  dueDate?: string; // ISO date — ครบกำหนดชำระ
+  paymentNote?: string;
+  notes?: string;
+  shareToken: string; // /invoice/:shareToken
+}
+
 export interface AgencySettings {
   name: string;
   address: string;
@@ -141,6 +158,7 @@ export interface Package {
   price: number;
   startDate?: string; // ISO date — package's own promo/validity window
   endDate?: string;
+  clipCount: number; // tasks auto-created for a client when this package is assigned
 }
 
 export interface ClientPackage {

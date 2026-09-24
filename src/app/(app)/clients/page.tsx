@@ -8,8 +8,14 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
-import { createClientRow, deleteClientRow, listClients } from "@/lib/supabase/queries";
-import type { Client } from "@/lib/types";
+import {
+  assignPackageToClient,
+  createClientRow,
+  deleteClientRow,
+  listClients,
+  listPackages,
+} from "@/lib/supabase/queries";
+import type { Client, Package } from "@/lib/types";
 
 const PAYMENT_LABEL = {
   unpaid: "ยังไม่ชำระ",
@@ -27,15 +33,20 @@ export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   useEffect(() => {
-    listClients()
-      .then(setClients)
+    Promise.all([listClients(), listPackages()])
+      .then(([c, p]) => {
+        setClients(c);
+        setPackages(p);
+      })
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleSave(values: ClientFormValues) {
+  async function handleSave(values: ClientFormValues, packageId?: string) {
     const created = await createClientRow(values);
+    if (packageId) await assignPackageToClient(created.id, packageId);
     setClients((prev) => [created, ...prev]);
     setCreating(false);
   }
@@ -119,7 +130,7 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {creating && <ClientModal onClose={() => setCreating(false)} onSave={handleSave} />}
+      {creating && <ClientModal packages={packages} onClose={() => setCreating(false)} onSave={handleSave} />}
     </>
   );
 }

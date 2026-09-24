@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Film, ScrollText } from "lucide-react";
+import { Camera, ChevronDown, Film, ListChecks, ScrollText } from "lucide-react";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
@@ -22,6 +22,8 @@ export function PortalTaskCard({
   scriptText,
   footageUrl,
   finalUrl,
+  equipment,
+  shots,
 }: {
   title: string;
   type: TaskType;
@@ -29,10 +31,12 @@ export function PortalTaskCard({
   scriptText: string | null;
   footageUrl: string | null;
   finalUrl: string | null;
+  equipment: string[];
+  shots: string[];
 }) {
   const [open, setOpen] = useState(false);
   const hasScript = Boolean(scriptText?.trim());
-  const expandable = hasScript || footageUrl || finalUrl;
+  const expandable = hasScript || shots.length > 0 || footageUrl || finalUrl;
 
   return (
     <div className="rounded-xl bg-gray-50">
@@ -47,6 +51,12 @@ export function PortalTaskCard({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-800">{title}</p>
           <p className="text-xs text-gray-400">{TYPE_LABEL[type]}</p>
+          {equipment.length > 0 && (
+            <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
+              <Camera size={12} className="mt-0.5 shrink-0" />
+              <span>อุปกรณ์: {equipment.join(", ")}</span>
+            </p>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <StatusBadge status={status} />
@@ -58,6 +68,19 @@ export function PortalTaskCard({
 
       {open && expandable && (
         <div className="space-y-3 border-t border-gray-100 px-4 py-3">
+          {shots.length > 0 && (
+            <div>
+              <p className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500">
+                <ListChecks size={12} />
+                Shot list
+              </p>
+              <ul className="list-inside list-decimal space-y-0.5 rounded-lg bg-white p-3 text-sm text-gray-700">
+                {shots.map((s, i) => (
+                  <li key={i}>{s}</li>
+                ))}
+              </ul>
+            </div>
+          )}
           {hasScript && (
             <div>
               <p className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500">

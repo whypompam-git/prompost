@@ -3,6 +3,7 @@ import { cachedFetch } from "@/lib/offline/cache";
 import type {
   Client,
   ClientPackage,
+  Invoice,
   LeaveRequest,
   LeaveStatus,
   Package,
@@ -598,7 +599,7 @@ export async function submitQuotationFeedback(shareToken: string, feedback: stri
 // Doc numbers are assigned by counting existing rows for the current
 // พ.ศ. year — fine for one small team's volume; swap for a Postgres
 // sequence/function if this ever needs to be race-safe under concurrency.
-async function nextDocNo(table: "quotations" | "receipts", prefix: string) {
+async function nextDocNo(table: "quotations" | "receipts" | "invoices", prefix: string) {
   const year = new Date().getFullYear() + 543;
   const { count, error } = await supabase()
     .from(table)
@@ -691,6 +692,7 @@ export async function createReceiptRow(values: {
   clientId: string;
   amount: number;
   notes?: string;
+  issuedAt?: string; // ISO date the receipt is dated — defaults to now
 }): Promise<Receipt> {
   const receiptNo = await nextDocNo("receipts", "RC");
   const { data, error } = await supabase()
@@ -700,6 +702,7 @@ export async function createReceiptRow(values: {
       receipt_no: receiptNo,
       amount: values.amount,
       notes: values.notes,
+      ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(RECEIPT_COLUMNS)
     .single();
@@ -709,6 +712,87 @@ export async function createReceiptRow(values: {
 
 export async function deleteReceiptRow(id: string): Promise<void> {
   const { error } = await supabase().from("receipts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Invoices ───────────────────────────────────────────────────────────
+type InvoiceRow = {
+  id: string;
+  client_id: string;
+  invoice_no: string;
+  items: QuotationItem[];
+  vat_percent: number;
+  wht_percent: number;
+  status: Invoice["status"];
+  created_at: string;
+  due_date: string | null;
+  payment_note: string | null;
+  notes: string | null;
+  share_token: string;
+};
+
+const INVOICE_COLUMNS =
+  "id, client_id, invoice_no, items, vat_percent, wht_percent, status, created_at, due_date, payment_note, notes, share_token";
+
+const fromInvoiceRow = (r: InvoiceRow): Invoice => ({
+  id: r.id,
+  clientId: r.client_id,
+  invoiceNo: r.invoice_no,
+  items: r.items,
+  vatPercent: r.vat_percent,
+  whtPercent: r.wht_percent,
+  status: r.status,
+  createdAt: r.created_at,
+  dueDate: r.due_date ?? undefined,
+  paymentNote: r.payment_note ?? undefined,
+  notes: r.notes ?? undefined,
+  shareToken: r.share_token,
+});
+
+export async function listInvoices(): Promise<Invoice[]> {
+  const { data, error } = await supabase()
+    .from("invoices")
+    .select(INVOICE_COLUMNS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as InvoiceRow[]).map(fromInvoiceRow);
+}
+
+export async function createInvoiceRow(values: {
+  clientId: string;
+  items: QuotationItem[];
+  vatPercent: number;
+  whtPercent: number;
+  dueDate?: string;
+  paymentNote?: string;
+  notes?: string;
+}): Promise<Invoice> {
+  const invoiceNo = await nextDocNo("invoices", "IV");
+  const { data, error } = await supabase()
+    .from("invoices")
+    .insert({
+      client_id: values.clientId,
+      invoice_no: invoiceNo,
+      items: values.items,
+      vat_percent: values.vatPercent,
+      wht_percent: values.whtPercent,
+      due_date: values.dueDate || null,
+      payment_note: values.paymentNote,
+      notes: values.notes,
+    })
+    .select(INVOICE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromInvoiceRow(data as InvoiceRow);
+}
+
+export async function updateInvoiceStatus(id: string, status: Invoice["status"]): Promise<void> {
+  const { error } = await supabase().from("invoices").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteInvoiceRow(id: string): Promise<void> {
+  const { error } = await supabase().from("invoices").delete().eq("id", id);
   if (error) throw error;
 }
 
@@ -807,6 +891,18 @@ export async function createTransactionRow(
   return fromTransactionRow(data as TransactionRow);
 }
 
+// Uploads a transaction slip to the public "slips" bucket and returns its
+// URL. Object names are random so the URL is unguessable.
+export async function uploadSlip(file: File): Promise<string> {
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase().storage.from("slips").upload(path, file, {
+    contentType: file.type || undefined,
+  });
+  if (error) throw error;
+  return supabase().storage.from("slips").getPublicUrl(path).data.publicUrl;
+}
+
 export async function deleteTransactionRow(id: string): Promise<void> {
   const { error } = await supabase().from("transactions").delete().eq("id", id);
   if (error) throw error;
@@ -820,9 +916,10 @@ type PackageRow = {
   price: number;
   start_date: string | null;
   end_date: string | null;
+  clip_count: number;
 };
 
-const PACKAGE_COLUMNS = "id, name, description, price, start_date, end_date";
+const PACKAGE_COLUMNS = "id, name, description, price, start_date, end_date, clip_count";
 
 const fromPackageRow = (r: PackageRow): Package => ({
   id: r.id,
@@ -831,6 +928,7 @@ const fromPackageRow = (r: PackageRow): Package => ({
   price: r.price,
   startDate: r.start_date ?? undefined,
   endDate: r.end_date ?? undefined,
+  clipCount: r.clip_count,
 });
 
 export async function listPackages(): Promise<Package[]> {
@@ -851,6 +949,7 @@ export async function createPackageRow(values: Omit<Package, "id">): Promise<Pac
       price: values.price,
       start_date: values.startDate || null,
       end_date: values.endDate || null,
+      clip_count: values.clipCount,
     })
     .select(PACKAGE_COLUMNS)
     .single();
@@ -867,6 +966,7 @@ export async function updatePackageRow(id: string, values: Omit<Package, "id">):
       price: values.price,
       start_date: values.startDate || null,
       end_date: values.endDate || null,
+      clip_count: values.clipCount,
     })
     .eq("id", id);
   if (error) throw error;
@@ -901,13 +1001,39 @@ export async function listClientPackages(): Promise<ClientPackage[]> {
   return (data as ClientPackageRow[]).map(fromClientPackageRow);
 }
 
+// Assigning a package also seeds the client's clip list: one todo task per
+// clip in the package, named "<client>-คลิป(<n>)", numbered after any clips
+// the client already has so re-assigning never produces duplicate names.
 export async function assignPackageToClient(clientId: string, packageId: string): Promise<ClientPackage> {
-  const { data, error } = await supabase()
+  const db = supabase();
+  const { data, error } = await db
     .from("client_packages")
     .insert({ client_id: clientId, package_id: packageId })
     .select("id, client_id, package_id, assigned_at")
     .single();
   if (error) throw error;
+
+  const [{ data: pkg }, { data: client }, { count }] = await Promise.all([
+    db.from("packages").select("clip_count, end_date").eq("id", packageId).single(),
+    db.from("clients").select("name").eq("id", clientId).single(),
+    db.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId),
+  ]);
+
+  const clipCount = pkg?.clip_count ?? 0;
+  if (clipCount > 0 && client) {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = Array.from({ length: clipCount }, (_, i) => ({
+      client_id: clientId,
+      title: `${client.name}-คลิป(${(count ?? 0) + i + 1})`,
+      type: "shoot",
+      status: "todo",
+      scheduled_date: today,
+      due_date: pkg?.end_date ?? today,
+    }));
+    const { error: taskError } = await db.from("tasks").insert(rows);
+    if (taskError) throw taskError;
+  }
+
   return fromClientPackageRow(data as ClientPackageRow);
 }
 

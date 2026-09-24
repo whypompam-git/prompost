@@ -10,7 +10,7 @@ export type TransactionFormValues = {
   category: string;
   amount: number;
   description?: string;
-  slipUrl?: string;
+  slipFile?: File;
   occurredAt: string;
 };
 
@@ -28,22 +28,19 @@ export function TransactionModal({
   const [amount, setAmount] = useState(0);
   const [description, setDescription] = useState("");
   const [occurredAt, setOccurredAt] = useState(todayIso());
-  const [slipUrl, setSlipUrl] = useState<string | undefined>();
-  const [slipName, setSlipName] = useState<string | undefined>();
+  const [slipFile, setSlipFile] = useState<File | undefined>();
 
   const canSave = category.trim().length > 0 && amount > 0;
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Local-only preview until real Supabase Storage is wired up.
-    setSlipUrl(URL.createObjectURL(file));
-    setSlipName(file.name);
+    setSlipFile(file);
   }
 
   function handleSave() {
     if (!canSave) return;
-    onSave({ type, category: category.trim(), amount, description: description.trim() || undefined, slipUrl, occurredAt });
+    onSave({ type, category: category.trim(), amount, description: description.trim() || undefined, slipFile, occurredAt });
   }
 
   return (
@@ -121,7 +118,7 @@ export function TransactionModal({
 
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">
             <Paperclip size={14} />
-            {slipName ?? "แนบสลิปโอนเงิน"}
+            {slipFile?.name ?? "แนบสลิปโอนเงิน"}
             <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
           </label>
         </div>

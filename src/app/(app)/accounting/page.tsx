@@ -16,30 +16,35 @@ import {
   Wallet,
 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
-import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
+import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/InvoiceModal";
 import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
 import { calcQuotationTotals } from "@/lib/accounting";
 import {
+  createInvoiceRow,
   createQuotationRow,
   createReceiptRow,
   createTransactionRow,
+  deleteInvoiceRow,
   deleteQuotationRow,
   deleteReceiptRow,
   deleteTransactionRow,
   getAgencySettings,
   listClients,
+  listInvoices,
   listQuotations,
   listReceipts,
   listTransactions,
   saveAgencySettings,
+  updateInvoiceStatus,
+  uploadSlip,
 } from "@/lib/supabase/queries";
-import type { AgencySettings, Client, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
+import type { AgencySettings, Client, Invoice, Quotation, QuotationStatus, Receipt, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -58,12 +63,13 @@ const QUOTE_STATUS_STYLE: Record<QuotationStatus, string> = {
   rejected: "bg-rose-100 text-rose-700",
 };
 
-type Modal = "closed" | "quotation" | "receipt" | "transaction" | "agencySettings";
+type Modal = "closed" | "quotation" | "invoice" | "receipt" | "transaction" | "agencySettings";
 
 export default function AccountingPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [agencySettings, setAgencySettings] = useState<AgencySettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -76,8 +82,10 @@ export default function AccountingPage() {
       listReceipts(),
       listTransactions(),
       getAgencySettings(),
+      listInvoices(),
     ])
-      .then(([c, q, r, t, agency]) => {
+      .then(([c, q, r, t, agency, inv]) => {
+        setInvoices(inv);
         setClients(c);
         setQuotations(q);
         setReceipts(r);
@@ -110,11 +118,35 @@ export default function AccountingPage() {
     setModal("closed");
   }
 
-  async function handleSaveTransaction(values: TransactionFormValues) {
-    // slipUrl is still a local object URL until Supabase Storage is wired up.
-    const created = await createTransactionRow(values);
-    setTransactions((prev) => [{ ...created, slipUrl: values.slipUrl }, ...prev]);
+  async function handleSaveInvoice(values: InvoiceFormValues) {
+    const created = await createInvoiceRow(values);
+    setInvoices((prev) => [created, ...prev]);
     setModal("closed");
+  }
+
+  async function handleSaveTransaction({ slipFile, ...values }: TransactionFormValues) {
+    const slipUrl = slipFile ? await uploadSlip(slipFile) : undefined;
+    const created = await createTransactionRow({ ...values, slipUrl });
+    setTransactions((prev) => [created, ...prev]);
+    setModal("closed");
+  }
+
+  function toggleInvoicePaid(inv: Invoice) {
+    const status = inv.status === "paid" ? "unpaid" : "paid";
+    setInvoices((prev) => prev.map((x) => (x.id === inv.id ? { ...x, status } : x)));
+    updateInvoiceStatus(inv.id, status).catch(console.error);
+  }
+
+  async function handleDeleteInvoice(inv: Invoice) {
+    if (!window.confirm(`ลบใบแจ้งหนี้ ${inv.invoiceNo} ใช่ไหม?`)) return;
+    setInvoices((prev) => prev.filter((x) => x.id !== inv.id));
+    try {
+      await deleteInvoiceRow(inv.id);
+    } catch (err) {
+      console.error(err);
+      setInvoices((prev) => [inv, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
   }
 
   async function handleDeleteQuotation(q: Quotation) {
@@ -156,7 +188,7 @@ export default function AccountingPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบเสร็จ และรายรับ-รายจ่าย" />
+        <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ และรายรับ-รายจ่าย" />
         <LoadingView />
       </>
     );
@@ -164,7 +196,7 @@ export default function AccountingPage() {
 
   return (
     <>
-      <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบเสร็จ และรายรับ-รายจ่าย" />
+      <Topbar title="บัญชี" subtitle="ใบเสนอราคา ใบแจ้งหนี้ ใบเสร็จ และรายรับ-รายจ่าย" />
       <div className="flex-1 space-y-6 p-6">
         <div className="flex justify-end">
           <button
@@ -252,6 +284,92 @@ export default function AccountingPage() {
                   <tr>
                     <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
                       ยังไม่มีใบเสนอราคา
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+              <FileText size={16} />
+              ใบแจ้งหนี้
+            </h2>
+            <button
+              onClick={() => setModal("invoice")}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Plus size={16} />
+              สร้างใบแจ้งหนี้
+            </button>
+          </div>
+          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
+                  <th className="px-5 py-3 font-medium">เลขที่</th>
+                  <th className="px-5 py-3 font-medium">ลูกค้า</th>
+                  <th className="px-5 py-3 font-medium">ครบกำหนด</th>
+                  <th className="px-5 py-3 font-medium">ยอดสุทธิ</th>
+                  <th className="px-5 py-3 font-medium">สถานะ</th>
+                  <th className="px-5 py-3 font-medium" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {invoices.map((inv) => {
+                  const totals = calcQuotationTotals(inv.items, inv.vatPercent, inv.whtPercent);
+                  return (
+                    <tr key={inv.id} className="hover:bg-gray-50/60">
+                      <td className="px-5 py-3 font-medium text-gray-900">{inv.invoiceNo}</td>
+                      <td className="px-5 py-3 text-gray-600">{clientName(inv.clientId)}</td>
+                      <td className="px-5 py-3 text-gray-600">
+                        {inv.dueDate ? format(new Date(inv.dueDate), "d MMM yyyy", { locale: th }) : "—"}
+                      </td>
+                      <td className="px-5 py-3 font-medium text-gray-900">฿{currency(totals.total)}</td>
+                      <td className="px-5 py-3">
+                        <button
+                          onClick={() => toggleInvoicePaid(inv)}
+                          className={cn(
+                            "rounded-full px-2.5 py-1 text-xs font-medium",
+                            inv.status === "paid"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700",
+                          )}
+                        >
+                          {inv.status === "paid" ? "ชำระแล้ว" : "ค้างชำระ"}
+                        </button>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <a
+                            href={`/print/invoice/${inv.id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            aria-label="พิมพ์/ดาวน์โหลด"
+                          >
+                            <Printer size={14} />
+                          </a>
+                          <CopyLinkButton path={`/invoice/${inv.shareToken}`} label="ลิงก์" />
+                          <button
+                            onClick={() => handleDeleteInvoice(inv)}
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                            aria-label="ลบใบแจ้งหนี้"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {invoices.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
+                      ยังไม่มีใบแจ้งหนี้
                     </td>
                   </tr>
                 )}
@@ -409,14 +527,13 @@ export default function AccountingPage() {
           </div>
         </section>
 
-        <Card className="text-sm text-gray-500">
-          สลิปที่แนบยังเป็นแค่ preview ในเบราว์เซอร์ (object URL) — ยังไม่ได้อัปโหลดขึ้น Supabase
-          Storage จริง ไฟล์จะหายเมื่อรีเฟรช
-        </Card>
       </div>
 
       {modal === "quotation" && (
         <QuotationModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveQuotation} />
+      )}
+      {modal === "invoice" && (
+        <InvoiceModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveInvoice} />
       )}
       {modal === "receipt" && (
         <ReceiptModal clients={clients} onClose={() => setModal("closed")} onSave={handleSaveReceipt} />

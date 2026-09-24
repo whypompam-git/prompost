@@ -18,6 +18,7 @@ export function BillingDocument({
   docNo,
   date,
   validUntil,
+  dueDate,
   seller,
   buyer,
   items,
@@ -30,6 +31,7 @@ export function BillingDocument({
   docNo: string;
   date: string;
   validUntil?: string;
+  dueDate?: string;
   seller: AgencySettings;
   buyer: { name: string; address?: string; phone?: string; taxId?: string; entityType?: "company" | "individual" };
   items: QuotationItem[];
@@ -57,6 +59,7 @@ export function BillingDocument({
           </p>
           <p>วันที่: {dateLabel(date)}</p>
           {validUntil && <p>ยืนราคาถึง: {dateLabel(validUntil)}</p>}
+          {dueDate && <p>ครบกำหนดชำระ: {dateLabel(dueDate)}</p>}
         </div>
       </div>
 
@@ -64,14 +67,14 @@ export function BillingDocument({
 
       <div className="grid grid-cols-2 gap-8 text-sm">
         <div>
-          <p className="mb-1 text-gray-500">ผู้เสนอราคา</p>
+          <p className="mb-1 text-gray-500">{docType === "quotation" ? "ผู้เสนอราคา" : "ผู้ให้บริการ"}</p>
           <p className="font-semibold">{seller.name || "—"}</p>
           {seller.address && <p>{seller.address}</p>}
           {seller.phone && <p>โทร: {seller.phone}</p>}
           {seller.taxId && <p>เลขประจำตัวผู้เสียภาษี: {seller.taxId}</p>}
         </div>
         <div>
-          <p className="mb-1 text-gray-500">เสนอราคาให้</p>
+          <p className="mb-1 text-gray-500">{docType === "quotation" ? "เสนอราคาให้" : "ลูกค้า"}</p>
           <p className="font-semibold">{buyer.name}</p>
           {buyer.address && <p>{buyer.address}</p>}
           {buyer.phone && <p>โทร: {buyer.phone}</p>}
@@ -150,7 +153,7 @@ export function BillingDocument({
         <div>
           <div className="mb-2 h-12" />
           <div className="border-t border-gray-400 pt-2">
-            <p>ผู้เสนอราคา</p>
+            <p>{docType === "quotation" ? "ผู้เสนอราคา" : "ผู้ออกเอกสาร"}</p>
             <p className="font-medium">{seller.name || "—"}</p>
           </div>
         </div>

@@ -4,7 +4,9 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import type { Client } from "@/lib/types";
 
-export type ReceiptFormValues = { clientId: string; amount: number };
+export type ReceiptFormValues = { clientId: string; amount: number; issuedAt: string };
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function ReceiptModal({
   clients,
@@ -17,12 +19,13 @@ export function ReceiptModal({
 }) {
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [amount, setAmount] = useState(0);
+  const [issuedAt, setIssuedAt] = useState(todayIso());
 
-  const canSave = clientId.length > 0 && amount > 0;
+  const canSave = clientId.length > 0 && amount > 0 && issuedAt.length > 0;
 
   function handleSave() {
     if (!canSave) return;
-    onSave({ clientId, amount });
+    onSave({ clientId, amount, issuedAt });
   }
 
   return (
@@ -55,6 +58,15 @@ export function ReceiptModal({
                 </option>
               ))}
             </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">วันที่ในใบเสร็จ</span>
+            <input
+              type="date"
+              value={issuedAt}
+              onChange={(e) => setIssuedAt(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
           </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">จำนวนเงิน (บาท)</span>

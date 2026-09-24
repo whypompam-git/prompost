@@ -6,6 +6,7 @@ const PUBLIC_PREFIXES = [
   "/api/auth",
   "/portal",
   "/quote",
+  "/invoice",
   "/receipt",
   "/print",
   "/manifest.json",

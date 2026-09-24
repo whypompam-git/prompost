@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import type { Client, EntityType, PaymentStatus } from "@/lib/types";
+import type { Client, EntityType, Package, PaymentStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
@@ -26,12 +26,14 @@ export type ClientFormValues = Omit<Client, "id" | "portalToken">;
 
 export function ClientModal({
   initial,
+  packages = [],
   onClose,
   onSave,
 }: {
   initial?: Client;
+  packages?: Package[];
   onClose: () => void;
-  onSave: (values: ClientFormValues) => void;
+  onSave: (values: ClientFormValues, packageId?: string) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [contactName, setContactName] = useState(initial?.contactName ?? "");
@@ -43,6 +45,7 @@ export function ClientModal({
   const [entityType, setEntityType] = useState<EntityType>(initial?.entityType ?? "company");
   const [address, setAddress] = useState(initial?.address ?? "");
   const [taxId, setTaxId] = useState(initial?.taxId ?? "");
+  const [packageId, setPackageId] = useState("");
 
   const canSave = name.trim().length > 0;
   const taxIdLabel = entityType === "company" ? "เลขทะเบียนนิติบุคคล" : "เลขประจำตัวผู้เสียภาษี";
@@ -58,7 +61,7 @@ export function ClientModal({
       entityType,
       address: address.trim() || undefined,
       taxId: taxId.trim() || undefined,
-    });
+    }, packageId || undefined);
   }
 
   return (
@@ -88,6 +91,27 @@ export function ClientModal({
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </Field>
+
+          {!initial && packages.length > 0 && (
+            <Field label="แพ็คเกจที่ลูกค้าซื้อ (ไม่บังคับ)">
+              <select
+                value={packageId}
+                onChange={(e) => setPackageId(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">ยังไม่เลือกแพ็คเกจ</option>
+                {packages.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.clipCount > 0 ? ` (${p.clipCount} คลิป)` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-400">
+                ถ้าแพ็คเกจมีจำนวนคลิป ระบบจะสร้างงานให้อัตโนมัติ ชื่อ "ชื่อลูกค้า-คลิป(ลำดับ)"
+              </p>
+            </Field>
+          )}
 
           <Field label="ชื่อผู้ติดต่อ">
             <input

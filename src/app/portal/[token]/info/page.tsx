@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { FileText, Package as PackageIcon, Phone, Receipt as ReceiptIcon } from "lucide-react";
 import { APP_NAME } from "@/config/branding";
 import { Card } from "@/components/ui/Card";
@@ -29,7 +30,7 @@ export default async function ClientPortalInfoPage({ params }: { params: { token
 
   if (!client) notFound();
 
-  const [{ data: clientPackages }, { data: quotations }, { data: receipts }] = await Promise.all([
+  const [{ data: clientPackages }, { data: quotations }, { data: invoices }, { data: receipts }] = await Promise.all([
     supabase
       .from("client_packages")
       .select("id, assigned_at, packages(id, name, price)")
@@ -37,12 +38,17 @@ export default async function ClientPortalInfoPage({ params }: { params: { token
       .order("assigned_at", { ascending: false }),
     supabase
       .from("quotations")
-      .select("id, quote_no, items, vat_percent, wht_percent, status, created_at")
+      .select("id, quote_no, items, vat_percent, wht_percent, status, created_at, share_token")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("invoices")
+      .select("id, invoice_no, items, vat_percent, wht_percent, status, created_at, due_date, share_token")
       .eq("client_id", client.id)
       .order("created_at", { ascending: false }),
     supabase
       .from("receipts")
-      .select("id, receipt_no, amount, created_at")
+      .select("id, receipt_no, amount, created_at, share_token")
       .eq("client_id", client.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -123,7 +129,7 @@ export default async function ClientPortalInfoPage({ params }: { params: { token
                 q.wht_percent,
               );
               return (
-                <div key={q.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                <Link key={q.id} href={`/quote/${q.share_token}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 hover:bg-gray-100">
                   <div>
                     <p className="text-sm font-medium text-gray-800">{q.quote_no}</p>
                     <p className="text-xs text-gray-400">{dateLabel(q.created_at)}</p>
@@ -132,11 +138,50 @@ export default async function ClientPortalInfoPage({ params }: { params: { token
                     <p className="text-sm font-semibold text-gray-900">฿{currency(totals.total)}</p>
                     <p className="text-xs text-gray-400">{QUOTE_STATUS_LABEL[q.status as QuotationStatus]}</p>
                   </div>
-                </div>
+                </Link>
               );
             })}
             {(!quotations || quotations.length === 0) && (
               <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีใบเสนอราคา</p>
+            )}
+          </Card>
+        </section>
+
+        <section>
+          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
+            <FileText size={15} />
+            ใบแจ้งหนี้
+          </h2>
+          <Card className="space-y-2">
+            {(invoices ?? []).map((inv) => {
+              const totals = calcQuotationTotals(
+                inv.items as QuotationItem[],
+                inv.vat_percent,
+                inv.wht_percent,
+              );
+              return (
+                <Link
+                  key={inv.id}
+                  href={`/invoice/${inv.share_token}`}
+                  className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 hover:bg-gray-100"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-gray-800">{inv.invoice_no}</p>
+                    <p className="text-xs text-gray-400">
+                      {inv.due_date ? `ครบกำหนด ${dateLabel(inv.due_date)}` : dateLabel(inv.created_at)}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-semibold text-gray-900">฿{currency(totals.total)}</p>
+                    <p className={inv.status === "paid" ? "text-xs text-emerald-600" : "text-xs text-amber-600"}>
+                      {inv.status === "paid" ? "ชำระแล้ว" : "ค้างชำระ"}
+                    </p>
+                  </div>
+                </Link>
+              );
+            })}
+            {(!invoices || invoices.length === 0) && (
+              <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีใบแจ้งหนี้</p>
             )}
           </Card>
         </section>
@@ -148,13 +193,13 @@ export default async function ClientPortalInfoPage({ params }: { params: { token
           </h2>
           <Card className="space-y-2">
             {(receipts ?? []).map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+              <Link key={r.id} href={`/receipt/${r.share_token}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 hover:bg-gray-100">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{r.receipt_no}</p>
                   <p className="text-xs text-gray-400">{dateLabel(r.created_at)}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">฿{currency(r.amount)}</p>
-              </div>
+              </Link>
             ))}
             {(!receipts || receipts.length === 0) && (
               <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีใบเสร็จ</p>

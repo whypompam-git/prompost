@@ -27,7 +27,7 @@ export default async function ClientPortalPage({ params }: { params: { token: st
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, type, status, script_text, footage_url, final_url")
+    .select("id, title, type, status, script_text, footage_url, final_url, equipment, shots")
     .eq("client_id", client.id)
     .order("scheduled_date", { ascending: false });
 
@@ -39,6 +39,8 @@ export default async function ClientPortalPage({ params }: { params: { token: st
     script_text: string | null;
     footage_url: string | null;
     final_url: string | null;
+    equipment: string[] | null;
+    shots: string[] | null;
   }[];
 
   const total = taskList.length;
@@ -78,6 +80,8 @@ export default async function ClientPortalPage({ params }: { params: { token: st
                 scriptText={task.script_text}
                 footageUrl={task.footage_url}
                 finalUrl={task.final_url}
+                equipment={task.equipment ?? []}
+                shots={task.shots ?? []}
               />
             ))}
             {taskList.length === 0 && (

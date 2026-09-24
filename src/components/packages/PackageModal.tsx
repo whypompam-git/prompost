@@ -20,6 +20,7 @@ export function PackageModal({
   const [price, setPrice] = useState(initial?.price ?? 0);
   const [startDate, setStartDate] = useState(initial?.startDate ?? "");
   const [endDate, setEndDate] = useState(initial?.endDate ?? "");
+  const [clipCount, setClipCount] = useState(initial?.clipCount ?? 0);
 
   const canSave = name.trim().length > 0;
 
@@ -31,6 +32,7 @@ export function PackageModal({
       price,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
+      clipCount,
     });
   }
 
@@ -74,6 +76,18 @@ export function PackageModal({
               min={0}
               value={price || ""}
               onChange={(e) => setPrice(Number(e.target.value))}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">จำนวนคลิปในแพ็คเกจ</span>
+            <input
+              type="number"
+              min={0}
+              value={clipCount || ""}
+              onChange={(e) => setClipCount(Number(e.target.value))}
+              placeholder="เช่น 10 — เลือกแพ็คเกจให้ลูกค้าแล้วจะสร้างงานให้อัตโนมัติ"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </label>
