@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
+import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
@@ -35,7 +36,7 @@ function DashboardPageInner() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [clientFilter, setClientFilter] = useState("");
+  const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<TaskSortKey>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -62,7 +63,7 @@ function DashboardPageInner() {
   const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
 
   const visibleTasks = useMemo(() => {
-    const filtered = clientFilter ? tasks.filter((t) => t.clientId === clientFilter) : tasks;
+    const filtered = clientFilter.length ? tasks.filter((t) => clientFilter.includes(t.clientId)) : tasks;
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -146,8 +147,8 @@ function DashboardPageInner() {
     <>
       <Topbar title="แดชบอร์ด" subtitle="ภาพรวมงานและลูกค้าทั้งหมด" />
 
-      <div className="flex-1 space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
           <StatCard label="ลูกค้าทั้งหมด" value={clients.length} icon={Users} tone="orange" />
           <StatCard label="ต้องทำ" value={countByStatus("todo")} icon={ListTodo} tone="gray" />
           <StatCard label="กำลังทำ" value={countByStatus("in_progress")} icon={Loader} tone="sky" />
@@ -158,18 +159,7 @@ function DashboardPageInner() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300"
-              >
-                <option value="">ลูกค้าทั้งหมด</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <ClientMultiFilter clients={clients} selected={clientFilter} onChange={setClientFilter} />
               <button
                 onClick={() => setCreating(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
