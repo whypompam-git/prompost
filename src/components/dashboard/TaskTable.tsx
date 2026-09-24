@@ -24,9 +24,9 @@ export type TaskSortKey =
 const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "title", label: "งาน" },
   { key: "client", label: "ลูกค้า" },
-  { key: "type", label: "ประเภท" },
   { key: "scheduledDate", label: "วันถ่าย" },
   { key: "dueDate", label: "กำหนดส่ง" },
+  { key: "type", label: "ประเภท" },
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
 ];
@@ -278,6 +278,12 @@ export function TaskTable({
                     </span>
                   </td>
                   <td className="px-5 py-3">
+                    <PillDate prefix="" value={task.scheduledDate} onChange={(v) => onUpdateTask(task.id, { scheduledDate: v })} />
+                  </td>
+                  <td className="px-5 py-3">
+                    <PillDate prefix="" value={task.dueDate} onChange={(v) => onUpdateTask(task.id, { dueDate: v })} />
+                  </td>
+                  <td className="px-5 py-3">
                     <PillSelect
                       label={typeLabel(task.type)}
                       color={typeColor(task.type)}
@@ -285,12 +291,6 @@ export function TaskTable({
                       options={typeOptions}
                       onChange={(v) => onUpdateTask(task.id, { type: v })}
                     />
-                  </td>
-                  <td className="px-5 py-3">
-                    <PillDate prefix="" value={task.scheduledDate} onChange={(v) => onUpdateTask(task.id, { scheduledDate: v })} />
-                  </td>
-                  <td className="px-5 py-3">
-                    <PillDate prefix="" value={task.dueDate} onChange={(v) => onUpdateTask(task.id, { dueDate: v })} />
                   </td>
                   <td className="px-5 py-3">
                     <PillSelect
