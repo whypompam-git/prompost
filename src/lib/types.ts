@@ -1,6 +1,6 @@
 import type { Permissions } from "@/lib/permissions";
 
-export type PaymentStatus = "unpaid" | "deposit" | "paid" | "declined";
+export type PaymentStatus = "unpaid" | "confirmed" | "deposit" | "paid" | "declined";
 export type EntityType = "company" | "individual";
 
 export interface Client {

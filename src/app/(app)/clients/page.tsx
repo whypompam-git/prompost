@@ -21,6 +21,7 @@ import type { Client, Package } from "@/lib/types";
 
 const PAYMENT_LABEL = {
   unpaid: "ยังไม่ชำระ",
+  confirmed: "เซ็นคอนเฟิม รอมัดจำ",
   deposit: "มัดจำแล้ว",
   paid: "ชำระครบแล้ว",
   declined: "ปฏิเสธ",
@@ -28,6 +29,7 @@ const PAYMENT_LABEL = {
 
 const PAYMENT_STYLE = {
   unpaid: "bg-rose-100 text-rose-700",
+  confirmed: "bg-sky-100 text-sky-700",
   deposit: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
   declined: "bg-gray-200 text-gray-600",
@@ -40,7 +42,7 @@ const GROUPS: {
   dot: string;
   match: (s: Client["paymentStatus"]) => boolean;
 }[] = [
-  { key: "confirmed", title: "ยืนยันแล้ว", hint: "มัดจำแล้ว / ชำระครบ", dot: "bg-emerald-500", match: (s) => s === "deposit" || s === "paid" },
+  { key: "confirmed", title: "ยืนยันแล้ว", hint: "เซ็นคอนเฟิม / มัดจำแล้ว / ชำระครบ", dot: "bg-emerald-500", match: (s) => s !== "unpaid" && s !== "declined" },
   { key: "inquiry", title: "สอบถามใบเสนอราคา", hint: "ยังไม่ชำระ", dot: "bg-amber-500", match: (s) => s === "unpaid" },
   { key: "declined", title: "ปฏิเสธแล้ว", hint: "ไม่รับงาน / ปฏิเสธใบเสนอราคา", dot: "bg-gray-400", match: (s) => s === "declined" },
 ];
@@ -129,7 +131,7 @@ export default function ClientsPage() {
                 <span className={`h-2.5 w-2.5 rounded-full ${g.dot}`} />
                 <h2 className="text-sm font-semibold text-gray-800">{g.title}</h2>
                 <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
-                  {list.length}
+                  {list.length} เจ้า
                 </span>
                 <span className="text-xs text-gray-400">{g.hint}</span>
               </div>

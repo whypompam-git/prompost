@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
   { value: "unpaid", label: "ยังไม่ชำระ" },
+  { value: "confirmed", label: "เซ็นคอนเฟิม (รอมัดจำ)" },
   { value: "deposit", label: "มัดจำแล้ว" },
   { value: "paid", label: "ชำระครบแล้ว" },
   { value: "declined", label: "ปฏิเสธ" },

@@ -161,6 +161,7 @@ export default function ClientInfoPage() {
                 className={inputClass}
               >
                 <option value="unpaid">ยังไม่ชำระ</option>
+                <option value="confirmed">เซ็นคอนเฟิม (รอมัดจำ)</option>
                 <option value="deposit">มัดจำแล้ว</option>
                 <option value="paid">ชำระครบแล้ว</option>
                 <option value="declined">ปฏิเสธ</option>
