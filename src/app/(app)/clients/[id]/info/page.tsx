@@ -191,6 +191,17 @@ export default function ClientInfoPage() {
           </div>
 
           <div>
+            <label className={labelClass}>ชื่อสำหรับออกใบเสนอราคา (ชื่อบริษัท / ชื่อลูกค้า)</label>
+            <input
+              value={client.billingName ?? ""}
+              onChange={(e) => patch({ billingName: e.target.value })}
+              placeholder="เช่น บริษัท ทะพา ท่าอะไรก็รวย จำกัด"
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-gray-400">ถ้าเว้นว่าง จะใช้ชื่อร้านแทน</p>
+          </div>
+
+          <div>
             <label className={labelClass}>ที่อยู่ (แสดงบนใบเสนอราคา/ใบเสร็จ)</label>
             <textarea
               value={client.address ?? ""}

@@ -17,7 +17,7 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
   if (!invoice) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
-    supabase.from("clients").select("name, phone, address, tax_id, entity_type, portal_enabled").eq("id", invoice.client_id).maybeSingle(),
+    supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type, portal_enabled").eq("id", invoice.client_id).maybeSingle(),
     supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info").eq("id", true).maybeSingle(),
   ]);
 
@@ -40,7 +40,7 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
           bankInfo: agency?.bank_info ?? "",
         }}
         buyer={{
-          name: client?.name ?? "—",
+          name: client?.billing_name || client?.name || "—",
           phone: client?.phone ?? undefined,
           address: client?.address ?? undefined,
           taxId: client?.tax_id ?? undefined,

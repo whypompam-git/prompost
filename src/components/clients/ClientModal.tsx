@@ -38,6 +38,7 @@ export function ClientModal({
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [nameEn, setNameEn] = useState(initial?.nameEn ?? "");
+  const [billingName, setBillingName] = useState(initial?.billingName ?? "");
   const [contactName, setContactName] = useState(initial?.contactName ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
@@ -57,6 +58,7 @@ export function ClientModal({
     onSave({
       name: name.trim(),
       nameEn: nameEn.trim() || undefined,
+      billingName: billingName.trim() || undefined,
       contactName,
       phone,
       paymentStatus,
@@ -167,6 +169,15 @@ export function ClientModal({
                 </button>
               ))}
             </div>
+          </Field>
+
+          <Field label="ชื่อสำหรับออกใบเสนอราคา (ชื่อบริษัท / ชื่อลูกค้า)">
+            <input
+              value={billingName}
+              onChange={(e) => setBillingName(e.target.value)}
+              placeholder="เช่น บริษัท ทะพา ท่าอะไรก็รวย จำกัด"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
           </Field>
 
           <Field label="ที่อยู่ (แสดงบนใบเสนอราคา/ใบเสร็จ)">

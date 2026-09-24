@@ -11,6 +11,7 @@ export interface Client {
   colorTag: string; // tailwind color stem used for calendar column accent, e.g. "orange"
   paymentStatus: PaymentStatus;
   portalToken: string;
+  billingName?: string; // name printed on quotations/invoices/receipts (company or person)
   nameEn?: string; // English name — source of the friendly link slug
   slug?: string; // public link: /<slug>
   portalEnabled: boolean; // false = link revoked (contract ended)

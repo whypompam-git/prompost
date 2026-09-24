@@ -39,6 +39,7 @@ type ClientRow = {
   payment_status: Client["paymentStatus"];
   portal_token: string;
   name_en: string | null;
+  billing_name: string | null;
   slug: string | null;
   portal_enabled: boolean;
   address: string | null;
@@ -47,7 +48,7 @@ type ClientRow = {
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, slug, portal_enabled, address, tax_id, entity_type";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -58,6 +59,7 @@ const fromClientRow = (r: ClientRow): Client => ({
   paymentStatus: r.payment_status,
   portalToken: r.portal_token,
   nameEn: r.name_en ?? undefined,
+  billingName: r.billing_name ?? undefined,
   slug: r.slug ?? undefined,
   portalEnabled: r.portal_enabled ?? true,
   address: r.address ?? undefined,
@@ -87,6 +89,7 @@ type ClientInput = Omit<Client, "id" | "portalToken" | "portalEnabled" | "slug">
 const clientPayload = (values: ClientInput) => ({
   name: values.name,
   name_en: values.nameEn || null,
+  billing_name: values.billingName || null,
   contact_name: values.contactName,
   phone: values.phone,
   color_tag: values.colorTag,
