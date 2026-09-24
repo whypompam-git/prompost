@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
@@ -69,6 +70,8 @@ export default function ClientInfoPage() {
     setSaving(true);
     try {
       await updateClientRow(client.id, client);
+      const fresh = await getClient(client.id);
+      if (fresh) setClient(fresh);
     } catch (err) {
       console.error(err);
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -118,6 +121,19 @@ export default function ClientInfoPage() {
         </div>
 
         <Card className="space-y-4">
+          <div>
+            <label className={labelClass}>ชื่อภาษาอังกฤษ (ใช้ทำลิงก์ลูกค้า)</label>
+            <input
+              value={client.nameEn ?? ""}
+              onChange={(e) => patch({ nameEn: e.target.value })}
+              placeholder="เช่น Gravita"
+              className={inputClass}
+            />
+            <p className="mt-1 break-all text-xs text-gray-400">
+              ลิงก์: prompost.vercel.app/{slugify(client.nameEn ?? "") || "…"}
+              {client.slug && client.slug !== slugify(client.nameEn ?? "") && ` (ตอนนี้: /${client.slug})`}
+            </p>
+          </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>ชื่อร้าน/บริษัท</label>
