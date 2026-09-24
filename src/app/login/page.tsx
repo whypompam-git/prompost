@@ -6,7 +6,30 @@ import { Delete } from "lucide-react";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 import Image from "next/image";
 
-type StaffOption = { id: string; name: string; avatarColor: string; position: string };
+type StaffOption = {
+  id: string;
+  name: string;
+  avatarColor: string;
+  position: string;
+  photoUrl?: string;
+};
+
+function Avatar({ s, size }: { s: StaffOption; size: "sm" | "lg" }) {
+  return (
+    <div
+      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold text-white ${s.avatarColor} ${
+        size === "lg" ? "h-14 w-14 text-lg" : "h-14 w-14 text-lg"
+      }`}
+    >
+      {s.photoUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={s.photoUrl} alt="" className="h-full w-full object-cover" />
+      ) : (
+        s.name.charAt(0)
+      )}
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -79,11 +102,7 @@ export default function LoginPage() {
                 onClick={() => setSelected(s)}
                 className="flex flex-col items-center gap-2 rounded-xl p-3 text-center hover:bg-white"
               >
-                <div
-                  className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold text-white ${s.avatarColor}`}
-                >
-                  {s.name.charAt(0)}
-                </div>
+                <Avatar s={s} size="sm" />
                 <span className="line-clamp-2 text-xs font-medium text-gray-700">{s.name}</span>
               </button>
             ))}
@@ -92,11 +111,7 @@ export default function LoginPage() {
       ) : (
         <div className="flex w-full max-w-xs flex-col items-center gap-6">
           <div className="flex flex-col items-center gap-2">
-            <div
-              className={`flex h-14 w-14 items-center justify-center rounded-full text-lg font-semibold text-white ${selected.avatarColor}`}
-            >
-              {selected.name.charAt(0)}
-            </div>
+            <Avatar s={selected} size="lg" />
             <p className="text-sm font-medium text-gray-800">{selected.name}</p>
             <button
               onClick={() => {

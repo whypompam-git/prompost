@@ -245,7 +245,14 @@ export default function AccountingPage() {
                   const totals = calcQuotationTotals(q.items, q.vatPercent, q.whtPercent);
                   return (
                     <tr key={q.id} className="hover:bg-gray-50/60">
-                      <td className="px-5 py-3 font-medium text-gray-900">{q.quoteNo}</td>
+                      <td className="px-5 py-3 font-medium text-gray-900">
+                        {q.quoteNo}
+                        {q.clientFeedback && (
+                          <p className="mt-1 max-w-[220px] whitespace-pre-wrap rounded-lg bg-amber-50 px-2 py-1 text-xs font-normal text-amber-700">
+                            ลูกค้าแจ้ง: {q.clientFeedback}
+                          </p>
+                        )}
+                      </td>
                       <td className="px-5 py-3 text-gray-600">{clientName(q.clientId)}</td>
                       <td className="px-5 py-3 text-gray-600">
                         {format(new Date(q.createdAt), "d MMM yyyy", { locale: th })}

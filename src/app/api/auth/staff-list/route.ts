@@ -10,7 +10,7 @@ export async function GET() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("staff")
-    .select("id, name, avatar_color, position")
+    .select("id, name, avatar_color, position, photo_url")
     .eq("is_active", true)
     .order("created_at", { ascending: true });
 
@@ -22,6 +22,7 @@ export async function GET() {
       name: r.name,
       avatarColor: r.avatar_color,
       position: r.position,
+      photoUrl: r.photo_url ?? undefined,
     })),
     { headers: { "Cache-Control": "no-store, max-age=0" } },
   );
