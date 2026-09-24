@@ -3,7 +3,7 @@
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import Link from "next/link";
-import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, ScrollText } from "lucide-react";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import { isStem, pillClass, stemFromBg } from "@/lib/colors";
@@ -30,6 +30,16 @@ const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
 ];
+
+// Tiny "has a script" marker: an icon after the title, zero extra width when absent.
+function ScriptMark({ task }: { task: Task }) {
+  if (!task.scriptText?.trim()) return null;
+  return (
+    <span title="มีสคริปต์แล้ว" className="ml-1.5 inline-flex shrink-0 align-middle text-brand-500">
+      <ScrollText size={14} aria-label="มีสคริปต์แล้ว" />
+    </span>
+  );
+}
 
 const dayMonth = (iso: string) => format(new Date(iso), "d MMM", { locale: th });
 
@@ -171,6 +181,7 @@ export function TaskTable({
                   className="min-w-0 text-[13px] font-semibold leading-snug text-gray-900"
                 >
                   {task.title}
+                  <ScriptMark task={task} />
                 </Link>
                 <div className="-mr-1 -mt-1 flex shrink-0 items-center">
                   <Link
@@ -271,6 +282,7 @@ export function TaskTable({
                     <Link href={`/tasks/${task.id}`} className="hover:text-brand-600 hover:underline">
                       {task.title}
                     </Link>
+                    <ScriptMark task={task} />
                   </td>
                   <td className="px-5 py-3">
                     <span
