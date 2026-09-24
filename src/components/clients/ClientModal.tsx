@@ -10,6 +10,7 @@ const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
   { value: "unpaid", label: "ยังไม่ชำระ" },
   { value: "deposit", label: "มัดจำแล้ว" },
   { value: "paid", label: "ชำระครบแล้ว" },
+  { value: "declined", label: "ปฏิเสธ" },
 ];
 
 const COLOR_OPTIONS = ["orange", "sky", "emerald", "violet", "rose", "amber"] as const;

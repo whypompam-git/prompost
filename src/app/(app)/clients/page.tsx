@@ -23,13 +23,27 @@ const PAYMENT_LABEL = {
   unpaid: "ยังไม่ชำระ",
   deposit: "มัดจำแล้ว",
   paid: "ชำระครบแล้ว",
+  declined: "ปฏิเสธ",
 } as const;
 
 const PAYMENT_STYLE = {
   unpaid: "bg-rose-100 text-rose-700",
   deposit: "bg-amber-100 text-amber-700",
   paid: "bg-emerald-100 text-emerald-700",
+  declined: "bg-gray-200 text-gray-600",
 } as const;
+
+const GROUPS: {
+  key: string;
+  title: string;
+  hint: string;
+  dot: string;
+  match: (s: Client["paymentStatus"]) => boolean;
+}[] = [
+  { key: "confirmed", title: "ยืนยันแล้ว", hint: "มัดจำแล้ว / ชำระครบ", dot: "bg-emerald-500", match: (s) => s === "deposit" || s === "paid" },
+  { key: "inquiry", title: "สอบถามใบเสนอราคา", hint: "ยังไม่ชำระ", dot: "bg-amber-500", match: (s) => s === "unpaid" },
+  { key: "declined", title: "ปฏิเสธแล้ว", hint: "ไม่รับงาน / ปฏิเสธใบเสนอราคา", dot: "bg-gray-400", match: (s) => s === "declined" },
+];
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
@@ -96,7 +110,7 @@ export default function ClientsPage() {
   return (
     <>
       <Topbar title="ลูกค้า" subtitle="ข้อมูลลูกค้าและสถานะการชำระเงิน" />
-      <div className="flex-1 space-y-4 p-6">
+      <div className="flex-1 space-y-6 p-4 sm:p-6">
         <div className="flex justify-end">
           <button
             onClick={() => setCreating(true)}
@@ -107,8 +121,20 @@ export default function ClientsPage() {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {clients.map((client) => (
+        {GROUPS.map((g) => {
+          const list = clients.filter((c) => g.match(c.paymentStatus));
+          return (
+            <section key={g.key}>
+              <div className="mb-2 flex items-center gap-2">
+                <span className={`h-2.5 w-2.5 rounded-full ${g.dot}`} />
+                <h2 className="text-sm font-semibold text-gray-800">{g.title}</h2>
+                <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-600">
+                  {list.length}
+                </span>
+                <span className="text-xs text-gray-400">{g.hint}</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((client) => (
             <Card key={client.id} className="space-y-3">
               <div className="flex items-start justify-between">
                 <div>
@@ -168,12 +194,18 @@ export default function ClientsPage() {
               )}
             </Card>
           ))}
-          {clients.length === 0 && (
-            <Card className="text-sm text-gray-400 sm:col-span-2 lg:col-span-3">
-              ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
-            </Card>
+          {list.length === 0 && (
+            <p className="rounded-2xl bg-white px-4 py-6 text-center text-sm text-gray-400 sm:col-span-2 lg:col-span-3">
+              ไม่มีลูกค้าในกลุ่มนี้
+            </p>
           )}
-        </div>
+              </div>
+            </section>
+          );
+        })}
+        {clients.length === 0 && (
+          <Card className="text-sm text-gray-400">ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน</Card>
+        )}
       </div>
 
       {creating && <ClientModal packages={packages} onClose={() => setCreating(false)} onSave={handleSave} />}

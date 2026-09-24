@@ -163,6 +163,7 @@ export default function ClientInfoPage() {
                 <option value="unpaid">ยังไม่ชำระ</option>
                 <option value="deposit">มัดจำแล้ว</option>
                 <option value="paid">ชำระครบแล้ว</option>
+                <option value="declined">ปฏิเสธ</option>
               </select>
             </div>
           </div>
