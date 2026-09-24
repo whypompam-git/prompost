@@ -65,7 +65,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
             <Film size={15} />
             รายการงาน/คลิป
           </h2>
-          <PortalTaskList tasks={taskList} />
+          <PortalTaskList tasks={taskList} clientKey={clientKey} />
         </section>
       </div>
     </div>

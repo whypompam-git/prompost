@@ -5,6 +5,7 @@ import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/sessi
 const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth",
+  "/api/portal",
   "/portal",
   "/quote",
   "/invoice",

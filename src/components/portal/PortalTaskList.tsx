@@ -29,7 +29,7 @@ const OPTIONS: { key: SortKey; label: string }[] = [
   { key: "status", label: "สถานะ" },
 ];
 
-export function PortalTaskList({ tasks }: { tasks: PortalTask[] }) {
+export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clientKey: string }) {
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [desc, setDesc] = useState(false);
 
@@ -76,6 +76,8 @@ export function PortalTaskList({ tasks }: { tasks: PortalTask[] }) {
         {sorted.map((task) => (
           <PortalTaskCard
             key={task.id}
+            taskId={task.id}
+            clientKey={clientKey}
             title={task.title}
             type={task.type}
             status={task.status}
