@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, ChevronDown, ExternalLink, ListChecks, ScrollText } from "lucide-react";
+import { Camera, ChevronDown, ExternalLink, ListChecks, Pencil, ScrollText } from "lucide-react";
+import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
@@ -16,6 +17,8 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 export function PortalTaskCard({
+  taskId,
+  clientKey,
   title,
   type,
   status,
@@ -26,6 +29,8 @@ export function PortalTaskCard({
   equipment,
   shots,
 }: {
+  taskId: string;
+  clientKey: string;
   title: string;
   type: TaskType;
   status: TaskStatus;
@@ -37,8 +42,30 @@ export function PortalTaskCard({
   shots: string[];
 }) {
   const [open, setOpen] = useState(false);
-  const hasScript = Boolean(scriptText?.trim());
-  const expandable = hasScript || shots.length > 0;
+  const [script, setScript] = useState(scriptText ?? "");
+  const [editingScript, setEditingScript] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const hasScript = Boolean(script.trim());
+
+  async function saveScript() {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/portal/script", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientKey, taskId, scriptText: draft }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      setScript(draft);
+      setEditingScript(false);
+    } catch {
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
+    }
+  }
+  const expandable = true;
   const links = [
     { label: "Ref", url: refUrl },
     { label: "File", url: footageUrl },
@@ -105,15 +132,53 @@ export function PortalTaskCard({
               </ul>
             </div>
           )}
-          {hasScript && (
-            <div>
-              <p className="mb-1 flex items-center gap-1 text-xs font-medium text-gray-500">
+          <div>
+            <div className="mb-1 flex items-center justify-between">
+              <p className="flex items-center gap-1 text-xs font-medium text-gray-500">
                 <ScrollText size={12} />
                 สคริปต์
               </p>
-              <ScriptText text={scriptText!} className="rounded-lg bg-white p-3 text-sm text-gray-700" />
+              {!editingScript && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDraft(script);
+                    setEditingScript(true);
+                  }}
+                  className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                >
+                  <Pencil size={11} />
+                  แก้ไขสคริปต์
+                </button>
+              )}
             </div>
-          )}
+            {editingScript ? (
+              <div className="space-y-2">
+                <ScriptEditor value={draft} onChange={setDraft} />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingScript(false)}
+                    className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    ยกเลิก
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveScript}
+                    disabled={saving}
+                    className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+                  >
+                    {saving ? "กำลังบันทึก..." : "บันทึก"}
+                  </button>
+                </div>
+              </div>
+            ) : hasScript ? (
+              <ScriptText text={script} className="rounded-lg bg-white p-3 text-sm text-gray-700" />
+            ) : (
+              <p className="rounded-lg bg-white p-3 text-sm text-gray-400">ยังไม่มีสคริปต์</p>
+            )}
+          </div>
         </div>
       )}
     </div>
