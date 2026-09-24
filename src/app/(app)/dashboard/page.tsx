@@ -2,15 +2,17 @@
 
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users, ListTodo, Loader, CheckCircle2, Plus } from "lucide-react";
+import { Users, ListTodo, Loader, CheckCircle2, Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
+import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
   createTaskRow,
+  createTasksBulk,
   deleteTaskRow,
   listClients,
   listStaff,
@@ -36,6 +38,7 @@ function DashboardPageInner() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
   const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<TaskSortKey>("dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
@@ -116,6 +119,12 @@ function DashboardPageInner() {
     updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
   }
 
+  async function handleBulkSave(values: BulkTaskValues) {
+    await createTasksBulk(values);
+    setTasks(await listTasks());
+    setBulkOpen(false);
+  }
+
   async function handleSave(values: TaskFormValues) {
     const created = await createTaskRow(values);
     setCreating(false);
@@ -161,6 +170,13 @@ function DashboardPageInner() {
             <div className="flex flex-wrap items-center gap-2">
               <ClientMultiFilter clients={clients} selected={clientFilter} onChange={setClientFilter} />
               <button
+                onClick={() => setBulkOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
+              >
+                <Layers size={16} />
+                เพิ่มหลายงาน
+              </button>
+              <button
                 onClick={() => setCreating(true)}
                 className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
               >
@@ -184,6 +200,14 @@ function DashboardPageInner() {
         </div>
       </div>
 
+      {bulkOpen && (
+        <BulkTaskModal
+          clients={clients}
+          tasks={tasks}
+          onClose={() => setBulkOpen(false)}
+          onSave={handleBulkSave}
+        />
+      )}
       {creating && (
         <TaskModal
           clients={clients}

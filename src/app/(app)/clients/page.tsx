@@ -14,7 +14,9 @@ import {
   deleteClientRow,
   listClients,
   listPackages,
+  setClientPortalEnabled,
 } from "@/lib/supabase/queries";
+import { clientLinkPath } from "@/lib/slug";
 import type { Client, Package } from "@/lib/types";
 
 const PAYMENT_LABEL = {
@@ -49,6 +51,25 @@ export default function ClientsPage() {
     if (packageId) await assignPackageToClient(created.id, packageId);
     setClients((prev) => [created, ...prev]);
     setCreating(false);
+  }
+
+  async function togglePortal(client: Client) {
+    const enable = !client.portalEnabled;
+    if (
+      !enable &&
+      !window.confirm(
+        `ยกเลิกลิงก์ของ "${client.name}"? ลูกค้าจะเข้าดูงาน/ใบเสนอราคา/ใบแจ้งหนี้/ใบเสร็จผ่านลิงก์ไม่ได้ (เปิดใหม่ได้ภายหลัง)`,
+      )
+    )
+      return;
+    setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, portalEnabled: enable } : c)));
+    try {
+      await setClientPortalEnabled(client.id, enable);
+    } catch (err) {
+      console.error(err);
+      setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, portalEnabled: !enable } : c)));
+      window.alert("ทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
   }
 
   async function handleDelete(client: Client) {
@@ -119,7 +140,32 @@ export default function ClientsPage() {
                 </div>
               </div>
               <p className="text-sm text-gray-500">{client.phone}</p>
-              <CopyLinkButton path={`/portal/${client.portalToken}`} label="คัดลอกลิงก์พอร์ทัลลูกค้า" />
+              {client.portalEnabled ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <CopyLinkButton path={clientLinkPath(client)} label="คัดลอกลิงก์ลูกค้า" />
+                  <button
+                    onClick={() => togglePortal(client)}
+                    className="text-xs font-medium text-rose-500 hover:underline"
+                  >
+                    ยกเลิกลิงก์
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-rose-100 px-2.5 py-1 text-xs font-medium text-rose-700">
+                    ลิงก์ถูกยกเลิก
+                  </span>
+                  <button
+                    onClick={() => togglePortal(client)}
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    เปิดลิงก์อีกครั้ง
+                  </button>
+                </div>
+              )}
+              {client.slug && client.portalEnabled && (
+                <p className="truncate text-xs text-gray-400">prompost.vercel.app/{client.slug}</p>
+              )}
             </Card>
           ))}
           {clients.length === 0 && (

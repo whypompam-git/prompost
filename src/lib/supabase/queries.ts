@@ -1,6 +1,7 @@
 import { createClient } from "./client";
 import { cachedFetch } from "@/lib/offline/cache";
 import { normalizePermissions } from "@/lib/permissions";
+import { slugify } from "@/lib/slug";
 import type {
   Client,
   ClientPackage,
@@ -37,13 +38,16 @@ type ClientRow = {
   color_tag: string;
   payment_status: Client["paymentStatus"];
   portal_token: string;
+  name_en: string | null;
+  slug: string | null;
+  portal_enabled: boolean;
   address: string | null;
   tax_id: string | null;
   entity_type: Client["entityType"];
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, address, tax_id, entity_type";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, slug, portal_enabled, address, tax_id, entity_type";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -53,6 +57,9 @@ const fromClientRow = (r: ClientRow): Client => ({
   colorTag: r.color_tag,
   paymentStatus: r.payment_status,
   portalToken: r.portal_token,
+  nameEn: r.name_en ?? undefined,
+  slug: r.slug ?? undefined,
+  portalEnabled: r.portal_enabled ?? true,
   address: r.address ?? undefined,
   taxId: r.tax_id ?? undefined,
   entityType: r.entity_type ?? "company",
@@ -75,44 +82,54 @@ export async function getClient(id: string): Promise<Client | null> {
   return data ? fromClientRow(data as ClientRow) : null;
 }
 
-export async function createClientRow(
-  values: Omit<Client, "id" | "portalToken">,
-): Promise<Client> {
+type ClientInput = Omit<Client, "id" | "portalToken" | "portalEnabled" | "slug">;
+
+const clientPayload = (values: ClientInput) => ({
+  name: values.name,
+  name_en: values.nameEn || null,
+  contact_name: values.contactName,
+  phone: values.phone,
+  color_tag: values.colorTag,
+  payment_status: values.paymentStatus,
+  address: values.address,
+  tax_id: values.taxId,
+  entity_type: values.entityType,
+});
+
+// slug comes from the English name; on a collision, add a numeric suffix.
+async function pickSlug(nameEn: string | undefined, ownId?: string): Promise<string | null> {
+  const base = slugify(nameEn ?? "");
+  if (!base) return null;
+  for (let n = 1; n < 50; n++) {
+    const candidate = n === 1 ? base : `${base}-${n}`;
+    const { data } = await supabase().from("clients").select("id").eq("slug", candidate).maybeSingle();
+    if (!data || data.id === ownId) return candidate;
+  }
+  return `${base}-${Date.now().toString(36)}`;
+}
+
+export async function createClientRow(values: ClientInput): Promise<Client> {
+  const slug = await pickSlug(values.nameEn);
   const { data, error } = await supabase()
     .from("clients")
-    .insert({
-      name: values.name,
-      contact_name: values.contactName,
-      phone: values.phone,
-      color_tag: values.colorTag,
-      payment_status: values.paymentStatus,
-      address: values.address,
-      tax_id: values.taxId,
-      entity_type: values.entityType,
-    })
+    .insert({ ...clientPayload(values), slug })
     .select(CLIENT_COLUMNS)
     .single();
   if (error) throw error;
   return fromClientRow(data as ClientRow);
 }
 
-export async function updateClientRow(
-  id: string,
-  values: Omit<Client, "id" | "portalToken">,
-): Promise<void> {
+export async function updateClientRow(id: string, values: ClientInput): Promise<void> {
+  const slug = await pickSlug(values.nameEn, id);
   const { error } = await supabase()
     .from("clients")
-    .update({
-      name: values.name,
-      contact_name: values.contactName,
-      phone: values.phone,
-      color_tag: values.colorTag,
-      payment_status: values.paymentStatus,
-      address: values.address,
-      tax_id: values.taxId,
-      entity_type: values.entityType,
-    })
+    .update({ ...clientPayload(values), slug })
     .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setClientPortalEnabled(id: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase().from("clients").update({ portal_enabled: enabled }).eq("id", id);
   if (error) throw error;
 }
 
@@ -1076,4 +1093,27 @@ export async function saveTaskSettings(values: TaskSettings): Promise<void> {
     .from("task_settings")
     .upsert({ id: true, types: values.types, status_colors: values.statusColors });
   if (error) throw error;
+}
+
+// Bulk-create tasks named "<client>-<n>" (n = startAt … startAt+count-1).
+export async function createTasksBulk(values: {
+  clientId: string;
+  clientName: string;
+  count: number;
+  startAt: number;
+  type: string;
+  scheduledDate: string;
+  dueDate: string;
+}): Promise<number> {
+  const rows = Array.from({ length: values.count }, (_, i) => ({
+    client_id: values.clientId,
+    title: `${values.clientName}-${values.startAt + i}`,
+    type: values.type,
+    status: "todo",
+    scheduled_date: values.scheduledDate,
+    due_date: values.dueDate,
+  }));
+  const { error } = await supabase().from("tasks").insert(rows);
+  if (error) throw error;
+  return rows.length;
 }

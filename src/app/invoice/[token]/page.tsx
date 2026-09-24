@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
@@ -16,9 +17,11 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
   if (!invoice) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
-    supabase.from("clients").select("name, phone, address, tax_id, entity_type").eq("id", invoice.client_id).maybeSingle(),
+    supabase.from("clients").select("name, phone, address, tax_id, entity_type, portal_enabled").eq("id", invoice.client_id).maybeSingle(),
     supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info").eq("id", true).maybeSingle(),
   ]);
+
+  if (client && client.portal_enabled === false) return <LinkRevoked />;
 
   return (
     <div className="min-h-screen bg-gray-100">

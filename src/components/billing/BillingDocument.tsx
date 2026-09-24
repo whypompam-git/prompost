@@ -1,3 +1,5 @@
+import Image from "next/image";
+import { APP_LOGO_SRC } from "@/config/branding";
 import type { AgencySettings, QuotationItem } from "@/lib/types";
 
 const currency = (n: number) =>
@@ -50,6 +52,7 @@ export function BillingDocument({
     <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
       <div className="flex items-start justify-between">
         <div>
+          <Image src={APP_LOGO_SRC} alt="" width={44} height={44} className="mb-2 h-11 w-11 rounded-lg" />
           <h1 className="text-3xl font-bold">{title.th}</h1>
           <p className="text-sm text-gray-500">{title.en}</p>
         </div>

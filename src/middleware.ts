@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { isClientSlugPath } from "@/lib/slug";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PREFIXES = [
@@ -24,7 +25,7 @@ function isPublic(pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (isPublic(pathname) || pathname.startsWith("/_next")) {
+  if (isPublic(pathname) || isClientSlugPath(pathname) || pathname.startsWith("/_next")) {
     return NextResponse.next();
   }
 

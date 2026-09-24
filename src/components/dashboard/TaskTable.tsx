@@ -172,13 +172,22 @@ export function TaskTable({
                 >
                   {task.title}
                 </Link>
-                <button
-                  onClick={() => onDelete(task)}
-                  className="-mr-1 -mt-1 shrink-0 rounded-full p-1.5 text-gray-300 hover:bg-rose-50 hover:text-rose-600"
-                  aria-label="ลบงาน"
-                >
-                  <Trash2 size={14} />
-                </button>
+                <div className="-mr-1 -mt-1 flex shrink-0 items-center">
+                  <Link
+                    href={`/tasks/${task.id}/edit`}
+                    className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                    aria-label="แก้ไขรายละเอียดงาน"
+                  >
+                    <Pencil size={14} />
+                  </Link>
+                  <button
+                    onClick={() => onDelete(task)}
+                    className="rounded-full p-1.5 text-gray-300 hover:bg-rose-50 hover:text-rose-600"
+                    aria-label="ลบงาน"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
@@ -316,9 +325,9 @@ export function TaskTable({
                   <td className="px-5 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       <Link
-                        href={`/tasks/${task.id}`}
+                        href={`/tasks/${task.id}/edit`}
                         className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                        aria-label="ดู/แก้ไขงาน"
+                        aria-label="แก้ไขรายละเอียดงาน"
                       >
                         <Pencil size={14} />
                       </Link>

@@ -2,15 +2,15 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 export function PortalTabs({
-  token,
+  basePath,
   active,
 }: {
-  token: string;
+  basePath: string;
   active: "dashboard" | "info";
 }) {
   const tabs = [
-    { key: "dashboard" as const, label: "คอนเทนต์", href: `/portal/${token}` },
-    { key: "info" as const, label: "ข้อมูลลูกค้า", href: `/portal/${token}/info` },
+    { key: "dashboard" as const, label: "คอนเทนต์", href: basePath },
+    { key: "info" as const, label: "ข้อมูลลูกค้า", href: `${basePath}/info` },
   ];
 
   return (

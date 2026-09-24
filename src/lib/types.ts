@@ -11,6 +11,9 @@ export interface Client {
   colorTag: string; // tailwind color stem used for calendar column accent, e.g. "orange"
   paymentStatus: PaymentStatus;
   portalToken: string;
+  nameEn?: string; // English name — source of the friendly link slug
+  slug?: string; // public link: /<slug>
+  portalEnabled: boolean; // false = link revoked (contract ended)
   address?: string; // printed on quotations/receipts as the buyer's address
   entityType: EntityType; // controls the taxId field's printed label
   taxId?: string; // "เลขทะเบียนนิติบุคคล" (company) or "เลขประจำตัวผู้เสียภาษี" (individual)

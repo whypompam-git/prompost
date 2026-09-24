@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X } from "lucide-react";
 import type { Client, EntityType, Package, PaymentStatus } from "@/lib/types";
+import { slugify } from "@/lib/slug";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_OPTIONS: { value: PaymentStatus; label: string }[] = [
@@ -22,7 +23,7 @@ const COLOR_SWATCH: Record<string, string> = {
   amber: "bg-amber-500",
 };
 
-export type ClientFormValues = Omit<Client, "id" | "portalToken">;
+export type ClientFormValues = Omit<Client, "id" | "portalToken" | "portalEnabled" | "slug">;
 
 export function ClientModal({
   initial,
@@ -36,6 +37,7 @@ export function ClientModal({
   onSave: (values: ClientFormValues, packageId?: string) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
+  const [nameEn, setNameEn] = useState(initial?.nameEn ?? "");
   const [contactName, setContactName] = useState(initial?.contactName ?? "");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>(
@@ -54,6 +56,7 @@ export function ClientModal({
     if (!canSave) return;
     onSave({
       name: name.trim(),
+      nameEn: nameEn.trim() || undefined,
       contactName,
       phone,
       paymentStatus,
@@ -112,6 +115,18 @@ export function ClientModal({
               </p>
             </Field>
           )}
+
+          <Field label="ชื่อภาษาอังกฤษ (ใช้ทำลิงก์ลูกค้า)">
+            <input
+              value={nameEn}
+              onChange={(e) => setNameEn(e.target.value)}
+              placeholder="เช่น Gravita"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+            <p className="mt-1 break-all text-xs text-gray-400">
+              ลิงก์: prompost.vercel.app/{slugify(nameEn) || "…"}
+            </p>
+          </Field>
 
           <Field label="ชื่อผู้ติดต่อ">
             <input
