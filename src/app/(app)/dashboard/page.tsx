@@ -23,6 +23,20 @@ import {
 import { queueTaskEdit } from "@/lib/offline/queue";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
+const FILTER_KEY = "prompost:dashboard-filters";
+
+function readSavedFilters(): {
+  clients?: string[];
+  sortBy?: TaskSortKey;
+  sortDir?: "asc" | "desc";
+} {
+  try {
+    return JSON.parse(localStorage.getItem(FILTER_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+
 export default function DashboardPage() {
   return (
     <Suspense fallback={<LoadingView />}>
@@ -41,9 +55,16 @@ function DashboardPageInner() {
   const [creating, setCreating] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [clientFilter, setClientFilter] = useState<string[]>([]);
-  const [sortBy, setSortBy] = useState<TaskSortKey>("dueDate");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const saved = useMemo(readSavedFilters, []);
+  const [clientFilter, setClientFilter] = useState<string[]>(saved.clients ?? []);
+  const [sortBy, setSortBy] = useState<TaskSortKey>(saved.sortBy ?? "dueDate");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(saved.sortDir ?? "asc");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ clients: clientFilter, sortBy, sortDir }));
+    } catch {}
+  }, [clientFilter, sortBy, sortDir]);
 
   useEffect(() => {
     Promise.all([listTasks(), listClients(), listStaff()])
@@ -51,6 +72,7 @@ function DashboardPageInner() {
         setTasks(t);
         setClients(c);
         setStaff(s);
+        setClientFilter((prev) => prev.filter((id) => c.some((x) => x.id === id)));
       })
       .finally(() => setLoading(false));
   }, []);
