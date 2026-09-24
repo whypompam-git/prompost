@@ -72,6 +72,8 @@ function DashboardPageInner() {
           return clientName(a.clientId).localeCompare(clientName(b.clientId), "th");
         case "type":
           return a.type.localeCompare(b.type);
+        case "scheduledDate":
+          return a.scheduledDate.localeCompare(b.scheduledDate);
         case "status":
           return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
         case "assignee": {
@@ -104,6 +106,11 @@ function DashboardPageInner() {
 
   function updateAssignee(taskId: string, assigneeId: string) {
     const patch = { assigneeId: assigneeId || null };
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
+    updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
+  }
+
+  function updateTask(taskId: string, patch: Partial<Omit<Task, "id">>) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
     updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
   }
@@ -181,6 +188,7 @@ function DashboardPageInner() {
             onSort={handleSort}
             onUpdateStatus={updateStatus}
             onUpdateAssignee={updateAssignee}
+            onUpdateTask={updateTask}
             onDelete={handleDelete}
           />
         </div>

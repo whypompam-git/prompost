@@ -26,3 +26,41 @@
     background: white !important;
   }
 }
+
+/* ── Motion ─────────────────────────────────────────────────────────── */
+@keyframes pp-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pp-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pp-pop {
+  from { opacity: 0; transform: scale(0.96) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes pp-sheet {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.pp-page { animation: pp-rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+/* every modal overlay fades in and its card pops in — no per-file changes */
+div.fixed.inset-0.z-50 { animation: pp-fade-in 0.18s ease-out both; }
+div.fixed.inset-0.z-50 > div { animation: pp-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* mobile "อื่นๆ" sheet */
+div.fixed.inset-0.z-40 > div:last-child { animation: pp-sheet 0.24s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+tbody tr { animation: pp-fade-in 0.25s ease-out both; }
+
+button, a, select, input, textarea {
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.12s ease, opacity 0.15s ease;
+}
+button:not(:disabled):active { transform: scale(0.96); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

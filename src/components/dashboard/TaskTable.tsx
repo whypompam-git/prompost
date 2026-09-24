@@ -1,14 +1,20 @@
 "use client";
 
-import { format } from "date-fns";
-import { th } from "date-fns/locale";
 import Link from "next/link";
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { STATUS_LABEL } from "@/components/ui/StatusBadge";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export type TaskSortKey = "title" | "client" | "type" | "dueDate" | "status" | "assignee";
+export type TaskSortKey =
+  | "title"
+  | "client"
+  | "type"
+  | "scheduledDate"
+  | "dueDate"
+  | "status"
+  | "assignee";
 
 const TYPE_LABEL: Record<Task["type"], string> = {
   shoot: "ถ่ายทำ",
@@ -17,6 +23,9 @@ const TYPE_LABEL: Record<Task["type"], string> = {
   deliver: "ส่งมอบ",
   other: "อื่นๆ",
 };
+
+const FIELD_STYLE =
+  "cursor-pointer rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-300";
 
 const STATUS_SELECT_STYLE: Record<TaskStatus, string> = {
   todo: "border-gray-200 bg-gray-50 text-gray-700",
@@ -29,6 +38,7 @@ const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "title", label: "งาน" },
   { key: "client", label: "ลูกค้า" },
   { key: "type", label: "ประเภท" },
+  { key: "scheduledDate", label: "วันถ่าย" },
   { key: "dueDate", label: "กำหนดส่ง" },
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
@@ -43,6 +53,7 @@ export function TaskTable({
   onSort,
   onUpdateStatus,
   onUpdateAssignee,
+  onUpdateTask,
   onDelete,
 }: {
   tasks: Task[];
@@ -53,13 +64,14 @@ export function TaskTable({
   onSort: (key: TaskSortKey) => void;
   onUpdateStatus: (taskId: string, status: TaskStatus) => void;
   onUpdateAssignee: (taskId: string, assigneeId: string) => void;
+  onUpdateTask: (taskId: string, patch: Partial<Omit<Task, "id">>) => void;
   onDelete: (task: Task) => void;
 }) {
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-      <table className="w-full min-w-[760px] text-left text-sm">
+      <table className="w-full min-w-[1080px] text-left text-sm">
         <thead>
           <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
             {SORT_COLUMNS.map((col) => (
@@ -81,6 +93,7 @@ export function TaskTable({
                 </button>
               </th>
             ))}
+            <th className="px-5 py-3 font-medium">ลิงก์</th>
             <th className="px-5 py-3 font-medium" />
           </tr>
         </thead>
@@ -93,9 +106,34 @@ export function TaskTable({
                 </Link>
               </td>
               <td className="px-5 py-3 text-gray-600">{clientName(task.clientId)}</td>
-              <td className="px-5 py-3 text-gray-600">{TYPE_LABEL[task.type]}</td>
-              <td className="px-5 py-3 text-gray-600">
-                {format(new Date(task.dueDate), "d MMM", { locale: th })}
+              <td className="px-5 py-3">
+                <select
+                  value={task.type}
+                  onChange={(e) => onUpdateTask(task.id, { type: e.target.value as Task["type"] })}
+                  className={FIELD_STYLE}
+                >
+                  {(Object.keys(TYPE_LABEL) as Task["type"][]).map((t) => (
+                    <option key={t} value={t}>
+                      {TYPE_LABEL[t]}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td className="px-5 py-3">
+                <input
+                  type="date"
+                  value={task.scheduledDate}
+                  onChange={(e) => e.target.value && onUpdateTask(task.id, { scheduledDate: e.target.value })}
+                  className={FIELD_STYLE}
+                />
+              </td>
+              <td className="px-5 py-3">
+                <input
+                  type="date"
+                  value={task.dueDate}
+                  onChange={(e) => e.target.value && onUpdateTask(task.id, { dueDate: e.target.value })}
+                  className={FIELD_STYLE}
+                />
               </td>
               <td className="px-5 py-3">
                 <select
@@ -126,6 +164,13 @@ export function TaskTable({
                     </option>
                   ))}
                 </select>
+              </td>
+              <td className="px-5 py-3">
+                <div className="flex gap-1.5">
+                  <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
+                  <TaskLinkButton label="Draft" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
+                  <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
+                </div>
               </td>
               <td className="px-5 py-3 text-right">
                 <div className="flex justify-end gap-1">
