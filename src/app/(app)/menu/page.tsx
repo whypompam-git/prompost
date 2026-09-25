@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Plus, Trash2, X, Pencil } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
+import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
   deleteContentSet,
@@ -13,13 +14,16 @@ import {
   type ContentSetItem,
 } from "@/lib/supabase/queries";
 
+let keySeq = 0;
+const nextKey = () => ++keySeq;
+
 const field =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
 
 export default function MenuPage() {
   const [sets, setSets] = useState<ContentSet[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editing, setEditing] = useState<{ id?: string; name: string; items: ContentSetItem[] } | null>(null);
+  const [editing, setEditing] = useState<{ id?: string; name: string; items: ContentSetItem[]; keys: number[] } | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -77,7 +81,7 @@ export default function MenuPage() {
             สร้าง Set ไว้ แล้วไปที่ แดชบอร์ด &gt; เพิ่มหลายงาน เพื่อเลือก Set ให้ลูกค้า ระบบจะสร้างงานทั้งชุดให้เลย
           </p>
           <button
-            onClick={() => setEditing({ name: "", items: [{ title: "", script: "", ref: "" }] })}
+            onClick={() => setEditing({ name: "", items: [{ title: "", script: "", ref: "" }], keys: [nextKey()] })}
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
           >
             <Plus size={16} />
@@ -95,7 +99,7 @@ export default function MenuPage() {
                 </div>
                 <div className="flex shrink-0 gap-1">
                   <button
-                    onClick={() => setEditing({ id: s.id, name: s.name, items: s.items })}
+                    onClick={() => setEditing({ id: s.id, name: s.name, items: s.items, keys: s.items.map(nextKey) })}
                     className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                     aria-label="แก้ไข"
                   >
@@ -148,7 +152,7 @@ export default function MenuPage() {
                 />
               </label>
               {editing.items.map((it, i) => (
-                <div key={i} className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
+                <div key={editing.keys[i]} className="space-y-2 rounded-xl border border-gray-100 bg-gray-50 p-3">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-gray-400">#{i + 1}</span>
                     <input
@@ -158,20 +162,18 @@ export default function MenuPage() {
                       className={field}
                     />
                     <button
-                      onClick={() => setEditing({ ...editing, items: editing.items.filter((_, idx) => idx !== i) })}
+                      onClick={() => setEditing({
+                          ...editing,
+                          items: editing.items.filter((_, idx) => idx !== i),
+                          keys: editing.keys.filter((_, idx) => idx !== i),
+                        })}
                       className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
                       aria-label="ลบงานนี้"
                     >
                       <Trash2 size={14} />
                     </button>
                   </div>
-                  <textarea
-                    value={it.script}
-                    onChange={(e) => patchItem(i, { script: e.target.value })}
-                    rows={3}
-                    placeholder="สคริปต์"
-                    className={field}
-                  />
+                  <ScriptEditor value={it.script} onChange={(v) => patchItem(i, { script: v })} />
                   <input
                     value={it.ref}
                     onChange={(e) => patchItem(i, { ref: e.target.value })}
@@ -181,7 +183,7 @@ export default function MenuPage() {
                 </div>
               ))}
               <button
-                onClick={() => setEditing({ ...editing, items: [...editing.items, { title: "", script: "", ref: "" }] })}
+                onClick={() => setEditing({ ...editing, items: [...editing.items, { title: "", script: "", ref: "" }], keys: [...editing.keys, nextKey()] })}
                 className="flex items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
                 <Plus size={14} />
