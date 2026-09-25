@@ -13,6 +13,7 @@ import {
   UserCog,
   Wallet,
   Package,
+  LayoutList,
   Settings,
   FileText,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const MAIN_ITEMS = [
 ];
 
 const MORE_ITEMS = [
+  { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" as const },

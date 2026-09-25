@@ -14,6 +14,9 @@ import { LoadingView } from "@/components/ui/LoadingView";
 import {
   createTaskRow,
   createTasksBulk,
+  createTasksFromSet,
+  listContentSets,
+  type ContentSet,
   deleteTaskRow,
   listClients,
   listStaff,
@@ -54,6 +57,10 @@ function DashboardPageInner() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [sets, setSets] = useState<ContentSet[]>([]);
+  useEffect(() => {
+    listContentSets().then(setSets).catch(() => {});
+  }, []);
   const [toast, setToast] = useState("");
   const saved = useMemo(readSavedFilters, []);
   const [clientFilter, setClientFilter] = useState<string[]>(saved.clients ?? []);
@@ -144,7 +151,18 @@ function DashboardPageInner() {
   }
 
   async function handleBulkSave(values: BulkTaskValues) {
-    await createTasksBulk(values);
+    if (values.set) {
+      await createTasksFromSet({
+        clientId: values.clientId,
+        clientName: values.clientName,
+        items: values.set.items,
+        type: values.type,
+        scheduledDate: values.scheduledDate,
+        dueDate: values.dueDate,
+      });
+    } else {
+      await createTasksBulk(values);
+    }
     setTasks(await listTasks());
     setBulkOpen(false);
     setToast("สำเร็จ");
@@ -231,6 +249,7 @@ function DashboardPageInner() {
         <BulkTaskModal
           clients={clients}
           tasks={tasks}
+          sets={sets}
           onClose={() => setBulkOpen(false)}
           onSave={handleBulkSave}
         />

@@ -1152,3 +1152,57 @@ export async function createTasksBulk(values: {
   if (error) throw error;
   return rows.length;
 }
+
+export type ContentSetItem = { title: string; script: string; ref: string };
+export type ContentSet = { id: string; name: string; items: ContentSetItem[] };
+
+export async function listContentSets(): Promise<ContentSet[]> {
+  const { data, error } = await supabase()
+    .from("content_sets")
+    .select("id, name, items")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ id: r.id, name: r.name, items: (r.items ?? []) as ContentSetItem[] }));
+}
+
+export async function saveContentSet(
+  values: { name: string; items: ContentSetItem[] },
+  id?: string,
+): Promise<ContentSet> {
+  const q = id
+    ? supabase().from("content_sets").update(values).eq("id", id)
+    : supabase().from("content_sets").insert(values);
+  const { data, error } = await q.select("id, name, items").single();
+  if (error) throw error;
+  return { id: data.id, name: data.name, items: (data.items ?? []) as ContentSetItem[] };
+}
+
+export async function deleteContentSet(id: string): Promise<void> {
+  const { error } = await supabase().from("content_sets").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// Stamp a content set onto a client: one task per item, named "<client>-<item>".
+export async function createTasksFromSet(values: {
+  clientId: string;
+  clientName: string;
+  items: ContentSetItem[];
+  type: string;
+  scheduledDate: string;
+  dueDate: string;
+}): Promise<number> {
+  const rows = values.items.map((it) => ({
+    client_id: values.clientId,
+    title: it.title.trim() ? `${values.clientName}-${it.title.trim()}` : values.clientName,
+    type: values.type,
+    status: "todo",
+    scheduled_date: values.scheduledDate,
+    due_date: values.dueDate,
+    script_text: it.script || null,
+    ref_link: it.ref || null,
+  }));
+  if (!rows.length) return 0;
+  const { error } = await supabase().from("tasks").insert(rows);
+  if (error) throw error;
+  return rows.length;
+}

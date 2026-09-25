@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, Task } from "@/lib/types";
+import type { ContentSet } from "@/lib/supabase/queries";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -16,17 +17,20 @@ export type BulkTaskValues = {
   type: string;
   scheduledDate: string;
   dueDate: string;
+  set?: ContentSet;
 };
 
 // Create many clips at once for one client: "<client>-1" … "<client>-N".
 export function BulkTaskModal({
   clients,
   tasks,
+  sets = [],
   onClose,
   onSave,
 }: {
   clients: Client[];
   tasks: Task[];
+  sets?: ContentSet[];
   onClose: () => void;
   onSave: (values: BulkTaskValues) => Promise<void>;
 }) {
@@ -39,6 +43,8 @@ export function BulkTaskModal({
   const [scheduledDate, setScheduledDate] = useState(todayIso());
   const [dueDate, setDueDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
+  const [setId, setSetId] = useState("");
+  const set = sets.find((s) => s.id === setId);
 
   const client = clients.find((c) => c.id === clientId);
 
@@ -56,7 +62,8 @@ export function BulkTaskModal({
 
   const startAt = startTouched ? startAtManual : nextNumber;
   const safeCount = Math.min(Math.max(count || 0, 0), 100);
-  const canSave = !!client && safeCount > 0 && !saving;
+  const total = set ? set.items.length : safeCount;
+  const canSave = !!client && total > 0 && !saving;
 
   async function handleSave() {
     if (!client || !canSave) return;
@@ -70,6 +77,7 @@ export function BulkTaskModal({
         type,
         scheduledDate,
         dueDate,
+        set,
       });
     } finally {
       setSaving(false);
@@ -108,7 +116,21 @@ export function BulkTaskModal({
             </select>
           </label>
 
-          <div className="grid grid-cols-2 gap-3">
+          {sets.length > 0 && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">เลือก Set คอนเทนต์ (จาก Menu)</span>
+              <select value={setId} onChange={(e) => setSetId(e.target.value)} className={field}>
+                <option value="">ไม่ใช้ Set (ตั้งจำนวนเอง)</option>
+                {sets.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name} ({s.items.length} งาน)
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div className={set ? "hidden" : "grid grid-cols-2 gap-3"}>
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-gray-500">จำนวนงาน</span>
               <input
@@ -157,7 +179,12 @@ export function BulkTaskModal({
             </label>
           </div>
 
-          {client && safeCount > 0 && (
+          {client && set && (
+            <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+              จะสร้าง {set.items.length} งานจาก Set &quot;{set.name}&quot; พร้อมสคริปต์/Ref (แก้รายละเอียดทีหลังได้)
+            </p>
+          )}
+          {client && !set && safeCount > 0 && (
             <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
               จะสร้าง {safeCount} งาน: {client.name}-{startAt}
               {safeCount > 1 && <> ถึง {client.name}-{startAt + safeCount - 1}</>} (แก้รายละเอียดทีหลังได้)
@@ -177,7 +204,7 @@ export function BulkTaskModal({
             disabled={!canSave}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {saving ? "กำลังสร้าง..." : `สร้าง ${safeCount} งาน`}
+            {saving ? "กำลังสร้าง..." : `สร้าง ${total} งาน`}
           </button>
         </div>
       </div>

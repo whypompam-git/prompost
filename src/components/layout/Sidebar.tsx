@@ -10,6 +10,7 @@ import {
   UserCog,
   Wallet,
   Package,
+  LayoutList,
   Settings,
   FileText,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
   { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
   { href: "/clients", label: "ลูกค้า", icon: Users },
+  { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" as const },
