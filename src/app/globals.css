@@ -66,3 +66,9 @@ button:not(:disabled):active { transform: scale(0.96); }
 }
 
 .pp-pop-menu { transform-origin: top right; animation: pp-pop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+input[type="date"] {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
