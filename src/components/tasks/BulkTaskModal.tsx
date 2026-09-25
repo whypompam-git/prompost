@@ -116,11 +116,11 @@ export function BulkTaskModal({
             </select>
           </label>
 
-          {sets.length > 0 && (
+          {(
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-gray-500">เลือก Set คอนเทนต์ (จาก Menu)</span>
               <select value={setId} onChange={(e) => setSetId(e.target.value)} className={field}>
-                <option value="">ไม่ใช้ Set (ตั้งจำนวนเอง)</option>
+                <option value="">{sets.length ? "ไม่ใช้ Set (ตั้งจำนวนเอง)" : "ยังไม่มี Set — สร้างได้ที่เมนู Menu"}</option>
                 {sets.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name} ({s.items.length} งาน)

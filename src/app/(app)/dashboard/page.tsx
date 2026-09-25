@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
+import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
@@ -57,6 +58,7 @@ function DashboardPageInner() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sets, setSets] = useState<ContentSet[]>([]);
   useEffect(() => {
     listContentSets().then(setSets).catch(() => {});
@@ -175,6 +177,47 @@ function DashboardPageInner() {
     setToast("สำเร็จ");
   }
 
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) =>
+      visibleTasks.length > 0 && visibleTasks.every((t) => prev.has(t.id))
+        ? new Set()
+        : new Set(visibleTasks.map((t) => t.id)),
+    );
+  }
+
+  function bulkPatch(patch: Partial<Omit<Task, "id">>) {
+    selected.forEach((id) => updateTask(id, patch));
+    setToast("สำเร็จ");
+  }
+
+  function bulkStatus(status: TaskStatus) {
+    selected.forEach((id) => updateStatus(id, status));
+    setToast("สำเร็จ");
+  }
+
+  async function bulkDelete() {
+    const ids = Array.from(selected);
+    if (!window.confirm(`ลบ ${ids.length} งานที่เลือกใช่ไหม?`)) return;
+    const removed = tasks.filter((t) => selected.has(t.id));
+    setTasks((prev) => prev.filter((t) => !selected.has(t.id)));
+    setSelected(new Set());
+    try {
+      await Promise.all(ids.map((id) => deleteTaskRow(id)));
+    } catch (err) {
+      console.error(err);
+      setTasks((prev) => [...removed, ...prev]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
   async function handleDelete(task: Task) {
     if (!window.confirm(`ลบงาน "${task.title}" ใช่ไหม?`)) return;
     setTasks((prev) => prev.filter((t) => t.id !== task.id));
@@ -240,10 +283,24 @@ function DashboardPageInner() {
             onUpdateAssignee={updateAssignee}
             onUpdateTask={updateTask}
             onDelete={handleDelete}
+            selected={selected}
+            onToggleSelect={toggleSelect}
+            onToggleAll={toggleAll}
           />
         </div>
       </div>
 
+      {selected.size > 0 && (
+        <BulkActionBar
+          count={selected.size}
+          clients={clients}
+          staff={staff}
+          onPatch={bulkPatch}
+          onStatus={bulkStatus}
+          onDelete={bulkDelete}
+          onClear={() => setSelected(new Set())}
+        />
+      )}
       {toast && <Toast message={toast} onDone={() => setToast("")} />}
       {bulkOpen && (
         <BulkTaskModal

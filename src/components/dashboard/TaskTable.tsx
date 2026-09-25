@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import Link from "next/link";
@@ -121,6 +122,9 @@ export function TaskTable({
   onUpdateAssignee,
   onUpdateTask,
   onDelete,
+  selected,
+  onToggleSelect,
+  onToggleAll,
 }: {
   tasks: Task[];
   clients: Client[];
@@ -132,7 +136,24 @@ export function TaskTable({
   onUpdateAssignee: (taskId: string, assigneeId: string) => void;
   onUpdateTask: (taskId: string, patch: Partial<Omit<Task, "id">>) => void;
   onDelete: (task: Task) => void;
+  selected: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onToggleAll: () => void;
 }) {
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressed = useRef(false);
+  const selecting = selected.size > 0;
+  const startPress = (id: string) => {
+    longPressed.current = false;
+    pressTimer.current = setTimeout(() => {
+      longPressed.current = true;
+      onToggleSelect(id);
+      navigator.vibrate?.(15);
+    }, 500);
+  };
+  const endPress = () => {
+    if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
   const { types, typeLabel, typeColor, statusColor } = useTaskSettings();
   const clientOf = (id: string) => clients.find((c) => c.id === id);
   const clientName = (id: string) => clientOf(id)?.name ?? "—";
@@ -174,7 +195,29 @@ export function TaskTable({
         {tasks.map((task) => {
           const assignee = staff.find((s) => s.id === task.assigneeId);
           return (
-            <div key={task.id} className="space-y-1.5 rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
+            <div
+              key={task.id}
+              onPointerDown={() => startPress(task.id)}
+              onPointerUp={endPress}
+              onPointerLeave={endPress}
+              onPointerCancel={endPress}
+              onContextMenu={(e) => e.preventDefault()}
+              onClickCapture={(e) => {
+                if (longPressed.current) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  longPressed.current = false;
+                } else if (selecting) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onToggleSelect(task.id);
+                }
+              }}
+              className={cn(
+                "select-none space-y-1.5 rounded-2xl border bg-white p-3 shadow-card",
+                selected.has(task.id) ? "border-brand-400 ring-2 ring-brand-200" : "border-gray-100",
+              )}
+            >
               <div className="flex items-start justify-between gap-2">
                 <Link
                   href={`/tasks/${task.id}`}
@@ -254,9 +297,17 @@ export function TaskTable({
 
       {/* ── Desktop table */}
       <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card md:block">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+        <table className="w-full min-w-[1120px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
+              <th className="w-10 pl-5 py-3">
+                <input
+                  type="checkbox"
+                  checked={tasks.length > 0 && tasks.every((t) => selected.has(t.id))}
+                  onChange={onToggleAll}
+                  aria-label="เลือกทั้งหมด"
+                />
+              </th>
               {SORT_COLUMNS.map((col) => (
                 <th key={col.key} className="px-5 py-3 font-medium">
                   <button onClick={() => onSort(col.key)} className="flex items-center gap-1 hover:text-gray-600">
@@ -277,7 +328,15 @@ export function TaskTable({
             {tasks.map((task) => {
               const assignee = staff.find((s) => s.id === task.assigneeId);
               return (
-                <tr key={task.id} className="hover:bg-gray-50/60">
+                <tr key={task.id} className={cn("hover:bg-gray-50/60", selected.has(task.id) && "bg-brand-50/60")}>
+                  <td className="w-10 pl-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={selected.has(task.id)}
+                      onChange={() => onToggleSelect(task.id)}
+                      aria-label="เลือกงาน"
+                    />
+                  </td>
                   <td className="px-5 py-3 font-medium text-gray-900">
                     <Link href={`/tasks/${task.id}`} className="hover:text-brand-600 hover:underline">
                       {task.title}
