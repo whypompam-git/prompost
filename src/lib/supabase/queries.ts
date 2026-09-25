@@ -1182,7 +1182,7 @@ export async function deleteContentSet(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// Stamp a content set onto a client: one task per item, named "<client>-<item>".
+// Stamp a content set onto a client: one task per item, titled with the item name.
 export async function createTasksFromSet(values: {
   clientId: string;
   clientName: string;
@@ -1193,7 +1193,7 @@ export async function createTasksFromSet(values: {
 }): Promise<number> {
   const rows = values.items.map((it) => ({
     client_id: values.clientId,
-    title: it.title.trim() ? `${values.clientName}-${it.title.trim()}` : values.clientName,
+    title: it.title.trim() || values.clientName,
     type: values.type,
     status: "todo",
     scheduled_date: values.scheduledDate,
