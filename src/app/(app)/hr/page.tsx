@@ -57,26 +57,31 @@ export default function MyStaffPage() {
 
   useEffect(() => {
     async function load() {
-      const staffRows = await listStaff();
-      const self = staffRows.find((s) => s.id === auth.staffId) ?? null;
-      setMe(self);
-      if (auth.permissions.staffList || auth.permissions.othersPayroll) setTeam(staffRows);
+      try {
+        const staffRows = await listStaff();
+        const self = staffRows.find((s) => s.id === auth.staffId) ?? null;
+        setMe(self);
+        if (auth.permissions.staffList || auth.permissions.othersPayroll) setTeam(staffRows);
 
-      if (self) {
-        const [leaveRows] = await Promise.all([
-          listLeaveRequests(),
-          ensurePayrollEntriesForMonth(currentPeriodMonth, [self]),
-        ]);
-        setMyLeave(leaveRows.filter((l) => l.staffId === self.id));
-        const payrollRows = await listPayrollEntries(currentPeriodMonth);
-        setMyPayroll(payrollRows.find((p) => p.staffId === self.id) ?? null);
-        if (auth.permissions.othersPayroll) {
-          await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
-          const everyone = await listPayrollEntries(currentPeriodMonth);
-          setAllPayroll(everyone.filter((p) => staffRows.some((s) => s.id === p.staffId)));
+        if (self) {
+          const [leaveRows] = await Promise.all([
+            listLeaveRequests(),
+            ensurePayrollEntriesForMonth(currentPeriodMonth, [self]),
+          ]);
+          setMyLeave(leaveRows.filter((l) => l.staffId === self.id));
+          const payrollRows = await listPayrollEntries(currentPeriodMonth);
+          setMyPayroll(payrollRows.find((p) => p.staffId === self.id) ?? null);
+          if (auth.permissions.othersPayroll) {
+            await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
+            const everyone = await listPayrollEntries(currentPeriodMonth);
+            setAllPayroll(everyone.filter((p) => staffRows.some((s) => s.id === p.staffId)));
+          }
         }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [auth.staffId, auth.permissions.staffList, auth.permissions.othersPayroll]);

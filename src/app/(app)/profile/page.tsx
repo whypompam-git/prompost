@@ -58,6 +58,9 @@ export default function ProfilePage() {
         setBankAccountName(me.bankAccountName ?? "");
       }
       setLoading(false);
+    }).catch((err) => {
+      console.error(err);
+      setLoading(false);
     });
   }, [auth.staffId]);
 
@@ -80,6 +83,9 @@ export default function ProfilePage() {
       });
       router.push("/dashboard");
       router.refresh();
+    } catch (err) {
+      console.error(err);
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
     } finally {
       setSaving(false);
     }
