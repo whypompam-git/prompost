@@ -34,6 +34,9 @@ export interface Staff {
   role: StaffRole;
   permissions: Permissions;
   photoUrl?: string; // data URL, self-uploaded via /profile
+  bankName?: string; // self-entered from /profile — for the owner's one-tap payout
+  bankAccountNo?: string;
+  bankAccountName?: string;
 }
 
 export type TaskType = string; // key of an entry in TaskSettings.types

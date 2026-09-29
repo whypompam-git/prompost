@@ -7,6 +7,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listStaff, updateOwnProfile } from "@/lib/supabase/queries";
+import { THAI_BANKS } from "@/lib/thaiBanks";
 import type { Staff } from "@/lib/types";
 
 const MAX_DIMENSION = 256;
@@ -42,6 +43,9 @@ export default function ProfilePage() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
+  const [bankName, setBankName] = useState("");
+  const [bankAccountNo, setBankAccountNo] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
 
   useEffect(() => {
     listStaff().then((staffRows) => {
@@ -49,6 +53,9 @@ export default function ProfilePage() {
       if (me) {
         setName(me.name);
         setPhoto(me.photoUrl ?? null);
+        setBankName(me.bankName ?? "");
+        setBankAccountNo(me.bankAccountNo ?? "");
+        setBankAccountName(me.bankAccountName ?? "");
       }
       setLoading(false);
     });
@@ -64,7 +71,13 @@ export default function ProfilePage() {
   async function handleSave() {
     setSaving(true);
     try {
-      await updateOwnProfile(auth.staffId, { name: name.trim(), photoUrl: photo });
+      await updateOwnProfile(auth.staffId, {
+        name: name.trim(),
+        photoUrl: photo,
+        bankName: bankName || null,
+        bankAccountNo: bankAccountNo.trim() || null,
+        bankAccountName: bankAccountName.trim() || null,
+      });
       router.push("/dashboard");
       router.refresh();
     } finally {
@@ -124,6 +137,44 @@ export default function ProfilePage() {
               placeholder="ชื่อของคุณ"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
+          </div>
+
+          <div className="space-y-3 border-t border-gray-100 pt-5">
+            <p className="text-sm font-medium text-gray-700">บัญชีธนาคาร (สำหรับรับเงินเดือน)</p>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">ธนาคาร</label>
+              <select
+                value={bankName}
+                onChange={(e) => setBankName(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">เลือกธนาคาร</option>
+                {THAI_BANKS.map((b) => (
+                  <option key={b.name} value={b.name}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">เลขที่บัญชี</label>
+              <input
+                value={bankAccountNo}
+                onChange={(e) => setBankAccountNo(e.target.value.replace(/[^0-9-]/g, ""))}
+                placeholder="เช่น 123-4-56789-0"
+                inputMode="numeric"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">ชื่อบัญชี</label>
+              <input
+                value={bankAccountName}
+                onChange={(e) => setBankAccountName(e.target.value)}
+                placeholder="ชื่อ-นามสกุลตามบัญชี"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </div>
           </div>
 
           <button

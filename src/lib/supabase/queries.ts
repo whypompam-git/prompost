@@ -156,10 +156,13 @@ type StaffRow = {
   can_view_accounting: boolean;
   permissions: Record<string, boolean> | null;
   photo_url: string | null;
+  bank_name: string | null;
+  bank_account_no: string | null;
+  bank_account_name: string | null;
 };
 
 const STAFF_COLUMNS =
-  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url";
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url, bank_name, bank_account_no, bank_account_name";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -173,6 +176,9 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   role: r.role,
   photoUrl: r.photo_url ?? undefined,
   permissions: normalizePermissions(r.permissions, r.can_view_accounting),
+  bankName: r.bank_name ?? undefined,
+  bankAccountNo: r.bank_account_no ?? undefined,
+  bankAccountName: r.bank_account_name ?? undefined,
 });
 
 export async function listStaff(): Promise<Staff[]> {
@@ -246,11 +252,23 @@ export async function updateStaffRow(
 // own display name and photo, not the full admin staff record.
 export async function updateOwnProfile(
   id: string,
-  values: { name: string; photoUrl: string | null },
+  values: {
+    name: string;
+    photoUrl: string | null;
+    bankName?: string | null;
+    bankAccountNo?: string | null;
+    bankAccountName?: string | null;
+  },
 ): Promise<void> {
   const { error } = await supabase()
     .from("staff")
-    .update({ name: values.name, photo_url: values.photoUrl })
+    .update({
+      name: values.name,
+      photo_url: values.photoUrl,
+      bank_name: values.bankName ?? null,
+      bank_account_no: values.bankAccountNo ?? null,
+      bank_account_name: values.bankAccountName ?? null,
+    })
     .eq("id", id);
   if (error) throw error;
 }

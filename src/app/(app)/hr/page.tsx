@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { LeaveModal, type LeaveFormValues } from "@/components/hr/LeaveModal";
+import { PayoutButton } from "@/components/hr/PayoutButton";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createLeaveRequestRow,
@@ -16,6 +17,7 @@ import {
   listLeaveRequests,
   listPayrollEntries,
   listStaff,
+  togglePayrollPaid,
 } from "@/lib/supabase/queries";
 import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -271,6 +273,15 @@ export default function MyStaffPage() {
                         {p.paidAt ? "จ่ายแล้ว" : "ยังไม่จ่าย"}
                       </p>
                     </div>
+                    {s && !p.paidAt && (
+                      <PayoutButton
+                        staff={s}
+                        onPaid={async () => {
+                          setAllPayroll((prev) => prev.map((x) => (x.id === p.id ? { ...x, paidAt: new Date().toISOString().slice(0, 10) } : x)));
+                          await togglePayrollPaid(p.id, true);
+                        }}
+                      />
+                    )}
                   </div>
                 );
               })}
