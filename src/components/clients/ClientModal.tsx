@@ -70,6 +70,7 @@ export function ClientModal({
       taxId: taxId.trim() || undefined,
       priority: initial?.priority ?? 0,
       brandBrief: initial?.brandBrief,
+      brandImages: initial?.brandImages ?? [],
     }, packageId || undefined);
   }
 

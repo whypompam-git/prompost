@@ -268,17 +268,6 @@ export default function ClientInfoPage() {
               className={inputClass}
             />
           </div>
-
-          <div>
-            <label className={labelClass}>แบรนด์/บรีฟ (สำหรับบรีฟคนตัดต่อ หรือเก็บประวัติลูกค้า)</label>
-            <textarea
-              value={client.brandBrief ?? ""}
-              onChange={(e) => patch({ brandBrief: e.target.value })}
-              rows={5}
-              placeholder="โทนแบรนด์ สี ฟอนต์ มู้ด สิ่งที่ลูกค้าชอบ/ไม่ชอบ ฯลฯ"
-              className={inputClass}
-            />
-          </div>
         </Card>
 
         <section>

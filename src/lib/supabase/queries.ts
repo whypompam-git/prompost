@@ -49,10 +49,11 @@ type ClientRow = {
   entity_type: Client["entityType"];
   priority: number;
   brand_brief: string | null;
+  brand_images: string[] | null;
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief, brand_images";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -71,6 +72,7 @@ const fromClientRow = (r: ClientRow): Client => ({
   entityType: r.entity_type ?? "company",
   priority: r.priority ?? 0,
   brandBrief: r.brand_brief ?? undefined,
+  brandImages: r.brand_images ?? [],
 });
 
 export async function listClients(): Promise<Client[]> {
@@ -105,6 +107,7 @@ const clientPayload = (values: ClientInput) => ({
   entity_type: values.entityType,
   priority: values.priority,
   brand_brief: values.brandBrief || null,
+  brand_images: values.brandImages,
 });
 
 // slug comes from the English name; on a collision, add a numeric suffix.
@@ -1021,6 +1024,21 @@ export async function uploadSlip(file: File): Promise<string> {
   });
   if (error) throw error;
   return supabase().storage.from("slips").getPublicUrl(path).data.publicUrl;
+}
+
+export async function uploadClientBrandImage(file: File): Promise<string> {
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase().storage.from("client-brand").upload(path, file, {
+    contentType: file.type || undefined,
+  });
+  if (error) throw error;
+  return supabase().storage.from("client-brand").getPublicUrl(path).data.publicUrl;
+}
+
+export async function setClientBrandImages(id: string, images: string[]): Promise<void> {
+  const { error } = await supabase().from("clients").update({ brand_images: images }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function deleteTransactionRow(id: string): Promise<void> {

@@ -292,7 +292,7 @@ export default function ClientsPage() {
                     <td className="px-4 py-3 whitespace-nowrap text-gray-600">{client.phone || "—"}</td>
                     <td className="max-w-[220px] px-4 py-3">
                       <Link
-                        href={`/clients/${client.id}/info`}
+                        href={`/clients/${client.id}/brand`}
                         className="line-clamp-2 text-xs text-gray-500 hover:text-brand-600"
                       >
                         {client.brandBrief ? client.brandBrief : <span className="italic text-gray-300">กดเพื่อเพิ่มบรีฟแบรนด์</span>}

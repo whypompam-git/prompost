@@ -6,13 +6,14 @@ import { cn } from "@/lib/utils";
 
 export function ClientSubNav({ clientId }: { clientId: string }) {
   const pathname = usePathname();
-  const infoHref = `/clients/${clientId}/info`;
   const contentHref = `/clients/${clientId}`;
-  const onInfo = pathname === infoHref;
+  const infoHref = `/clients/${clientId}/info`;
+  const brandHref = `/clients/${clientId}/brand`;
 
   const tabs = [
-    { href: contentHref, label: "คอนเทนต์", active: !onInfo },
-    { href: infoHref, label: "ข้อมูลลูกค้า", active: onInfo },
+    { href: contentHref, label: "คอนเทนต์", active: pathname === contentHref },
+    { href: infoHref, label: "ข้อมูลลูกค้า", active: pathname === infoHref },
+    { href: brandHref, label: "แบรนด์บรีฟ", active: pathname === brandHref },
   ];
 
   return (

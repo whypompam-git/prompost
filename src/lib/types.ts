@@ -20,6 +20,7 @@ export interface Client {
   taxId?: string; // "เลขทะเบียนนิติบุคคล" (company) or "เลขประจำตัวผู้เสียภาษี" (individual)
   priority: number; // owner-entered — for sorting by importance, no fixed meaning
   brandBrief?: string; // free text — brand guidelines/brief for editors
+  brandImages: string[]; // reference images (logo, mood board, ...) — public URLs
 }
 
 export type StaffRole = "owner" | "staff";
