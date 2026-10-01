@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -60,6 +60,17 @@ export default function AccountingPage() {
       setTransactions((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values, slipUrl } : t)));
     }
     setModalMode("closed");
+  }
+
+  async function handleQuickSlip(t: Transaction, file: File) {
+    try {
+      const slipUrl = await uploadSlip(file);
+      await updateTransactionRow(t.id, { ...t, slipUrl });
+      setTransactions((prev) => prev.map((x) => (x.id === t.id ? { ...x, slipUrl } : x)));
+    } catch (err) {
+      console.error(err);
+      window.alert("แนบสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
   }
 
   async function handleDeleteTransaction(t: Transaction) {
@@ -144,7 +155,7 @@ export default function AccountingPage() {
                           ดูสลิป
                         </a>
                       ) : (
-                        <span className="text-xs text-gray-300">—</span>
+                        <SlipUploadButton onSelect={(file) => handleQuickSlip(t, file)} />
                       )}
                     </td>
                     <td
@@ -196,5 +207,32 @@ export default function AccountingPage() {
         />
       )}
     </>
+  );
+}
+
+// One click to attach a slip to a row that doesn't have one yet — no need
+// to open the full edit modal just for this.
+function SlipUploadButton({ onSelect }: { onSelect: (file: File) => Promise<void> }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      await onSelect(file);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  return (
+    <label className="flex w-fit cursor-pointer items-center gap-1 text-xs text-gray-400 hover:text-brand-600">
+      <Upload size={12} />
+      {uploading ? "กำลังอัปโหลด..." : "แนบสลิป"}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleChange} disabled={uploading} />
+    </label>
   );
 }
