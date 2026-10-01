@@ -1,30 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Paperclip, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { MonthRangeFilter } from "@/components/accounting/MonthRangeFilter";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createTransactionRow,
   deleteTransactionRow,
   listTransactions,
+  updateTransactionRow,
   uploadSlip,
 } from "@/lib/supabase/queries";
 import type { Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
+const thisMonth = () => new Date().toISOString().slice(0, 7);
 
 export default function AccountingPage() {
   const auth = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Transaction }>("closed");
+  const [monthFrom, setMonthFrom] = useState(thisMonth());
+  const [monthTo, setMonthTo] = useState(thisMonth());
 
   useEffect(() => {
     listTransactions()
@@ -32,14 +37,29 @@ export default function AccountingPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const totalIncome = transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const totalExpense = transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  const visible = useMemo(() => {
+    if (!monthFrom && !monthTo) return transactions;
+    return transactions.filter((t) => {
+      const m = t.occurredAt.slice(0, 7);
+      return (!monthFrom || m >= monthFrom) && (!monthTo || m <= monthTo);
+    });
+  }, [transactions, monthFrom, monthTo]);
 
-  async function handleSaveTransaction({ slipFile, ...values }: TransactionFormValues) {
-    const slipUrl = slipFile ? await uploadSlip(slipFile) : undefined;
-    const created = await createTransactionRow({ ...values, slipUrl });
-    setTransactions((prev) => [created, ...prev]);
-    setModalOpen(false);
+  const totalIncome = visible.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const totalExpense = visible.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+
+  async function handleSaveTransaction({ slipFile, keepSlip, ...values }: TransactionFormValues) {
+    if (modalMode === "create") {
+      const slipUrl = slipFile ? await uploadSlip(slipFile) : undefined;
+      const created = await createTransactionRow({ ...values, slipUrl });
+      setTransactions((prev) => [created, ...prev]);
+    } else if (modalMode !== "closed") {
+      const { edit } = modalMode;
+      const slipUrl = slipFile ? await uploadSlip(slipFile) : keepSlip ? edit.slipUrl : undefined;
+      await updateTransactionRow(edit.id, { ...values, slipUrl });
+      setTransactions((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values, slipUrl } : t)));
+    }
+    setModalMode("closed");
   }
 
   async function handleDeleteTransaction(t: Transaction) {
@@ -76,18 +96,21 @@ export default function AccountingPage() {
         )}
 
         <section>
-          <div className="mb-3 flex items-center justify-between">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
               <Wallet size={16} />
               รายรับ-รายจ่าย
             </h2>
-            <button
-              onClick={() => setModalOpen(true)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Plus size={16} />
-              บันทึกรายการ
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <MonthRangeFilter from={monthFrom} to={monthTo} onChange={(f, t) => { setMonthFrom(f); setMonthTo(t); }} />
+              <button
+                onClick={() => setModalMode("create")}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Plus size={16} />
+                บันทึกรายการ
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
             <table className="w-full min-w-[640px] text-left text-sm">
@@ -102,7 +125,7 @@ export default function AccountingPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {transactions.map((t) => (
+                {visible.map((t) => (
                   <tr key={t.id} className="hover:bg-gray-50/60">
                     <td className="px-5 py-3 text-gray-600">
                       {format(new Date(t.occurredAt), "d MMM yyyy", { locale: th })}
@@ -133,20 +156,29 @@ export default function AccountingPage() {
                       {t.type === "income" ? "+" : "-"}฿{currency(t.amount)}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <button
-                        onClick={() => handleDeleteTransaction(t)}
-                        className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                        aria-label="ลบรายการ"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                      <div className="flex justify-end gap-1">
+                        <button
+                          onClick={() => setModalMode({ edit: t })}
+                          className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          aria-label="แก้ไขรายการ"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTransaction(t)}
+                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                          aria-label="ลบรายการ"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
-                {transactions.length === 0 && (
+                {visible.length === 0 && (
                   <tr>
                     <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
-                      ยังไม่มีรายการ
+                      ไม่มีรายการในช่วงที่เลือก
                     </td>
                   </tr>
                 )}
@@ -156,7 +188,13 @@ export default function AccountingPage() {
         </section>
       </div>
 
-      {modalOpen && <TransactionModal onClose={() => setModalOpen(false)} onSave={handleSaveTransaction} />}
+      {modalMode !== "closed" && (
+        <TransactionModal
+          initial={modalMode === "create" ? undefined : modalMode.edit}
+          onClose={() => setModalMode("closed")}
+          onSave={handleSaveTransaction}
+        />
+      )}
     </>
   );
 }

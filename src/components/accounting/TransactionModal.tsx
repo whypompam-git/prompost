@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Paperclip, X } from "lucide-react";
-import type { TransactionType } from "@/lib/types";
+import type { Transaction, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type TransactionFormValues = {
@@ -11,24 +11,28 @@ export type TransactionFormValues = {
   amount: number;
   description?: string;
   slipFile?: File;
+  keepSlip?: boolean;
   occurredAt: string;
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function TransactionModal({
+  initial,
   onClose,
   onSave,
 }: {
+  initial?: Transaction;
   onClose: () => void;
   onSave: (values: TransactionFormValues) => void;
 }) {
-  const [type, setType] = useState<TransactionType>("expense");
-  const [category, setCategory] = useState("");
-  const [amount, setAmount] = useState(0);
-  const [description, setDescription] = useState("");
-  const [occurredAt, setOccurredAt] = useState(todayIso());
+  const [type, setType] = useState<TransactionType>(initial?.type ?? "expense");
+  const [category, setCategory] = useState(initial?.category ?? "");
+  const [amount, setAmount] = useState(initial?.amount ?? 0);
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [occurredAt, setOccurredAt] = useState(initial?.occurredAt ?? todayIso());
   const [slipFile, setSlipFile] = useState<File | undefined>();
+  const [removeSlip, setRemoveSlip] = useState(false);
 
   const canSave = category.trim().length > 0 && amount > 0;
 
@@ -36,23 +40,27 @@ export function TransactionModal({
     const file = e.target.files?.[0];
     if (!file) return;
     setSlipFile(file);
+    setRemoveSlip(false);
   }
 
   function handleSave() {
     if (!canSave) return;
-    onSave({ type, category: category.trim(), amount, description: description.trim() || undefined, slipFile, occurredAt });
+    onSave({
+      type,
+      category: category.trim(),
+      amount,
+      description: description.trim() || undefined,
+      slipFile,
+      keepSlip: !slipFile && !removeSlip,
+      occurredAt,
+    });
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4"
-    >
-      <div
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">บันทึกรายรับ-รายจ่าย</h3>
+          <h3 className="text-base font-semibold text-gray-900">{initial ? "แก้ไขรายการ" : "บันทึกรายรับ-รายจ่าย"}</h3>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-100">
             <X size={16} />
           </button>
@@ -115,18 +123,27 @@ export function TransactionModal({
             />
           </label>
 
-          <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">
-            <Paperclip size={14} />
-            {slipFile?.name ?? "แนบสลิปโอนเงิน"}
-            <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
-          </label>
+          {initial?.slipUrl && !slipFile && !removeSlip ? (
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm">
+              <a href={initial.slipUrl} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-brand-600 hover:underline">
+                <Paperclip size={14} />
+                ดูสลิปที่แนบไว้
+              </a>
+              <button onClick={() => setRemoveSlip(true)} className="text-xs font-medium text-rose-500 hover:underline">
+                ลบสลิป
+              </button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:bg-gray-50">
+              <Paperclip size={14} />
+              {slipFile?.name ?? "แนบสลิปโอนเงิน"}
+              <input type="file" accept="image/*" onChange={handleFile} className="hidden" />
+            </label>
+          )}
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
-          <button
-            onClick={onClose}
-            className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
-          >
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
             ยกเลิก
           </button>
           <button

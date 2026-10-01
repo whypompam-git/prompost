@@ -976,6 +976,24 @@ export async function createTransactionRow(
   return fromTransactionRow(data as TransactionRow);
 }
 
+export async function updateTransactionRow(
+  id: string,
+  values: Omit<Transaction, "id">,
+): Promise<void> {
+  const { error } = await supabase()
+    .from("transactions")
+    .update({
+      type: values.type,
+      category: values.category,
+      amount: values.amount,
+      description: values.description,
+      slip_url: values.slipUrl,
+      occurred_at: values.occurredAt,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 // Uploads a transaction slip to the public "slips" bucket and returns its
 // URL. Object names are random so the URL is unguessable.
 export async function uploadSlip(file: File): Promise<string> {

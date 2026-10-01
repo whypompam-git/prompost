@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Users, ListTodo, Loader, CheckCircle2, Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
+import { StaffFilter } from "@/components/dashboard/StaffFilter";
 import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
@@ -31,6 +32,7 @@ const FILTER_KEY = "prompost:dashboard-filters";
 
 function readSavedFilters(): {
   clients?: string[];
+  staff?: string;
   sortBy?: TaskSortKey;
   sortDir?: "asc" | "desc";
 } {
@@ -66,14 +68,15 @@ function DashboardPageInner() {
   const [toast, setToast] = useState("");
   const saved = useMemo(readSavedFilters, []);
   const [clientFilter, setClientFilter] = useState<string[]>(saved.clients ?? []);
+  const [staffFilter, setStaffFilter] = useState<string>(saved.staff ?? "");
   const [sortBy, setSortBy] = useState<TaskSortKey>(saved.sortBy ?? "dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(saved.sortDir ?? "asc");
 
   useEffect(() => {
     try {
-      localStorage.setItem(FILTER_KEY, JSON.stringify({ clients: clientFilter, sortBy, sortDir }));
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ clients: clientFilter, staff: staffFilter, sortBy, sortDir }));
     } catch {}
-  }, [clientFilter, sortBy, sortDir]);
+  }, [clientFilter, staffFilter, sortBy, sortDir]);
 
   useEffect(() => {
     Promise.all([listTasks(), listClients(), listStaff()])
@@ -99,7 +102,8 @@ function DashboardPageInner() {
   const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
 
   const visibleTasks = useMemo(() => {
-    const filtered = clientFilter.length ? tasks.filter((t) => clientFilter.includes(t.clientId)) : tasks;
+    let filtered = clientFilter.length ? tasks.filter((t) => clientFilter.includes(t.clientId)) : tasks;
+    if (staffFilter) filtered = filtered.filter((t) => t.assigneeId === staffFilter);
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -125,7 +129,7 @@ function DashboardPageInner() {
       }
     });
     return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [tasks, clients, clientFilter, sortBy, sortDir, staff]);
+  }, [tasks, clients, clientFilter, staffFilter, sortBy, sortDir, staff]);
 
   function handleSort(key: TaskSortKey) {
     if (key === sortBy) {
@@ -256,6 +260,7 @@ function DashboardPageInner() {
             <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
             <div className="flex flex-wrap items-center gap-2">
               <ClientMultiFilter clients={clients} selected={clientFilter} onChange={setClientFilter} />
+              <StaffFilter staff={staff} selected={staffFilter} onChange={setStaffFilter} />
               <button
                 onClick={() => setBulkOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
