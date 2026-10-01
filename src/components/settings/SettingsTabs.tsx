@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 const TABS = [
   { href: "/settings/staff", label: "พนักงาน" },
   { href: "/settings/options", label: "ประเภท & สีงาน" },
+  { href: "/settings/trash", label: "ถังขยะ" },
 ];
 
 export function SettingsTabs() {

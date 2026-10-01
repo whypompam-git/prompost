@@ -3,17 +3,27 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Send, Trash2, X } from "lucide-react";
-import { createClientNoteRow, deleteClientNoteRow, listClientNotes } from "@/lib/supabase/queries";
+import { Pencil, Send, Trash2, X } from "lucide-react";
+import {
+  createClientNoteRow,
+  listClientNotes,
+  trashClientNoteRow,
+  updateClientNoteRow,
+} from "@/lib/supabase/queries";
 import type { Client, ClientNote } from "@/lib/types";
 
+const todayIso = () => new Date().toISOString().slice(0, 10);
+
 // Call/contact log for one client — add a dated entry each time you talk,
-// see the whole history. Separate from the task-facing script/notes.
+// see the whole history, back-date or edit an entry, and delete goes to a
+// recoverable trash (Settings) rather than erasing it outright.
 export function ClientHistoryModal({ client, onClose }: { client: Client; onClose: () => void }) {
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
+  const [draftDate, setDraftDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<{ id: string; note: string; noteDate: string } | null>(null);
 
   useEffect(() => {
     listClientNotes(client.id)
@@ -26,9 +36,10 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
     if (!draft.trim()) return;
     setSaving(true);
     try {
-      const created = await createClientNoteRow(client.id, draft.trim());
-      setNotes((prev) => [created, ...prev]);
+      const created = await createClientNoteRow(client.id, draft.trim(), draftDate);
+      setNotes((prev) => [created, ...prev].sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
       setDraft("");
+      setDraftDate(todayIso());
     } catch (err) {
       console.error(err);
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -37,15 +48,32 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
     }
   }
 
-  async function handleDelete(note: ClientNote) {
-    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+  async function handleSaveEdit() {
+    if (!editing || !editing.note.trim()) return;
+    const { id, note, noteDate } = editing;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, note: note.trim(), noteDate } : n)).sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
+    setEditing(null);
     try {
-      await deleteClientNoteRow(note.id);
+      await updateClientNoteRow(id, { note: note.trim(), noteDate });
     } catch (err) {
       console.error(err);
-      setNotes((prev) => [note, ...prev].sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
+
+  async function handleDelete(note: ClientNote) {
+    if (!window.confirm(`ลบบันทึกวันที่ ${format(new Date(note.noteDate), "d MMM yyyy", { locale: th })} ใช่ไหม?\n\n(ย้ายไปถังขยะ กู้คืนได้ที่ตั้งค่า)`)) return;
+    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+    try {
+      await trashClientNoteRow(note.id);
+    } catch (err) {
+      console.error(err);
+      setNotes((prev) => [note, ...prev].sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  const field = "rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -60,42 +88,82 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
           </button>
         </div>
 
-        <div className="mb-3 flex gap-2">
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder="จดว่าคุยอะไรไปรอบนี้..."
-            rows={2}
-            className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-          />
-          <button
-            onClick={handleAdd}
-            disabled={saving || !draft.trim()}
-            className="flex shrink-0 items-center gap-1 self-end rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
-          >
-            <Send size={14} />
-            บันทึก
-          </button>
+        <div className="mb-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium text-gray-500">วันที่คุย</span>
+            <input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className={field} />
+          </div>
+          <div className="flex gap-2">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="จดว่าคุยอะไรไปรอบนี้..."
+              rows={2}
+              className={`flex-1 ${field}`}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={saving || !draft.trim()}
+              className="flex shrink-0 items-center gap-1 self-end rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
+            >
+              <Send size={14} />
+              บันทึก
+            </button>
+          </div>
         </div>
 
         <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">
           {loading && <p className="text-sm text-gray-400">กำลังโหลด...</p>}
           {!loading && notes.length === 0 && <p className="text-sm text-gray-400">ยังไม่มีประวัติการคุย</p>}
-          {notes.map((n) => (
-            <div key={n.id} className="group rounded-lg bg-gray-50 p-3">
-              <div className="mb-1 flex items-center justify-between">
-                <p className="text-xs text-gray-400">{format(new Date(n.createdAt), "d MMM yyyy HH:mm", { locale: th })}</p>
-                <button
-                  onClick={() => handleDelete(n)}
-                  className="rounded-full p-1 text-gray-300 opacity-0 hover:bg-rose-50 hover:text-rose-600 group-hover:opacity-100"
-                  aria-label="ลบรายการนี้"
-                >
-                  <Trash2 size={12} />
-                </button>
+          {notes.map((n) =>
+            editing?.id === n.id ? (
+              <div key={n.id} className="space-y-2 rounded-lg border border-brand-200 bg-brand-50/40 p-3">
+                <input
+                  type="date"
+                  value={editing.noteDate}
+                  onChange={(e) => setEditing({ ...editing, noteDate: e.target.value })}
+                  className={field}
+                />
+                <textarea
+                  value={editing.note}
+                  onChange={(e) => setEditing({ ...editing, note: e.target.value })}
+                  rows={2}
+                  className={`w-full ${field}`}
+                />
+                <div className="flex justify-end gap-2">
+                  <button onClick={() => setEditing(null)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white">
+                    ยกเลิก
+                  </button>
+                  <button onClick={handleSaveEdit} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">
+                    บันทึก
+                  </button>
+                </div>
               </div>
-              <p className="whitespace-pre-wrap text-sm text-gray-700">{n.note}</p>
-            </div>
-          ))}
+            ) : (
+              <div key={n.id} className="group rounded-lg bg-gray-50 p-3">
+                <div className="mb-1 flex items-center justify-between">
+                  <p className="text-xs text-gray-400">{format(new Date(n.noteDate), "d MMM yyyy", { locale: th })}</p>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                    <button
+                      onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate })}
+                      className="rounded-full p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
+                      aria-label="แก้ไข"
+                    >
+                      <Pencil size={12} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(n)}
+                      className="rounded-full p-1 text-gray-300 hover:bg-rose-50 hover:text-rose-600"
+                      aria-label="ลบรายการนี้"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                </div>
+                <p className="whitespace-pre-wrap text-sm text-gray-700">{n.note}</p>
+              </div>
+            ),
+          )}
         </div>
       </div>
     </div>

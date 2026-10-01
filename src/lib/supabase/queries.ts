@@ -1152,20 +1152,33 @@ export async function unassignClientPackage(id: string): Promise<void> {
 }
 
 // ── Client call/contact log ───────────────────────────────────────────
-type ClientNoteRow = { id: string; client_id: string; note: string; created_at: string };
+type ClientNoteRow = {
+  id: string;
+  client_id: string;
+  note: string;
+  note_date: string;
+  created_at: string;
+  deleted_at: string | null;
+};
+
+const CLIENT_NOTE_COLUMNS = "id, client_id, note, note_date, created_at, deleted_at";
 
 const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
   id: r.id,
   clientId: r.client_id,
   note: r.note,
+  noteDate: r.note_date,
   createdAt: r.created_at,
+  deletedAt: r.deleted_at,
 });
 
 export async function listClientNotes(clientId: string): Promise<ClientNote[]> {
   const { data, error } = await supabase()
     .from("client_notes")
-    .select("id, client_id, note, created_at")
+    .select(CLIENT_NOTE_COLUMNS)
     .eq("client_id", clientId)
+    .is("deleted_at", null)
+    .order("note_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
   return (data as ClientNoteRow[]).map(fromClientNoteRow);
@@ -1176,7 +1189,9 @@ export async function listClientNotes(clientId: string): Promise<ClientNote[]> {
 export async function listLatestClientNotes(): Promise<Record<string, ClientNote>> {
   const { data, error } = await supabase()
     .from("client_notes")
-    .select("id, client_id, note, created_at")
+    .select(CLIENT_NOTE_COLUMNS)
+    .is("deleted_at", null)
+    .order("note_date", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
   const out: Record<string, ClientNote> = {};
@@ -1186,17 +1201,49 @@ export async function listLatestClientNotes(): Promise<Record<string, ClientNote
   return out;
 }
 
-export async function createClientNoteRow(clientId: string, note: string): Promise<ClientNote> {
+export async function createClientNoteRow(clientId: string, note: string, noteDate: string): Promise<ClientNote> {
   const { data, error } = await supabase()
     .from("client_notes")
-    .insert({ client_id: clientId, note })
-    .select("id, client_id, note, created_at")
+    .insert({ client_id: clientId, note, note_date: noteDate })
+    .select(CLIENT_NOTE_COLUMNS)
     .single();
   if (error) throw error;
   return fromClientNoteRow(data as ClientNoteRow);
 }
 
-export async function deleteClientNoteRow(id: string): Promise<void> {
+export async function updateClientNoteRow(id: string, values: { note: string; noteDate: string }): Promise<void> {
+  const { error } = await supabase()
+    .from("client_notes")
+    .update({ note: values.note, note_date: values.noteDate })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+// Soft delete — the row moves to the trash (Settings) instead of vanishing.
+export async function trashClientNoteRow(id: string): Promise<void> {
+  const { error } = await supabase().from("client_notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function listTrashedClientNotes(): Promise<(ClientNote & { clientName: string })[]> {
+  const { data, error } = await supabase()
+    .from("client_notes")
+    .select(`${CLIENT_NOTE_COLUMNS}, clients ( name )`)
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false });
+  if (error) throw error;
+  return (data as (ClientNoteRow & { clients: { name: string } | { name: string }[] | null })[]).map((r) => ({
+    ...fromClientNoteRow(r),
+    clientName: (Array.isArray(r.clients) ? r.clients[0]?.name : r.clients?.name) ?? "—",
+  }));
+}
+
+export async function restoreClientNoteRow(id: string): Promise<void> {
+  const { error } = await supabase().from("client_notes").update({ deleted_at: null }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function permanentlyDeleteClientNoteRow(id: string): Promise<void> {
   const { error } = await supabase().from("client_notes").delete().eq("id", id);
   if (error) throw error;
 }

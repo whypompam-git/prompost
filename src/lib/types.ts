@@ -192,5 +192,7 @@ export interface ClientNote {
   id: string;
   clientId: string;
   note: string;
-  createdAt: string; // ISO datetime
+  noteDate: string; // ISO date — editable, for backdating
+  createdAt: string; // ISO datetime — immutable, when the row was made
+  deletedAt: string | null; // soft-delete — kept in a recoverable trash
 }
