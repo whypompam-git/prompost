@@ -5,6 +5,7 @@ import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
 import type {
   Client,
+  ClientNote,
   ClientPackage,
   Invoice,
   LeaveRequest,
@@ -129,6 +130,11 @@ export async function updateClientRow(id: string, values: ClientInput): Promise<
     .from("clients")
     .update({ ...clientPayload(values), slug })
     .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setClientPaymentStatus(id: string, status: Client["paymentStatus"]): Promise<void> {
+  const { error } = await supabase().from("clients").update({ payment_status: status }).eq("id", id);
   if (error) throw error;
 }
 
@@ -1142,6 +1148,56 @@ export async function assignPackageToClient(clientId: string, packageId: string)
 
 export async function unassignClientPackage(id: string): Promise<void> {
   const { error } = await supabase().from("client_packages").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Client call/contact log ───────────────────────────────────────────
+type ClientNoteRow = { id: string; client_id: string; note: string; created_at: string };
+
+const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
+  id: r.id,
+  clientId: r.client_id,
+  note: r.note,
+  createdAt: r.created_at,
+});
+
+export async function listClientNotes(clientId: string): Promise<ClientNote[]> {
+  const { data, error } = await supabase()
+    .from("client_notes")
+    .select("id, client_id, note, created_at")
+    .eq("client_id", clientId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as ClientNoteRow[]).map(fromClientNoteRow);
+}
+
+// Latest note per client, for the table's preview column — one query for
+// all clients instead of one per row.
+export async function listLatestClientNotes(): Promise<Record<string, ClientNote>> {
+  const { data, error } = await supabase()
+    .from("client_notes")
+    .select("id, client_id, note, created_at")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const out: Record<string, ClientNote> = {};
+  for (const row of data as ClientNoteRow[]) {
+    if (!out[row.client_id]) out[row.client_id] = fromClientNoteRow(row);
+  }
+  return out;
+}
+
+export async function createClientNoteRow(clientId: string, note: string): Promise<ClientNote> {
+  const { data, error } = await supabase()
+    .from("client_notes")
+    .insert({ client_id: clientId, note })
+    .select("id, client_id, note, created_at")
+    .single();
+  if (error) throw error;
+  return fromClientNoteRow(data as ClientNoteRow);
+}
+
+export async function deleteClientNoteRow(id: string): Promise<void> {
+  const { error } = await supabase().from("client_notes").delete().eq("id", id);
   if (error) throw error;
 }
 

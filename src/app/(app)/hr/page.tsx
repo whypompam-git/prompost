@@ -17,8 +17,9 @@ import {
   listLeaveRequests,
   listPayrollEntries,
   listStaff,
+  listTasks,
 } from "@/lib/supabase/queries";
-import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff } from "@/lib/types";
+import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const LEAVE_TYPE_LABEL: Record<LeaveRequest["leaveType"], string> = {
@@ -53,6 +54,7 @@ export default function MyStaffPage() {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [team, setTeam] = useState<Staff[]>([]);
   const [allPayroll, setAllPayroll] = useState<PayrollEntry[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -60,7 +62,10 @@ export default function MyStaffPage() {
         const staffRows = await listStaff();
         const self = staffRows.find((s) => s.id === auth.staffId) ?? null;
         setMe(self);
-        if (auth.permissions.staffList || auth.permissions.othersPayroll) setTeam(staffRows);
+        if (auth.permissions.staffList || auth.permissions.othersPayroll) {
+          setTeam(staffRows);
+          setTasks(await listTasks());
+        }
 
         if (self) {
           const [leaveRows] = await Promise.all([
@@ -242,15 +247,23 @@ export default function MyStaffPage() {
           <section>
             <h2 className="mb-3 text-sm font-semibold text-gray-700">ทีมงาน</h2>
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
-              {team.map((s) => (
-                <Card key={s.id} className="flex items-center gap-3 !p-3">
-                  <StaffAvatar staff={s} />
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium text-gray-900">{s.name}</p>
-                    <p className="truncate text-xs text-gray-500">{s.position}</p>
-                  </div>
-                </Card>
-              ))}
+              {team.map((s) => {
+                const assigned = tasks.filter((t) => t.assigneeId === s.id);
+                const open = assigned.filter((t) => t.status !== "done");
+                return (
+                  <Card key={s.id} className="flex items-center gap-3 !p-3">
+                    <StaffAvatar staff={s} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-gray-900">{s.name}</p>
+                      <p className="truncate text-xs text-gray-500">{s.position}</p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-semibold text-gray-900">{assigned.length} งาน</p>
+                      <p className="text-xs text-gray-400">{open.length} ค้าง</p>
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
           </section>
         )}

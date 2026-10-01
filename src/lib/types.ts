@@ -187,3 +187,10 @@ export interface ClientPackage {
   packageId: string;
   assignedAt: string; // ISO date
 }
+
+export interface ClientNote {
+  id: string;
+  clientId: string;
+  note: string;
+  createdAt: string; // ISO datetime
+}
