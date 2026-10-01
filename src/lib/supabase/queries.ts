@@ -147,6 +147,11 @@ export async function setClientPaymentStatus(id: string, status: Client["payment
   if (error) throw error;
 }
 
+export async function setClientPhone(id: string, phone: string): Promise<void> {
+  const { error } = await supabase().from("clients").update({ phone: phone || null }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function setClientPriority(id: string, priority: number): Promise<void> {
   const { error } = await supabase().from("clients").update({ priority }).eq("id", id);
   if (error) throw error;
@@ -729,10 +734,11 @@ type ReceiptRow = {
   created_at: string;
   notes: string | null;
   invoice_id: string | null;
+  client_package_id: string | null;
   share_token: string;
 };
 
-const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, invoice_id, share_token";
+const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, invoice_id, client_package_id, share_token";
 
 const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   id: r.id,
@@ -742,6 +748,7 @@ const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   createdAt: r.created_at,
   notes: r.notes ?? undefined,
   invoiceId: r.invoice_id ?? undefined,
+  clientPackageId: r.client_package_id ?? undefined,
   shareToken: r.share_token,
 });
 
@@ -770,6 +777,7 @@ export async function createReceiptRow(values: {
   notes?: string;
   issuedAt?: string; // ISO date the receipt is dated — defaults to now
   invoiceId?: string;
+  clientPackageId?: string;
 }): Promise<Receipt> {
   const receiptNo = await nextDocNo("receipts", "RC");
   const { data, error } = await supabase()
@@ -780,6 +788,7 @@ export async function createReceiptRow(values: {
       amount: values.amount,
       notes: values.notes,
       invoice_id: values.invoiceId ?? null,
+      client_package_id: values.clientPackageId ?? null,
       ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(RECEIPT_COLUMNS)
@@ -1121,6 +1130,7 @@ type ClientPackageRow = {
   client_id: string;
   package_id: string;
   assigned_at: string;
+  amount: number;
 };
 
 const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
@@ -1128,36 +1138,67 @@ const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
   clientId: r.client_id,
   packageId: r.package_id,
   assignedAt: r.assigned_at,
+  amount: r.amount,
 });
 
 export async function listClientPackages(): Promise<ClientPackage[]> {
   const { data, error } = await supabase()
     .from("client_packages")
-    .select("id, client_id, package_id, assigned_at")
+    .select("id, client_id, package_id, assigned_at, amount")
     .order("assigned_at", { ascending: false });
   if (error) throw error;
   return (data as ClientPackageRow[]).map(fromClientPackageRow);
 }
 
-// Assigning a package also seeds the client's clip list: one todo task per
-// clip in the package, named "<client>-คลิป(<n>)", numbered after any clips
-// the client already has so re-assigning never produces duplicate names.
+// Latest client_packages row per client = the current "billing round".
+export async function listCurrentClientRounds(): Promise<Record<string, ClientPackage>> {
+  const all = await listClientPackages();
+  const out: Record<string, ClientPackage> = {};
+  for (const cp of all) {
+    if (!out[cp.clientId]) out[cp.clientId] = cp; // already sorted newest-first
+  }
+  return out;
+}
+
+// Record a payment against a billing round: a receipt linked to that round
+// (feeds the books automatically, same as any other receipt).
+export async function recordRoundPayment(values: {
+  clientId: string;
+  clientPackageId: string;
+  amount: number;
+  notes?: string;
+}): Promise<Receipt> {
+  return createReceiptRow({
+    clientId: values.clientId,
+    amount: values.amount,
+    notes: values.notes,
+    clientPackageId: values.clientPackageId,
+  });
+}
+
+// Assigning a package starts a new billing round for the client (amount
+// snapshots the package's current price, so a later price change doesn't
+// retroactively change what this round billed), auto-issues a quotation for
+// it, and seeds the client's clip list: one todo task per clip in the
+// package, named "<client>-คลิป(<n>)", numbered after any clips the client
+// already has so re-assigning never produces duplicate names.
 export async function assignPackageToClient(clientId: string, packageId: string): Promise<ClientPackage> {
   const db = supabase();
-  const { data, error } = await db
-    .from("client_packages")
-    .insert({ client_id: clientId, package_id: packageId })
-    .select("id, client_id, package_id, assigned_at")
-    .single();
-  if (error) throw error;
-
   const [{ data: pkg }, { data: client }, { count }] = await Promise.all([
-    db.from("packages").select("clip_count, end_date").eq("id", packageId).single(),
+    db.from("packages").select("name, price, clip_count, end_date").eq("id", packageId).single(),
     db.from("clients").select("name").eq("id", clientId).single(),
     db.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId),
   ]);
+  if (!pkg) throw new Error("ไม่พบแพ็คเกจนี้");
 
-  const clipCount = pkg?.clip_count ?? 0;
+  const { data, error } = await db
+    .from("client_packages")
+    .insert({ client_id: clientId, package_id: packageId, amount: pkg.price })
+    .select("id, client_id, package_id, assigned_at, amount")
+    .single();
+  if (error) throw error;
+
+  const clipCount = pkg.clip_count ?? 0;
   if (clipCount > 0 && client) {
     const today = new Date().toISOString().slice(0, 10);
     const rows = Array.from({ length: clipCount }, (_, i) => ({
@@ -1166,11 +1207,18 @@ export async function assignPackageToClient(clientId: string, packageId: string)
       type: "shoot",
       status: "todo",
       scheduled_date: today,
-      due_date: pkg?.end_date ?? today,
+      due_date: pkg.end_date ?? today,
     }));
     const { error: taskError } = await db.from("tasks").insert(rows);
     if (taskError) throw taskError;
   }
+
+  await createQuotationRow({
+    clientId,
+    items: [{ description: pkg.name, qty: 1, unitPrice: pkg.price }],
+    vatPercent: 0,
+    whtPercent: 0,
+  });
 
   return fromClientPackageRow(data as ClientPackageRow);
 }

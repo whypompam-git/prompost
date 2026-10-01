@@ -134,6 +134,7 @@ export interface Receipt {
   createdAt: string; // ISO date
   notes?: string;
   invoiceId?: string; // invoice this receipt settles
+  clientPackageId?: string; // billing round (client_packages row) this receipt pays down
   shareToken: string; // /receipt/:shareToken
 }
 
@@ -189,6 +190,7 @@ export interface ClientPackage {
   clientId: string;
   packageId: string;
   assignedAt: string; // ISO date
+  amount: number; // snapshot of the package price — this round's bill, doesn't change if the package price changes later
 }
 
 export interface ClientNote {

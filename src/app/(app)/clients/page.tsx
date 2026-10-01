@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertCircle,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
@@ -10,11 +12,15 @@ import {
   History,
   Info,
   MessageSquarePlus,
+  Package as PackageIcon,
   Plus,
   Star,
   Trash2,
+  Users,
+  Wallet,
 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
+import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
 import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
@@ -25,12 +31,15 @@ import {
   deleteClientRow,
   listClientPackages,
   listClients,
+  listCurrentClientRounds,
   listInvoices,
   listLatestClientNotes,
   listPackages,
   listQuotations,
   listReceipts,
+  recordRoundPayment,
   setClientPaymentStatus,
+  setClientPhone,
   setClientPortalEnabled,
   setClientPriority,
 } from "@/lib/supabase/queries";
@@ -56,24 +65,26 @@ const PAYMENT_STYLE: Record<PaymentStatus, string> = {
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 
-type SortKey = "priority" | "name" | "contactName" | "paymentStatus" | "paid";
+type SortKey = "priority" | "name" | "contactName" | "paymentStatus" | "paid" | "outstanding";
 
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [packages, setPackages] = useState<Package[]>([]);
-  const [clientPackages, setClientPackages] = useState<ClientPackage[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [currentRounds, setCurrentRounds] = useState<Record<string, ClientPackage>>({});
   const [latestNotes, setLatestNotes] = useState<Record<string, ClientNote>>({});
   const [historyFor, setHistoryFor] = useState<Client | null>(null);
+  const [payFor, setPayFor] = useState<Client | null>(null);
+  const [pickPackageFor, setPickPackageFor] = useState<Client | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("priority");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  useEffect(() => {
-    Promise.all([
+  async function loadAll() {
+    const [c, p, cp, r, q, inv, notes] = await Promise.all([
       listClients(),
       listPackages(),
       listClientPackages(),
@@ -84,16 +95,20 @@ export default function ClientsPage() {
         console.error(err);
         return {};
       }),
-    ])
-      .then(([c, p, cp, r, q, inv, notes]) => {
-        setClients(c);
-        setPackages(p);
-        setClientPackages(cp);
-        setReceipts(r);
-        setQuotations(q);
-        setInvoices(inv);
-        setLatestNotes(notes);
-      })
+    ]);
+    setClients(c);
+    setPackages(p);
+    setReceipts(r);
+    setQuotations(q);
+    setInvoices(inv);
+    setLatestNotes(notes);
+    const byClient: Record<string, ClientPackage> = {};
+    for (const row of cp) if (!byClient[row.clientId]) byClient[row.clientId] = row; // already newest-first
+    setCurrentRounds(byClient);
+  }
+
+  useEffect(() => {
+    loadAll()
       .catch((err) => {
         console.error(err);
         window.alert("โหลดข้อมูลลูกค้าไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง");
@@ -101,21 +116,25 @@ export default function ClientsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const packageNames = useMemo(() => {
-    const byClient: Record<string, string[]> = {};
-    for (const cp of clientPackages) {
-      const name = packages.find((p) => p.id === cp.packageId)?.name;
-      if (!name) continue;
-      (byClient[cp.clientId] ??= []).push(name);
+  // Paid-so-far for a client's CURRENT round only — receipts linked to that
+  // round's id, not every receipt the client has ever had.
+  const roundPaid = useMemo(() => {
+    const byClient: Record<string, number> = {};
+    for (const client of clients) {
+      const round = currentRounds[client.id];
+      if (!round) continue;
+      byClient[client.id] = receipts
+        .filter((r) => r.clientPackageId === round.id)
+        .reduce((sum, r) => sum + r.amount, 0);
     }
     return byClient;
-  }, [clientPackages, packages]);
+  }, [clients, currentRounds, receipts]);
 
-  const paidTotal = useMemo(() => {
-    const byClient: Record<string, number> = {};
-    for (const r of receipts) byClient[r.clientId] = (byClient[r.clientId] ?? 0) + r.amount;
-    return byClient;
-  }, [receipts]);
+  const roundOutstanding = (clientId: string) => {
+    const round = currentRounds[clientId];
+    if (!round) return 0;
+    return Math.max(round.amount - (roundPaid[clientId] ?? 0), 0);
+  };
 
   const docCount = useMemo(() => {
     const byClient: Record<string, number> = {};
@@ -125,6 +144,12 @@ export default function ClientsPage() {
     receipts.forEach((r) => bump(r.clientId));
     return byClient;
   }, [quotations, invoices, receipts]);
+
+  const summary = useMemo(() => {
+    const totalBilled = clients.reduce((sum, c) => sum + (currentRounds[c.id]?.amount ?? 0), 0);
+    const totalPaid = clients.reduce((sum, c) => sum + (roundPaid[c.id] ?? 0), 0);
+    return { count: clients.length, totalBilled, totalPaid, totalOutstanding: Math.max(totalBilled - totalPaid, 0) };
+  }, [clients, currentRounds, roundPaid]);
 
   const sortedClients = useMemo(() => {
     const sorted = [...clients].sort((a, b) => {
@@ -136,13 +161,16 @@ export default function ClientsPage() {
         case "paymentStatus":
           return a.paymentStatus.localeCompare(b.paymentStatus);
         case "paid":
-          return (paidTotal[a.id] ?? 0) - (paidTotal[b.id] ?? 0);
+          return (roundPaid[a.id] ?? 0) - (roundPaid[b.id] ?? 0);
+        case "outstanding":
+          return roundOutstanding(a.id) - roundOutstanding(b.id);
         default:
           return a.priority - b.priority;
       }
     });
     return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [clients, sortBy, sortDir, paidTotal]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clients, sortBy, sortDir, roundPaid, currentRounds]);
 
   function handleSort(key: SortKey) {
     if (key === sortBy) {
@@ -170,8 +198,11 @@ export default function ClientsPage() {
 
   async function handleSave(values: ClientFormValues, packageId?: string) {
     const created = await createClientRow(values);
-    if (packageId) await assignPackageToClient(created.id, packageId);
-    setClients((prev) => [created, ...prev]);
+    if (packageId) {
+      await assignPackageToClient(created.id, packageId);
+      await loadAll();
+    }
+    setClients((prev) => (packageId ? prev : [created, ...prev]));
     setCreating(false);
   }
 
@@ -194,6 +225,33 @@ export default function ClientsPage() {
       console.error(err);
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, priority: client.priority } : c)));
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handlePhoneBlur(client: Client, phone: string) {
+    if (phone === (client.phone ?? "")) return;
+    try {
+      await setClientPhone(client.id, phone);
+    } catch (err) {
+      console.error(err);
+      setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, phone: client.phone } : c)));
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handlePickPackage(client: Client, pkg: Package) {
+    const existing = currentRounds[client.id];
+    const warn = existing
+      ? `เริ่มรอบบิลใหม่ "${pkg.name}" (฿${currency(pkg.price)}) ให้ ${client.name}?\n\nยอด "จ่ายแล้ว/ค้างชำระ" จะเปลี่ยนไปตามรอบใหม่นี้ทันที และจะออกใบเสนอราคาใหม่ให้อัตโนมัติ`
+      : `เริ่มรอบบิล "${pkg.name}" (฿${currency(pkg.price)}) ให้ ${client.name}? จะออกใบเสนอราคาให้อัตโนมัติ`;
+    if (!window.confirm(warn)) return;
+    setPickPackageFor(null);
+    try {
+      await assignPackageToClient(client.id, pkg.id);
+      await loadAll();
+    } catch (err) {
+      console.error(err);
+      window.alert("ทำรายการไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -241,6 +299,13 @@ export default function ClientsPage() {
     <>
       <Topbar title="ลูกค้า" subtitle="ข้อมูลลูกค้าและสถานะการชำระเงิน" />
       <div className="flex-1 space-y-4 p-4 sm:p-6">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-4">
+          <StatCard label="ลูกค้าทั้งหมด" value={summary.count} icon={Users} tone="orange" />
+          <StatCard label="ยอดรวม (รอบปัจจุบัน)" value={`฿${currency(summary.totalBilled)}`} icon={Wallet} tone="gray" />
+          <StatCard label="จ่ายแล้ว" value={`฿${currency(summary.totalPaid)}`} icon={CheckCircle2} tone="emerald" />
+          <StatCard label="รอจ่าย" value={`฿${currency(summary.totalOutstanding)}`} icon={AlertCircle} tone="amber" />
+        </div>
+
         <div className="flex justify-end">
           <button
             onClick={() => setCreating(true)}
@@ -252,7 +317,7 @@ export default function ClientsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-          <table className="w-full min-w-[1360px] text-left text-sm">
+          <table className="w-full min-w-[1480px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
                 <SortHeader label={<Star size={13} />} sortKey="priority" className="w-14" />
@@ -262,8 +327,9 @@ export default function ClientsPage() {
                 <th className="px-4 py-3 font-medium">แบรนด์/บรีฟ</th>
                 <th className="px-4 py-3 font-medium">ประวัติการคุยล่าสุด</th>
                 <SortHeader label="สถานะ" sortKey="paymentStatus" />
-                <th className="px-4 py-3 font-medium">แพ็คเกจ</th>
+                <th className="px-4 py-3 font-medium">แพ็คเกจ (รอบปัจจุบัน)</th>
                 <SortHeader label="จ่ายแล้ว" sortKey="paid" className="text-right" />
+                <SortHeader label="ค้างชำระ" sortKey="outstanding" className="text-right" />
                 <th className="px-4 py-3 font-medium text-center">เอกสาร</th>
                 <th className="px-4 py-3 font-medium">ลิงก์ลูกค้า</th>
                 <th className="px-4 py-3 font-medium" />
@@ -272,6 +338,10 @@ export default function ClientsPage() {
             <tbody className="divide-y divide-gray-50">
               {sortedClients.map((client) => {
                 const note = latestNotes[client.id];
+                const round = currentRounds[client.id];
+                const pkg = round ? packages.find((p) => p.id === round.packageId) : undefined;
+                const paid = roundPaid[client.id] ?? 0;
+                const outstanding = roundOutstanding(client.id);
                 return (
                   <tr key={client.id} className="align-top hover:bg-gray-50/60">
                     <td className="px-4 py-3">
@@ -289,7 +359,15 @@ export default function ClientsPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{client.contactName || "—"}</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-gray-600">{client.phone || "—"}</td>
+                    <td className="px-4 py-3">
+                      <input
+                        value={client.phone ?? ""}
+                        onChange={(e) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, phone: e.target.value } : c)))}
+                        onBlur={(e) => handlePhoneBlur(client, e.target.value)}
+                        placeholder="—"
+                        className="w-32 rounded-lg border border-transparent px-2 py-1 text-gray-600 hover:border-gray-200 focus:border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-300"
+                      />
+                    </td>
                     <td className="max-w-[220px] px-4 py-3">
                       <Link
                         href={`/clients/${client.id}/brand`}
@@ -324,11 +402,26 @@ export default function ClientsPage() {
                         </select>
                       </span>
                     </td>
-                    <td className="max-w-[160px] px-4 py-3 text-xs text-gray-500">
-                      {(packageNames[client.id] ?? []).join(", ") || "—"}
+                    <td className="max-w-[180px] px-4 py-3 text-xs">
+                      <button
+                        onClick={() => setPickPackageFor(client)}
+                        className="flex items-center gap-1 text-gray-600 hover:text-brand-600"
+                      >
+                        <PackageIcon size={12} />
+                        {pkg ? pkg.name : <span className="italic text-gray-300">เลือกแพ็คเกจ</span>}
+                      </button>
                     </td>
-                    <td className="px-4 py-3 text-right font-medium text-gray-900">
-                      {paidTotal[client.id] ? `฿${currency(paidTotal[client.id])}` : "—"}
+                    <td className="px-4 py-3 text-right">
+                      <button
+                        onClick={() => setPayFor(client)}
+                        disabled={!round}
+                        className={cn("font-medium hover:underline", round ? "text-gray-900" : "text-gray-300")}
+                      >
+                        {round ? `฿${currency(paid)}` : "—"}
+                      </button>
+                    </td>
+                    <td className={cn("px-4 py-3 text-right font-medium", outstanding > 0 ? "text-rose-600" : "text-gray-400")}>
+                      {round ? `฿${currency(outstanding)}` : "—"}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <Link
@@ -379,7 +472,7 @@ export default function ClientsPage() {
               })}
               {sortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={12} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={13} className="px-4 py-10 text-center text-sm text-gray-400">
                     ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
                   </td>
                 </tr>
@@ -399,6 +492,132 @@ export default function ClientsPage() {
           }}
         />
       )}
+      {pickPackageFor && (
+        <PackagePickerModal
+          client={pickPackageFor}
+          packages={packages}
+          onClose={() => setPickPackageFor(null)}
+          onPick={(pkg) => handlePickPackage(pickPackageFor, pkg)}
+        />
+      )}
+      {payFor && currentRounds[payFor.id] && (
+        <RecordPaymentModal
+          client={payFor}
+          round={currentRounds[payFor.id]}
+          alreadyPaid={roundPaid[payFor.id] ?? 0}
+          onClose={() => setPayFor(null)}
+          onSaved={async () => {
+            setPayFor(null);
+            await loadAll();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function PackagePickerModal({
+  client,
+  packages,
+  onClose,
+  onPick,
+}: {
+  client: Client;
+  packages: Package[];
+  onClose: () => void;
+  onPick: (pkg: Package) => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-1 text-base font-semibold text-gray-900">เลือกแพ็คเกจให้ {client.name}</h3>
+        <p className="mb-3 text-xs text-gray-400">จะเริ่มรอบบิลใหม่ และออกใบเสนอราคาให้อัตโนมัติ</p>
+        <div className="max-h-80 space-y-1.5 overflow-y-auto">
+          {packages.map((pkg) => (
+            <button
+              key={pkg.id}
+              onClick={() => onPick(pkg)}
+              className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2.5 text-left text-sm hover:border-brand-300 hover:bg-brand-50/40"
+            >
+              <span className="font-medium text-gray-800">{pkg.name}</span>
+              <span className="text-gray-500">฿{currency(pkg.price)}</span>
+            </button>
+          ))}
+          {packages.length === 0 && <p className="py-4 text-center text-sm text-gray-400">ยังไม่มีแพ็คเกจ — ไปสร้างที่เมนู &quot;แพ็คเกจ&quot;</p>}
+        </div>
+        <button onClick={onClose} className="mt-4 w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+          ยกเลิก
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RecordPaymentModal({
+  client,
+  round,
+  alreadyPaid,
+  onClose,
+  onSaved,
+}: {
+  client: Client;
+  round: ClientPackage;
+  alreadyPaid: number;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [amount, setAmount] = useState<number>(Math.max(round.amount - alreadyPaid, 0));
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const outstanding = Math.max(round.amount - alreadyPaid, 0);
+
+  async function handleSave() {
+    if (amount <= 0) return;
+    setSaving(true);
+    try {
+      await recordRoundPayment({ clientId: client.id, clientPackageId: round.id, amount, notes: notes.trim() || undefined });
+      onSaved();
+    } catch (err) {
+      console.error(err);
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const field = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4" onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <h3 className="mb-1 text-base font-semibold text-gray-900">บันทึกยอดที่ลูกค้าชำระ</h3>
+        <p className="mb-3 text-xs text-gray-400">
+          {client.name} — รอบนี้ ฿{currency(round.amount)} จ่ายแล้ว ฿{currency(alreadyPaid)} ค้าง ฿{currency(outstanding)}
+        </p>
+        <div className="space-y-3">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">ยอดที่ชำระ (บาท)</span>
+            <input type="number" min={0} value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} className={field} />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">หมายเหตุ (ถ้ามี)</span>
+            <input value={notes} onChange={(e) => setNotes(e.target.value)} className={field} />
+          </label>
+          <p className="text-xs text-gray-400">จะออกใบเสร็จให้อัตโนมัติ (แก้ไขได้ทีหลังที่หน้าเอกสาร) และเพิ่มเข้าบัญชีรายรับทันที</p>
+        </div>
+        <div className="mt-4 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
+            ยกเลิก
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || amount <= 0}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
+          >
+            {saving ? "กำลังบันทึก..." : "บันทึก"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
