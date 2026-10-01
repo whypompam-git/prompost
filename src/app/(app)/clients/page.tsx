@@ -64,7 +64,10 @@ export default function ClientsPage() {
       listReceipts(),
       listQuotations(),
       listInvoices(),
-      listLatestClientNotes(),
+      listLatestClientNotes().catch((err) => {
+        console.error(err);
+        return {};
+      }),
     ])
       .then(([c, p, cp, r, q, inv, notes]) => {
         setClients(c);
@@ -74,6 +77,10 @@ export default function ClientsPage() {
         setQuotations(q);
         setInvoices(inv);
         setLatestNotes(notes);
+      })
+      .catch((err) => {
+        console.error(err);
+        window.alert("โหลดข้อมูลลูกค้าไม่สำเร็จ ลองรีเฟรชหน้าอีกครั้ง");
       })
       .finally(() => setLoading(false));
   }, []);

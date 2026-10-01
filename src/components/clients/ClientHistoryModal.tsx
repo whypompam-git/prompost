@@ -18,6 +18,7 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
   useEffect(() => {
     listClientNotes(client.id)
       .then(setNotes)
+      .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   }, [client.id]);
 
