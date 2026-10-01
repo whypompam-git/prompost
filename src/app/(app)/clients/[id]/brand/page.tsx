@@ -30,6 +30,10 @@ export default function ClientBrandPage() {
         }
         setClient(c);
       })
+      .catch((err) => {
+        console.error(err);
+        window.alert(`โหลดข้อมูลลูกค้าไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`);
+      })
       .finally(() => setLoading(false));
   }, [params.id]);
 
