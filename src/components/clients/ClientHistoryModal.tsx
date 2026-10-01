@@ -42,7 +42,8 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
       setDraftDate(todayIso());
     } catch (err) {
       console.error(err);
-      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+      const msg = err instanceof Error ? err.message : String(err);
+      window.alert(`บันทึกไม่สำเร็จ: ${msg}`);
     } finally {
       setSaving(false);
     }

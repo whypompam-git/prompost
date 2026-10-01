@@ -18,6 +18,8 @@ export interface Client {
   address?: string; // printed on quotations/receipts as the buyer's address
   entityType: EntityType; // controls the taxId field's printed label
   taxId?: string; // "เลขทะเบียนนิติบุคคล" (company) or "เลขประจำตัวผู้เสียภาษี" (individual)
+  priority: number; // owner-entered — for sorting by importance, no fixed meaning
+  brandBrief?: string; // free text — brand guidelines/brief for editors
 }
 
 export type StaffRole = "owner" | "staff";

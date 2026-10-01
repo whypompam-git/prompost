@@ -2,7 +2,18 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { FileText, History, Info, MessageSquarePlus, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  ChevronsUpDown,
+  FileText,
+  History,
+  Info,
+  MessageSquarePlus,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
@@ -21,6 +32,7 @@ import {
   listReceipts,
   setClientPaymentStatus,
   setClientPortalEnabled,
+  setClientPriority,
 } from "@/lib/supabase/queries";
 import { clientLinkPath } from "@/lib/slug";
 import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt } from "@/lib/types";
@@ -44,6 +56,8 @@ const PAYMENT_STYLE: Record<PaymentStatus, string> = {
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 
+type SortKey = "priority" | "name" | "contactName" | "paymentStatus" | "paid";
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +69,8 @@ export default function ClientsPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [latestNotes, setLatestNotes] = useState<Record<string, ClientNote>>({});
   const [historyFor, setHistoryFor] = useState<Client | null>(null);
+  const [sortBy, setSortBy] = useState<SortKey>("priority");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   useEffect(() => {
     Promise.all([
@@ -110,6 +126,48 @@ export default function ClientsPage() {
     return byClient;
   }, [quotations, invoices, receipts]);
 
+  const sortedClients = useMemo(() => {
+    const sorted = [...clients].sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name, "th");
+        case "contactName":
+          return (a.contactName ?? "").localeCompare(b.contactName ?? "", "th");
+        case "paymentStatus":
+          return a.paymentStatus.localeCompare(b.paymentStatus);
+        case "paid":
+          return (paidTotal[a.id] ?? 0) - (paidTotal[b.id] ?? 0);
+        default:
+          return a.priority - b.priority;
+      }
+    });
+    return sortDir === "desc" ? sorted.reverse() : sorted;
+  }, [clients, sortBy, sortDir, paidTotal]);
+
+  function handleSort(key: SortKey) {
+    if (key === sortBy) {
+      setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(key);
+      setSortDir("desc");
+    }
+  }
+
+  function SortHeader({ label, sortKey, className }: { label: React.ReactNode; sortKey: SortKey; className?: string }) {
+    return (
+      <th className={cn("px-4 py-3 font-medium", className)}>
+        <button onClick={() => handleSort(sortKey)} className="flex items-center gap-1 hover:text-gray-600">
+          {label}
+          {sortBy === sortKey ? (
+            sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+          ) : (
+            <ChevronsUpDown size={12} className="opacity-40" />
+          )}
+        </button>
+      </th>
+    );
+  }
+
   async function handleSave(values: ClientFormValues, packageId?: string) {
     const created = await createClientRow(values);
     if (packageId) await assignPackageToClient(created.id, packageId);
@@ -125,6 +183,17 @@ export default function ClientsPage() {
       console.error(err);
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, paymentStatus: client.paymentStatus } : c)));
       window.alert("เปลี่ยนสถานะไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handlePriorityChange(client: Client, priority: number) {
+    setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, priority } : c)));
+    try {
+      await setClientPriority(client.id, priority);
+    } catch (err) {
+      console.error(err);
+      setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, priority: client.priority } : c)));
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -183,26 +252,37 @@ export default function ClientsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-          <table className="w-full min-w-[1280px] text-left text-sm">
+          <table className="w-full min-w-[1360px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                <th className="px-4 py-3 font-medium">ชื่อร้าน</th>
-                <th className="px-4 py-3 font-medium">ผู้ติดต่อ</th>
+                <SortHeader label={<Star size={13} />} sortKey="priority" className="w-14" />
+                <SortHeader label="ชื่อร้าน" sortKey="name" />
+                <SortHeader label="ผู้ติดต่อ" sortKey="contactName" />
                 <th className="px-4 py-3 font-medium">เบอร์โทร</th>
+                <th className="px-4 py-3 font-medium">แบรนด์/บรีฟ</th>
                 <th className="px-4 py-3 font-medium">ประวัติการคุยล่าสุด</th>
-                <th className="px-4 py-3 font-medium">สถานะ</th>
+                <SortHeader label="สถานะ" sortKey="paymentStatus" />
                 <th className="px-4 py-3 font-medium">แพ็คเกจ</th>
-                <th className="px-4 py-3 font-medium text-right">จ่ายแล้ว</th>
+                <SortHeader label="จ่ายแล้ว" sortKey="paid" className="text-right" />
                 <th className="px-4 py-3 font-medium text-center">เอกสาร</th>
                 <th className="px-4 py-3 font-medium">ลิงก์ลูกค้า</th>
                 <th className="px-4 py-3 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {clients.map((client) => {
+              {sortedClients.map((client) => {
                 const note = latestNotes[client.id];
                 return (
                   <tr key={client.id} className="align-top hover:bg-gray-50/60">
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        value={client.priority || ""}
+                        placeholder="0"
+                        onChange={(e) => handlePriorityChange(client, Number(e.target.value) || 0)}
+                        className="w-12 rounded-lg border border-gray-200 px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                      />
+                    </td>
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <Link href={`/clients/${client.id}`} className="hover:text-brand-600 hover:underline">
                         {client.name}
@@ -210,6 +290,14 @@ export default function ClientsPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-600">{client.contactName || "—"}</td>
                     <td className="px-4 py-3 whitespace-nowrap text-gray-600">{client.phone || "—"}</td>
+                    <td className="max-w-[220px] px-4 py-3">
+                      <Link
+                        href={`/clients/${client.id}/info`}
+                        className="line-clamp-2 text-xs text-gray-500 hover:text-brand-600"
+                      >
+                        {client.brandBrief ? client.brandBrief : <span className="italic text-gray-300">กดเพื่อเพิ่มบรีฟแบรนด์</span>}
+                      </Link>
+                    </td>
                     <td className="max-w-[260px] px-4 py-3">
                       <button
                         onClick={() => setHistoryFor(client)}
@@ -289,9 +377,9 @@ export default function ClientsPage() {
                   </tr>
                 );
               })}
-              {clients.length === 0 && (
+              {sortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={12} className="px-4 py-10 text-center text-sm text-gray-400">
                     ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
                   </td>
                 </tr>

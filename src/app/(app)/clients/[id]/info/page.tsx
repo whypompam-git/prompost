@@ -257,6 +257,28 @@ export default function ClientInfoPage() {
             <label className={labelClass}>{taxIdLabel}</label>
             <input value={client.taxId ?? ""} onChange={(e) => patch({ taxId: e.target.value })} className={inputClass} />
           </div>
+
+          <div className="sm:w-1/4">
+            <label className={labelClass}>ความสำคัญ (ตัวเลขไว้จัดเรียงในหน้าลูกค้า)</label>
+            <input
+              type="number"
+              value={client.priority || ""}
+              placeholder="0"
+              onChange={(e) => patch({ priority: Number(e.target.value) || 0 })}
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className={labelClass}>แบรนด์/บรีฟ (สำหรับบรีฟคนตัดต่อ หรือเก็บประวัติลูกค้า)</label>
+            <textarea
+              value={client.brandBrief ?? ""}
+              onChange={(e) => patch({ brandBrief: e.target.value })}
+              rows={5}
+              placeholder="โทนแบรนด์ สี ฟอนต์ มู้ด สิ่งที่ลูกค้าชอบ/ไม่ชอบ ฯลฯ"
+              className={inputClass}
+            />
+          </div>
         </Card>
 
         <section>

@@ -68,6 +68,8 @@ export function ClientModal({
       entityType,
       address: address.trim() || undefined,
       taxId: taxId.trim() || undefined,
+      priority: initial?.priority ?? 0,
+      brandBrief: initial?.brandBrief,
     }, packageId || undefined);
   }
 
