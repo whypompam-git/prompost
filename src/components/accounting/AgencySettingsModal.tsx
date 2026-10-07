@@ -5,6 +5,48 @@ import { ImagePlus, X } from "lucide-react";
 import { uploadClientBrandImage } from "@/lib/supabase/queries";
 import type { AgencySettings } from "@/lib/types";
 
+// Crop transparent / near-white margins so the signature fills its frame
+// instead of floating in padding. Falls back to the original file on failure.
+async function trimSignature(file: File): Promise<File> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const canvas = document.createElement("canvas");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0);
+    const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let minX = width, minY = height, maxX = -1, maxY = -1;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const ink = data[i + 3] > 20 && (data[i] < 235 || data[i + 1] < 235 || data[i + 2] < 235);
+        if (ink) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+    }
+    if (maxX < 0) return file;
+    const pad = 4;
+    minX = Math.max(minX - pad, 0);
+    minY = Math.max(minY - pad, 0);
+    maxX = Math.min(maxX + pad, width - 1);
+    maxY = Math.min(maxY + pad, height - 1);
+    const out = document.createElement("canvas");
+    out.width = maxX - minX + 1;
+    out.height = maxY - minY + 1;
+    out.getContext("2d")!.drawImage(canvas, minX, minY, out.width, out.height, 0, 0, out.width, out.height);
+    const blob = await new Promise<Blob | null>((resolve) => out.toBlob(resolve, "image/png"));
+    return blob ? new File([blob], "signature.png", { type: "image/png" }) : file;
+  } catch {
+    return file;
+  }
+}
+
 export function AgencySettingsModal({
   initial,
   onClose,
@@ -28,7 +70,7 @@ export function AgencySettingsModal({
     if (!file) return;
     setUploading(true);
     try {
-      setSignatureUrl(await uploadClientBrandImage(file));
+      setSignatureUrl(await uploadClientBrandImage(await trimSignature(file)));
     } catch (err) {
       console.error(err);
       window.alert("อัปโหลดลายเซ็นไม่สำเร็จ ลองใหม่อีกครั้ง");
