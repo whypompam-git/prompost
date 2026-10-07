@@ -16,7 +16,7 @@ export default async function PrintQuotationPage({ params }: { params: { id: str
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type").eq("id", quotation.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
   ]);
 
   return (
@@ -34,6 +34,7 @@ export default async function PrintQuotationPage({ params }: { params: { id: str
             phone: agency?.phone ?? "",
             taxId: agency?.tax_id ?? "",
             bankInfo: agency?.bank_info ?? "",
+          signatureUrl: agency?.signature_url ?? undefined,
           }}
           buyer={{
             name: client?.billing_name || client?.name || "—",

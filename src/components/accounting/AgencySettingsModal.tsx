@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { X } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImagePlus, X } from "lucide-react";
+import { uploadClientBrandImage } from "@/lib/supabase/queries";
 import type { AgencySettings } from "@/lib/types";
 
 export function AgencySettingsModal({
@@ -18,6 +19,24 @@ export function AgencySettingsModal({
   const [phone, setPhone] = useState(initial.phone);
   const [taxId, setTaxId] = useState(initial.taxId);
   const [bankInfo, setBankInfo] = useState(initial.bankInfo);
+  const [signatureUrl, setSignatureUrl] = useState(initial.signatureUrl ?? "");
+  const [uploading, setUploading] = useState(false);
+  const sigRef = useRef<HTMLInputElement>(null);
+
+  async function handleSignature(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      setSignatureUrl(await uploadClientBrandImage(file));
+    } catch (err) {
+      console.error(err);
+      window.alert("อัปโหลดลายเซ็นไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setUploading(false);
+      if (sigRef.current) sigRef.current.value = "";
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -74,6 +93,34 @@ export function AgencySettingsModal({
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </label>
+          <div>
+            <span className="mb-1 block text-xs font-medium text-gray-500">ลายเซ็นดิจิทัล (แสดงเหนือเส้นผู้เสนอราคา)</span>
+            {signatureUrl ? (
+              <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={signatureUrl} alt="" className="h-14 max-w-[55%] object-contain" />
+                <div className="flex flex-col items-start gap-1">
+                  <button type="button" onClick={() => sigRef.current?.click()} className="text-xs font-medium text-brand-600 hover:underline">
+                    {uploading ? "กำลังอัปโหลด..." : "เปลี่ยนรูป"}
+                  </button>
+                  <button type="button" onClick={() => setSignatureUrl("")} className="text-xs font-medium text-rose-500 hover:underline">
+                    เอาออก
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => sigRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:bg-gray-50"
+              >
+                <ImagePlus size={16} />
+                {uploading ? "กำลังอัปโหลด..." : "อัปโหลดลายเซ็น (แนะนำ PNG พื้นใส)"}
+              </button>
+            )}
+            <input ref={sigRef} type="file" accept="image/*" className="hidden" onChange={handleSignature} />
+          </div>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -81,7 +128,7 @@ export function AgencySettingsModal({
             ยกเลิก
           </button>
           <button
-            onClick={() => onSave({ name, address, phone, taxId, bankInfo })}
+            onClick={() => onSave({ name, address, phone, taxId, bankInfo, signatureUrl: signatureUrl || undefined })}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
           >
             บันทึก

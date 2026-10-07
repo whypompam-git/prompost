@@ -921,12 +921,13 @@ type AgencySettingsRow = {
   phone: string | null;
   tax_id: string | null;
   bank_info: string | null;
+  signature_url: string | null;
 };
 
 export async function getAgencySettings() {
   const { data, error } = await supabase()
     .from("agency_settings")
-    .select("name, address, phone, tax_id, bank_info")
+    .select("name, address, phone, tax_id, bank_info, signature_url")
     .eq("id", true)
     .maybeSingle();
   if (error) throw error;
@@ -937,6 +938,7 @@ export async function getAgencySettings() {
     phone: r?.phone ?? "",
     taxId: r?.tax_id ?? "",
     bankInfo: r?.bank_info ?? "",
+    signatureUrl: r?.signature_url ?? undefined,
   };
 }
 
@@ -946,6 +948,7 @@ export async function saveAgencySettings(values: {
   phone: string;
   taxId: string;
   bankInfo: string;
+  signatureUrl?: string;
 }): Promise<void> {
   const { error } = await supabase()
     .from("agency_settings")
@@ -956,6 +959,7 @@ export async function saveAgencySettings(values: {
       phone: values.phone,
       tax_id: values.taxId,
       bank_info: values.bankInfo,
+      signature_url: values.signatureUrl || null,
     });
   if (error) throw error;
 }

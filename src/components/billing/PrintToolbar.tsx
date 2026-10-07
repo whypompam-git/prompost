@@ -36,12 +36,21 @@ export function PrintToolbar({ backHref, fileName }: { backHref?: string; fileNa
       const pageH = 297;
       const imgH = (canvas.height * pageW) / canvas.width;
       const img = canvas.toDataURL("image/jpeg", 0.95);
-      let offset = 0;
-      pdf.addImage(img, "JPEG", 0, 0, pageW, imgH);
-      while (imgH - offset > pageH) {
-        offset += pageH;
-        pdf.addPage();
-        pdf.addImage(img, "JPEG", 0, -offset, pageW, imgH);
+      // Keep a document on ONE page whenever shrinking stays readable
+      // (≥75%) — float rounding alone used to spill a blank second page.
+      const fit = pageH / imgH;
+      if (fit >= 0.75) {
+        const w = pageW * Math.min(fit, 1);
+        const h = imgH * Math.min(fit, 1);
+        pdf.addImage(img, "JPEG", (pageW - w) / 2, 0, w, h);
+      } else {
+        let offset = 0;
+        pdf.addImage(img, "JPEG", 0, 0, pageW, imgH);
+        while (imgH - offset > pageH + 1) {
+          offset += pageH;
+          pdf.addPage();
+          pdf.addImage(img, "JPEG", 0, -offset, pageW, imgH);
+        }
       }
       pdf.save(`${fileName}.pdf`);
     } catch (err) {

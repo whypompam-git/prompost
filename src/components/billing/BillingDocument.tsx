@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { APP_LOGO_SRC } from "@/config/branding";
 import type { AgencySettings, QuotationItem } from "@/lib/types";
 
@@ -52,7 +51,11 @@ export function BillingDocument({
     <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
       <div className="flex items-start justify-between">
         <div>
-          <Image src={APP_LOGO_SRC} alt="" width={44} height={44} className="mb-2 h-11 w-11 rounded-lg" />
+          {/* The icon has wide padding — crop it so the mark fills its frame. Plain <img> + fixed math so html2canvas renders it identically. */}
+          <div className="mb-2 overflow-hidden" style={{ width: 100, height: 66 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={APP_LOGO_SRC} alt="" width={100} height={100} style={{ width: 100, height: 100, marginTop: -17, maxWidth: "none" }} />
+          </div>
           <h1 className="text-3xl font-bold">{title.th}</h1>
           <p className="text-sm text-gray-500">{title.en}</p>
         </div>
@@ -154,7 +157,12 @@ export function BillingDocument({
 
       <div className="mt-16 grid grid-cols-2 gap-8 text-center text-sm">
         <div>
-          <div className="mb-2 h-12" />
+          <div className="mb-2 flex h-12 items-end justify-center">
+            {seller.signatureUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={seller.signatureUrl} alt="" crossOrigin="anonymous" className="max-h-12 max-w-[60%] object-contain" />
+            )}
+          </div>
           <div className="border-t border-gray-400 pt-2">
             <p>{docType === "quotation" ? "ผู้เสนอราคา" : "ผู้ออกเอกสาร"}</p>
             <p className="font-medium">{seller.name || "—"}</p>

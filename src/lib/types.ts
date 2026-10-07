@@ -162,6 +162,7 @@ export interface AgencySettings {
   phone: string;
   taxId: string;
   bankInfo: string;
+  signatureUrl?: string;
 }
 
 export type TransactionType = "income" | "expense";
