@@ -157,10 +157,10 @@ export function BillingDocument({
 
       <div className="mt-16 grid grid-cols-2 gap-8 text-center text-sm">
         <div>
-          <div className="mb-2 flex h-12 items-end justify-center">
+          <div className="mb-1 flex h-24 items-end justify-center">
             {seller.signatureUrl && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={seller.signatureUrl} alt="" crossOrigin="anonymous" className="max-h-12 max-w-[60%] object-contain" />
+              <img src={seller.signatureUrl} alt="" crossOrigin="anonymous" className="max-h-24 max-w-[90%] object-contain" />
             )}
           </div>
           <div className="border-t border-gray-400 pt-2">
@@ -169,7 +169,7 @@ export function BillingDocument({
           </div>
         </div>
         <div>
-          <div className="mb-2 h-12" />
+          <div className="mb-1 h-24" />
           <div className="border-t border-gray-400 pt-2">
             <p>ผู้อนุมัติ / ลูกค้า</p>
           </div>
