@@ -116,9 +116,6 @@ export function ClientModal({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-400">
-                ถ้าแพ็คเกจมีจำนวนคลิป ระบบจะสร้างงานให้อัตโนมัติ ชื่อ "ชื่อลูกค้า-คลิป(ลำดับ)"
-              </p>
             </Field>
           )}
 

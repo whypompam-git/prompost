@@ -267,11 +267,6 @@ export default function PackagesPage() {
                 );
               })}
             </div>
-            {assigningTo.clipCount > 0 && pickedIds.length > 0 && (
-              <p className="mt-2 text-xs text-gray-400">
-                จะสร้างงาน {assigningTo.clipCount} คลิปให้ลูกค้าแต่ละรายอัตโนมัติ
-              </p>
-            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => {

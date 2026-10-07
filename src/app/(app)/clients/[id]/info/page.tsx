@@ -81,8 +81,7 @@ export default function ClientInfoPage() {
 
   async function addPackage(pkg: Package) {
     if (!client) return;
-    const clips = pkg.clipCount > 0 ? ` และสร้างงาน ${pkg.clipCount} คลิปให้อัตโนมัติ` : "";
-    if (!window.confirm(`เพิ่มแพ็คเกจ "${pkg.name}" ให้ ${client.name}${clips}?`)) return;
+    if (!window.confirm(`เพิ่มแพ็คเกจ "${pkg.name}" ให้ ${client.name}?`)) return;
     setAssigning(true);
     try {
       const created = await assignPackageToClient(client.id, pkg.id);

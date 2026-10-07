@@ -1270,17 +1270,11 @@ export async function recordRoundPayment(values: {
 
 // Assigning a package starts a new billing round for the client (amount
 // snapshots the package's current price, so a later price change doesn't
-// retroactively change what this round billed), auto-issues a quotation for
-// it, and seeds the client's clip list: one todo task per clip in the
-// package, named "<client>-คลิป(<n>)", numbered after any clips the client
-// already has so re-assigning never produces duplicate names.
+// retroactively change what this round billed) and auto-issues a quotation
+// for it. Clips/tasks are added by hand — nothing is created automatically.
 export async function assignPackageToClient(clientId: string, packageId: string): Promise<ClientPackage> {
   const db = supabase();
-  const [{ data: pkg }, { data: client }, { count }] = await Promise.all([
-    db.from("packages").select("name, price, clip_count, end_date").eq("id", packageId).single(),
-    db.from("clients").select("name").eq("id", clientId).single(),
-    db.from("tasks").select("id", { count: "exact", head: true }).eq("client_id", clientId),
-  ]);
+  const { data: pkg } = await db.from("packages").select("name, price").eq("id", packageId).single();
   if (!pkg) throw new Error("ไม่พบแพ็คเกจนี้");
 
   const { data, error } = await db
@@ -1289,21 +1283,6 @@ export async function assignPackageToClient(clientId: string, packageId: string)
     .select("id, client_id, package_id, assigned_at, amount")
     .single();
   if (error) throw error;
-
-  const clipCount = pkg.clip_count ?? 0;
-  if (clipCount > 0 && client) {
-    const today = new Date().toISOString().slice(0, 10);
-    const rows = Array.from({ length: clipCount }, (_, i) => ({
-      client_id: clientId,
-      title: `${client.name}-คลิป(${(count ?? 0) + i + 1})`,
-      type: "shoot",
-      status: "todo",
-      scheduled_date: today,
-      due_date: pkg.end_date ?? today,
-    }));
-    const { error: taskError } = await db.from("tasks").insert(rows);
-    if (taskError) throw taskError;
-  }
 
   await createQuotationRow({
     clientId,

@@ -87,7 +87,7 @@ export function PackageModal({
               min={0}
               value={clipCount || ""}
               onChange={(e) => setClipCount(Number(e.target.value))}
-              placeholder="เช่น 10 — เลือกแพ็คเกจให้ลูกค้าแล้วจะสร้างงานให้อัตโนมัติ"
+              placeholder="เช่น 10 (ไว้ดูเฉยๆ ไม่สร้างงานอัตโนมัติ)"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </label>
