@@ -4,6 +4,7 @@ import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { QuotationFeedbackForm } from "@/components/billing/QuotationFeedbackForm";
 import { createClient } from "@/lib/supabase/server";
+import { docFileName } from "@/lib/docFileName";
 import type { QuotationItem } from "@/lib/types";
 
 // Public, unguessable-token link — a client can view their quotation and
@@ -30,7 +31,7 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar fileName={quotation.quote_no} />
+      <PrintToolbar fileName={docFileName("Quotation", client?.billing_name || client?.name || "", quotation.quote_no)} />
       <div className="overflow-x-auto py-8">
       <BillingDocument
         docType="quotation"

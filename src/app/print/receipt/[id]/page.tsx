@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
+import { docFileName } from "@/lib/docFileName";
 
 export default async function PrintReceiptPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
@@ -20,7 +21,7 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar backHref="/documents" fileName={receipt.receipt_no} />
+      <PrintToolbar backHref="/documents" fileName={docFileName("Receipt", client?.billing_name || client?.name || "", receipt.receipt_no)} />
       <div className="py-8">
         <BillingDocument
           docType="receipt"

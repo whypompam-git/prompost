@@ -3,6 +3,7 @@ import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
+import { docFileName } from "@/lib/docFileName";
 
 export default async function ReceiptSharePage({ params }: { params: { token: string } }) {
   const supabase = createClient();
@@ -23,7 +24,7 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar fileName={receipt.receipt_no} />
+      <PrintToolbar fileName={docFileName("Receipt", client?.billing_name || client?.name || "", receipt.receipt_no)} />
       <div className="overflow-x-auto py-8">
       <BillingDocument
         docType="receipt"

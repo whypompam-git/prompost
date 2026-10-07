@@ -13,6 +13,10 @@ export function PrintToolbar({ backHref, fileName }: { backHref?: string; fileNa
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    document.title = fileName;
+  }, [fileName]);
+
+  useEffect(() => {
     setCanGoBack(Boolean(backHref) || window.history.length > 1);
   }, [backHref]);
 

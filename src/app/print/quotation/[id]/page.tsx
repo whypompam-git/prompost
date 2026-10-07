@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createClient } from "@/lib/supabase/server";
+import { docFileName } from "@/lib/docFileName";
 import type { QuotationItem } from "@/lib/types";
 
 export default async function PrintQuotationPage({ params }: { params: { id: string } }) {
@@ -21,7 +22,7 @@ export default async function PrintQuotationPage({ params }: { params: { id: str
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <PrintToolbar backHref="/documents" fileName={quotation.quote_no} />
+      <PrintToolbar backHref="/documents" fileName={docFileName("Quotation", client?.billing_name || client?.name || "", quotation.quote_no)} />
       <div className="py-8">
         <BillingDocument
           docType="quotation"
