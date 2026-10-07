@@ -75,13 +75,29 @@ export default function DocumentsPage() {
   const [visible, setVisible] = useState(PAGE_SIZE);
 
   useEffect(() => {
-    Promise.all([listClients(), listQuotations(), listInvoices(), listReceipts(), getAgencySettings()])
+    // Load each list independently — one failing query (e.g. a migration not
+    // applied yet) must not blank out every other document list.
+    const failures: string[] = [];
+    const safe = <T,>(label: string, p: Promise<T>, fallback: T) =>
+      p.catch((err) => {
+        console.error(label, err);
+        failures.push(`${label}: ${err instanceof Error ? err.message : String(err)}`);
+        return fallback;
+      });
+    Promise.all([
+      safe("ลูกค้า", listClients(), [] as Client[]),
+      safe("ใบเสนอราคา", listQuotations(), [] as Quotation[]),
+      safe("ใบแจ้งหนี้", listInvoices(), [] as Invoice[]),
+      safe("ใบเสร็จ", listReceipts(), [] as Receipt[]),
+      safe("ข้อมูลผู้เสนอราคา", getAgencySettings(), null as AgencySettings | null),
+    ])
       .then(([c, q, i, r, a]) => {
         setClients(c);
         setQuotations(q);
         setInvoices(i);
         setReceipts(r);
         setAgency(a);
+        if (failures.length) window.alert(`โหลดบางส่วนไม่สำเร็จ:\n${failures.join("\n")}`);
       })
       .finally(() => setLoading(false));
   }, []);
