@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { CheckCircle2, ListTodo, Loader, Film } from "lucide-react";
+import { CheckCircle2, ListTodo, Loader, Film, Layers, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { StatCard } from "@/components/dashboard/StatCard";
@@ -12,8 +12,20 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
-import { getClient, listTasks } from "@/lib/supabase/queries";
-import type { Client, Task, TaskStatus } from "@/lib/types";
+import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
+import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
+import { Toast } from "@/components/ui/Toast";
+import {
+  createTaskRow,
+  createTasksBulk,
+  createTasksFromSet,
+  getClient,
+  listContentSets,
+  listStaff,
+  listTasks,
+  type ContentSet,
+} from "@/lib/supabase/queries";
+import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 
 export default function ClientContentDashboardPage() {
   const { typeLabel } = useTaskSettings();
@@ -23,6 +35,11 @@ export default function ClientContentDashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [sets, setSets] = useState<ContentSet[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [toast, setToast] = useState("");
 
   useEffect(() => {
     Promise.all([getClient(params.id), listTasks()])
@@ -40,6 +57,37 @@ export default function ClientContentDashboardPage() {
       })
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  useEffect(() => {
+    listStaff().then(setStaff).catch(console.error);
+    listContentSets().then(setSets).catch(() => {});
+  }, []);
+
+  async function handleSave(values: TaskFormValues) {
+    const created = await createTaskRow(values);
+    setTasks((prev) => [created, ...prev]);
+    setCreating(false);
+    setToast("สำเร็จ");
+  }
+
+  async function handleBulkSave(values: BulkTaskValues) {
+    if (values.set) {
+      await createTasksFromSet({
+        clientId: values.clientId,
+        clientName: values.clientName,
+        items: values.set.items,
+        type: values.type,
+        scheduledDate: values.scheduledDate,
+        dueDate: values.dueDate,
+      });
+    } else {
+      await createTasksBulk(values);
+    }
+    const all = await listTasks();
+    setTasks(all.filter((t) => t.clientId === params.id));
+    setBulkOpen(false);
+    setToast("สำเร็จ");
+  }
 
   const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
 
@@ -78,7 +126,25 @@ export default function ClientContentDashboardPage() {
         </div>
 
         <div>
-          <h2 className="mb-3 text-sm font-semibold text-gray-700">รายการงาน</h2>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold text-gray-700">รายการงาน</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setBulkOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
+              >
+                <Layers size={16} />
+                เพิ่มหลายงาน
+              </button>
+              <button
+                onClick={() => setCreating(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                <Plus size={16} />
+                เพิ่มงานใหม่
+              </button>
+            </div>
+          </div>
           <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
             <table className="w-full min-w-[520px] text-left text-sm">
               <thead>
@@ -122,6 +188,26 @@ export default function ClientContentDashboardPage() {
           ดูข้อมูลติดต่อ/แพ็คเกจ/ใบเสนอราคา/ใบเสร็จได้ในแท็บ &quot;ข้อมูลลูกค้า&quot; ด้านบน
         </Card>
       </div>
+
+      {toast && <Toast message={toast} onDone={() => setToast("")} />}
+      {creating && (
+        <TaskModal
+          clients={[client]}
+          staff={staff}
+          defaultClientId={client.id}
+          onClose={() => setCreating(false)}
+          onSave={handleSave}
+        />
+      )}
+      {bulkOpen && (
+        <BulkTaskModal
+          clients={[client]}
+          tasks={tasks}
+          sets={sets}
+          onClose={() => setBulkOpen(false)}
+          onSave={handleBulkSave}
+        />
+      )}
     </>
   );
 }
