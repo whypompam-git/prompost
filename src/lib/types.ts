@@ -75,6 +75,7 @@ export interface Task {
   equipment?: string[]; // free-typed, remembered/suggested across tasks
   postDate?: string; // ISO date — "วันที่โพส"
   finalUrl?: string; // Google Drive link — final delivered video
+  coverUrl?: string; // uploaded clip cover image — shown next to Final on the client link
   startTime?: string; // "HH:mm" — optional, like Google Calendar's timed vs all-day
   endTime?: string; // "HH:mm"
 }
@@ -173,6 +174,7 @@ export interface Transaction {
   description?: string;
   slipUrl?: string; // local object URL preview until real storage is wired up
   occurredAt: string; // ISO date
+  occurredTime?: string; // "HH:mm" — optional time of the transfer
 }
 
 export interface Package {

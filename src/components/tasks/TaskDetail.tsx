@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Save, Trash2 } from "lucide-react";
+import { ArrowLeft, ImagePlus, Pencil, Save, Trash2, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -17,6 +17,7 @@ import {
   listDistinctShotsAndEquipment,
   listStaff,
   updateTaskRow,
+  uploadTaskCover,
 } from "@/lib/supabase/queries";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType } from "@/lib/types";
@@ -44,6 +45,8 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [uploadingCover, setUploadingCover] = useState(false);
+  const coverRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -68,6 +71,21 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
 
   function patch(fields: Partial<Task>) {
     setTask((prev) => (prev ? { ...prev, ...fields } : prev));
+  }
+
+  async function handleCoverPick(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingCover(true);
+    try {
+      patch({ coverUrl: await uploadTaskCover(file) });
+    } catch (err) {
+      console.error(err);
+      window.alert("อัปโหลดปกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setUploadingCover(false);
+      if (coverRef.current) coverRef.current.value = "";
+    }
   }
 
   async function handleSave() {
@@ -384,6 +402,44 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
               placeholder="https://drive.google.com/..."
               className={inputClass}
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label className={labelClass}>ปกคลิป (ลูกค้าโหลดได้คู่กับ Final)</label>
+            {task.coverUrl ? (
+              <div className="flex items-center gap-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={task.coverUrl} alt="" className="h-24 w-24 rounded-lg border border-gray-200 object-cover" />
+                <div className="flex flex-col items-start gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => coverRef.current?.click()}
+                    disabled={uploadingCover}
+                    className="text-xs font-medium text-brand-600 hover:underline"
+                  >
+                    {uploadingCover ? "กำลังอัปโหลด..." : "เปลี่ยนปก"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => patch({ coverUrl: "" })}
+                    className="flex items-center gap-1 text-xs font-medium text-rose-500 hover:underline"
+                  >
+                    <X size={12} />
+                    เอาปกออก
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => coverRef.current?.click()}
+                disabled={uploadingCover}
+                className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:bg-gray-50"
+              >
+                <ImagePlus size={16} />
+                {uploadingCover ? "กำลังอัปโหลด..." : "อัปโหลดปกคลิป"}
+              </button>
+            )}
+            <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={handleCoverPick} />
           </div>
         </Card>
         )}

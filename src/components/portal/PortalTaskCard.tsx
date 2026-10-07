@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, ChevronDown, ExternalLink, ListChecks, Pencil, ScrollText } from "lucide-react";
+import { Camera, ChevronDown, Download, ExternalLink, ListChecks, Pencil, ScrollText } from "lucide-react";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
@@ -26,6 +26,7 @@ export function PortalTaskCard({
   refUrl,
   footageUrl,
   finalUrl,
+  coverUrl,
   equipment,
   shots,
 }: {
@@ -38,6 +39,7 @@ export function PortalTaskCard({
   refUrl: string | null;
   footageUrl: string | null;
   finalUrl: string | null;
+  coverUrl: string | null;
   equipment: string[];
   shots: string[];
 }) {
@@ -100,20 +102,23 @@ export function PortalTaskCard({
         </div>
       </button>
 
-      {links.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-4 pb-3">
+      {(links.length > 0 || coverUrl) && (
+        <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3">
           {links.map((l) => (
-            <a
-              key={l.label}
-              href={l.url!.startsWith("http") ? l.url! : `https://${l.url}`}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
-            >
-              <ExternalLink size={11} />
-              {l.label}
-            </a>
+            <span key={l.label} className="contents">
+              <a
+                href={l.url!.startsWith("http") ? l.url! : `https://${l.url}`}
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100"
+              >
+                <ExternalLink size={11} />
+                {l.label}
+              </a>
+              {l.label === "Final" && coverUrl && <CoverDownload url={coverUrl} title={title} />}
+            </span>
           ))}
+          {!finalUrl && coverUrl && <CoverDownload url={coverUrl} title={title} />}
         </div>
       )}
 
@@ -182,5 +187,47 @@ export function PortalTaskCard({
         </div>
       )}
     </div>
+  );
+}
+
+// Sits right beside the Final button so the client grabs video + cover in
+// one go. Fetching as a blob forces a real download — the bare `download`
+// attribute is ignored for cross-origin (storage) URLs.
+function CoverDownload({ url, title }: { url: string; title: string }) {
+  const [busy, setBusy] = useState(false);
+
+  async function handleDownload() {
+    setBusy(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(String(res.status));
+      const blob = await res.blob();
+      const ext = (blob.type.split("/")[1] || "jpg").split("+")[0];
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `${title}-ปก.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      window.open(url, "_blank", "noreferrer");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleDownload}
+      disabled={busy}
+      className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 py-0.5 pl-0.5 pr-2.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-60"
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt="" className="h-6 w-6 rounded-md object-cover" />
+      <Download size={11} />
+      {busy ? "กำลังโหลด..." : "ปก"}
+    </button>
   );
 }

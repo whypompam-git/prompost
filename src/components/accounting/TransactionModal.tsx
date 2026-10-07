@@ -13,6 +13,7 @@ export type TransactionFormValues = {
   slipFile?: File;
   keepSlip?: boolean;
   occurredAt: string;
+  occurredTime?: string;
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
@@ -31,6 +32,7 @@ export function TransactionModal({
   const [amount, setAmount] = useState(initial?.amount ?? 0);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [occurredAt, setOccurredAt] = useState(initial?.occurredAt ?? todayIso());
+  const [occurredTime, setOccurredTime] = useState(initial?.occurredTime ?? "");
   const [slipFile, setSlipFile] = useState<File | undefined>();
   const [removeSlip, setRemoveSlip] = useState(false);
 
@@ -53,6 +55,7 @@ export function TransactionModal({
       slipFile,
       keepSlip: !slipFile && !removeSlip,
       occurredAt,
+      occurredTime: occurredTime || undefined,
     });
   }
 
@@ -113,6 +116,16 @@ export function TransactionModal({
               />
             </label>
           </div>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">เวลาโอน (ไม่บังคับ)</span>
+            <input
+              type="time"
+              value={occurredTime}
+              onChange={(e) => setOccurredTime(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
 
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">รายละเอียด</span>

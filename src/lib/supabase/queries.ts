@@ -359,12 +359,13 @@ type TaskRow = {
   equipment: string[] | null;
   post_date: string | null;
   final_url: string | null;
+  cover_url: string | null;
   start_time: string | null;
   end_time: string | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, start_time, end_time";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -384,6 +385,7 @@ const fromTaskRow = (r: TaskRow): Task => ({
   equipment: r.equipment ?? [],
   postDate: r.post_date ?? undefined,
   finalUrl: r.final_url ?? undefined,
+  coverUrl: r.cover_url ?? undefined,
   startTime: r.start_time?.slice(0, 5) ?? undefined,
   endTime: r.end_time?.slice(0, 5) ?? undefined,
 });
@@ -442,6 +444,7 @@ export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
       equipment: values.equipment ?? [],
       post_date: values.postDate || null,
       final_url: values.finalUrl,
+      cover_url: values.coverUrl || null,
       start_time: values.startTime || null,
       end_time: values.endTime || null,
     })
@@ -469,6 +472,7 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.equipment !== undefined) patch.equipment = values.equipment;
   if (values.postDate !== undefined) patch.post_date = values.postDate || null;
   if (values.finalUrl !== undefined) patch.final_url = values.finalUrl;
+  if (values.coverUrl !== undefined) patch.cover_url = values.coverUrl || null;
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
   if (values.endTime !== undefined) patch.end_time = values.endTime || null;
   patch.updated_at = new Date().toISOString();
@@ -965,6 +969,7 @@ type TransactionRow = {
   description: string | null;
   slip_url: string | null;
   occurred_at: string;
+  occurred_time: string | null;
 };
 
 const fromTransactionRow = (r: TransactionRow): Transaction => ({
@@ -975,12 +980,13 @@ const fromTransactionRow = (r: TransactionRow): Transaction => ({
   description: r.description ?? undefined,
   slipUrl: r.slip_url ?? undefined,
   occurredAt: r.occurred_at,
+  occurredTime: r.occurred_time?.slice(0, 5) ?? undefined,
 });
 
 export async function listTransactions(): Promise<Transaction[]> {
   const { data, error } = await supabase()
     .from("transactions")
-    .select("id, type, category, amount, description, slip_url, occurred_at")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time")
     .order("occurred_at", { ascending: false });
   if (error) throw error;
   return (data as TransactionRow[]).map(fromTransactionRow);
@@ -998,8 +1004,9 @@ export async function createTransactionRow(
       description: values.description,
       slip_url: values.slipUrl,
       occurred_at: values.occurredAt,
+      occurred_time: values.occurredTime || null,
     })
-    .select("id, type, category, amount, description, slip_url, occurred_at")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time")
     .single();
   if (error) throw error;
   return fromTransactionRow(data as TransactionRow);
@@ -1018,6 +1025,7 @@ export async function updateTransactionRow(
       description: values.description,
       slip_url: values.slipUrl,
       occurred_at: values.occurredAt,
+      occurred_time: values.occurredTime || null,
     })
     .eq("id", id);
   if (error) throw error;
@@ -1033,6 +1041,10 @@ export async function uploadSlip(file: File): Promise<string> {
   });
   if (error) throw error;
   return supabase().storage.from("slips").getPublicUrl(path).data.publicUrl;
+}
+
+export async function uploadTaskCover(file: File): Promise<string> {
+  return uploadClientBrandImage(file);
 }
 
 export async function uploadClientBrandImage(file: File): Promise<string> {

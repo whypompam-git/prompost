@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
+import { ChevronDown, Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -30,6 +30,8 @@ export default function AccountingPage() {
   const [modalMode, setModalMode] = useState<"closed" | "create" | { edit: Transaction }>("closed");
   const [monthFrom, setMonthFrom] = useState(thisMonth());
   const [monthTo, setMonthTo] = useState(thisMonth());
+  const [dateSort, setDateSort] = useState<"desc" | "asc">("desc");
+  const [dateMenuOpen, setDateMenuOpen] = useState(false);
 
   useEffect(() => {
     listTransactions()
@@ -38,12 +40,16 @@ export default function AccountingPage() {
   }, []);
 
   const visible = useMemo(() => {
-    if (!monthFrom && !monthTo) return transactions;
-    return transactions.filter((t) => {
-      const m = t.occurredAt.slice(0, 7);
-      return (!monthFrom || m >= monthFrom) && (!monthTo || m <= monthTo);
-    });
-  }, [transactions, monthFrom, monthTo]);
+    const filtered =
+      !monthFrom && !monthTo
+        ? transactions
+        : transactions.filter((t) => {
+            const m = t.occurredAt.slice(0, 7);
+            return (!monthFrom || m >= monthFrom) && (!monthTo || m <= monthTo);
+          });
+    const key = (t: Transaction) => `${t.occurredAt}T${t.occurredTime ?? "00:00"}`;
+    return [...filtered].sort((a, b) => (dateSort === "desc" ? key(b).localeCompare(key(a)) : key(a).localeCompare(key(b))));
+  }, [transactions, monthFrom, monthTo, dateSort]);
 
   const totalIncome = visible.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = visible.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
@@ -127,7 +133,33 @@ export default function AccountingPage() {
             <table className="w-full min-w-[640px] text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                  <th className="px-5 py-3 font-medium">วันที่</th>
+                  <th className="relative px-5 py-3 font-medium">
+                    <button onClick={() => setDateMenuOpen((v) => !v)} className="flex items-center gap-1 hover:text-gray-600">
+                      วันที่/เวลา
+                      <ChevronDown size={12} className={dateMenuOpen ? "rotate-180" : ""} />
+                    </button>
+                    {dateMenuOpen && (
+                      <div className="absolute left-3 top-10 z-20 w-44 overflow-hidden rounded-xl border border-gray-100 bg-white text-sm normal-case tracking-normal shadow-xl">
+                        {(
+                          [
+                            { value: "desc", label: "ใหม่ → เก่า" },
+                            { value: "asc", label: "เก่า → ใหม่" },
+                          ] as const
+                        ).map((o) => (
+                          <button
+                            key={o.value}
+                            onClick={() => {
+                              setDateSort(o.value);
+                              setDateMenuOpen(false);
+                            }}
+                            className={`block w-full px-4 py-2.5 text-left hover:bg-gray-50 ${dateSort === o.value ? "font-semibold text-brand-600" : "text-gray-700"}`}
+                          >
+                            {o.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </th>
                   <th className="px-5 py-3 font-medium">หมวดหมู่</th>
                   <th className="px-5 py-3 font-medium">รายละเอียด</th>
                   <th className="px-5 py-3 font-medium">สลิป</th>
@@ -140,6 +172,7 @@ export default function AccountingPage() {
                   <tr key={t.id} className="hover:bg-gray-50/60">
                     <td className="px-5 py-3 text-gray-600">
                       {format(new Date(t.occurredAt), "d MMM yyyy", { locale: th })}
+                      {t.occurredTime && <span className="ml-1.5 text-xs text-gray-400">{t.occurredTime} น.</span>}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-900">{t.category}</td>
                     <td className="px-5 py-3 text-gray-500">{t.description ?? "—"}</td>

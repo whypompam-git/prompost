@@ -16,6 +16,7 @@ export type PortalTask = {
   ref_link: string | null;
   footage_url: string | null;
   final_url: string | null;
+  cover_url: string | null;
   equipment: string[] | null;
   shots: string[] | null;
 };
@@ -85,6 +86,7 @@ export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clie
             refUrl={task.ref_link}
             footageUrl={task.footage_url}
             finalUrl={task.final_url}
+            coverUrl={task.cover_url}
             equipment={task.equipment ?? []}
             shots={task.shots ?? []}
           />
