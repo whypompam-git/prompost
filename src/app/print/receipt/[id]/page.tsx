@@ -8,7 +8,7 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
 
   const { data: receipt } = await supabase
     .from("receipts")
-    .select("receipt_no, amount, created_at, notes, client_id")
+    .select("receipt_no, amount, created_at, notes, client_id, description")
     .eq("id", params.id)
     .maybeSingle();
   if (!receipt) notFound();
@@ -41,7 +41,7 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
             taxId: client?.tax_id ?? undefined,
               entityType: client?.entity_type ?? undefined,
           }}
-          items={[{ description: "ชำระค่าบริการ", qty: 1, unitPrice: receipt.amount }]}
+          items={[{ description: receipt.description || "ชำระค่าบริการ", qty: 1, unitPrice: receipt.amount }]}
           vatPercent={0}
           whtPercent={0}
           notes={receipt.notes ?? undefined}

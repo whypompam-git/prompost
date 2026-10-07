@@ -136,6 +136,7 @@ export interface Receipt {
   notes?: string;
   invoiceId?: string; // invoice this receipt settles
   clientPackageId?: string; // billing round (client_packages row) this receipt pays down
+  description?: string; // line item name printed on the receipt
   shareToken: string; // /receipt/:shareToken
 }
 
@@ -176,6 +177,7 @@ export interface Transaction {
   slipUrl?: string; // local object URL preview until real storage is wired up
   occurredAt: string; // ISO date
   occurredTime?: string; // "HH:mm" — optional time of the transfer
+  receiptId?: string; // receipt issued for this entry (income)
 }
 
 export interface Package {

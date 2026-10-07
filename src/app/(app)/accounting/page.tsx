@@ -3,21 +3,25 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronDown, Paperclip, Pencil, Plus, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
+import { ChevronDown, FilePlus2, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { MonthRangeFilter } from "@/components/accounting/MonthRangeFilter";
+import { IssueReceiptModal, type IssueReceiptValues } from "@/components/accounting/IssueReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
+  createReceiptRow,
   createTransactionRow,
   deleteTransactionRow,
+  listClients,
+  listQuotations,
   listTransactions,
   updateTransactionRow,
   uploadSlip,
 } from "@/lib/supabase/queries";
-import type { Transaction } from "@/lib/types";
+import type { Client, Quotation, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -32,10 +36,17 @@ export default function AccountingPage() {
   const [monthTo, setMonthTo] = useState(thisMonth());
   const [dateSort, setDateSort] = useState<"desc" | "asc">("desc");
   const [dateMenuOpen, setDateMenuOpen] = useState(false);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [issuingFor, setIssuingFor] = useState<Transaction | null>(null);
 
   useEffect(() => {
-    listTransactions()
-      .then(setTransactions)
+    Promise.all([listTransactions(), listClients(), listQuotations()])
+      .then(([t, c, q]) => {
+        setTransactions(t);
+        setClients(c);
+        setQuotations(q);
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -66,6 +77,35 @@ export default function AccountingPage() {
       setTransactions((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values, slipUrl } : t)));
     }
     setModalMode("closed");
+  }
+
+  async function handleIssueReceipt(tx: Transaction, v: IssueReceiptValues) {
+    try {
+      const receipt = await createReceiptRow({
+        clientId: v.clientId,
+        amount: tx.amount,
+        issuedAt: tx.occurredAt,
+        description: v.description,
+        notes: v.notes,
+        transactionId: tx.id,
+      });
+      const client = clients.find((c) => c.id === v.clientId);
+      setTransactions((prev) =>
+        prev.map((x) =>
+          x.id === tx.id
+            ? {
+                ...x,
+                receiptId: receipt.id,
+                description: `ใบเสร็จ ${receipt.receiptNo}${client ? ` — ${client.name}` : ""} · ${v.description}`,
+              }
+            : x,
+        ),
+      );
+      setIssuingFor(null);
+    } catch (err) {
+      console.error(err);
+      window.alert(`ออกใบเสร็จไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+    }
   }
 
   async function handleQuickSlip(t: Transaction, file: File) {
@@ -200,7 +240,30 @@ export default function AccountingPage() {
                       {t.type === "income" ? "+" : "-"}฿{currency(t.amount)}
                     </td>
                     <td className="px-5 py-3 text-right">
-                      <div className="flex justify-end gap-1">
+                      <div className="flex items-center justify-end gap-1">
+                        {t.receiptId ? (
+                          <a
+                            href={`/print/receipt/${t.receiptId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="rounded-full p-1.5 text-emerald-500 hover:bg-emerald-50 hover:text-emerald-600"
+                            aria-label="ดูใบเสร็จ"
+                            title="ดูใบเสร็จ"
+                          >
+                            <ReceiptText size={14} />
+                          </a>
+                        ) : (
+                          t.type === "income" && (
+                            <button
+                              onClick={() => setIssuingFor(t)}
+                              className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50"
+                              title="ออกใบเสร็จ"
+                            >
+                              <FilePlus2 size={13} />
+                              ออกใบเสร็จ
+                            </button>
+                          )
+                        )}
                         <button
                           onClick={() => setModalMode({ edit: t })}
                           className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
@@ -232,6 +295,15 @@ export default function AccountingPage() {
         </section>
       </div>
 
+      {issuingFor && (
+        <IssueReceiptModal
+          transaction={issuingFor}
+          clients={clients}
+          quotations={quotations}
+          onClose={() => setIssuingFor(null)}
+          onSave={(v) => handleIssueReceipt(issuingFor, v)}
+        />
+      )}
       {modalMode !== "closed" && (
         <TransactionModal
           initial={modalMode === "create" ? undefined : modalMode.edit}

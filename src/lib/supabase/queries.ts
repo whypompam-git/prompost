@@ -719,6 +719,35 @@ export async function createQuotationRow(values: {
   return fromQuotationRow(data as QuotationRow);
 }
 
+export async function updateQuotationRow(
+  id: string,
+  values: {
+    quoteNo: string;
+    clientId: string;
+    items: QuotationItem[];
+    vatPercent: number;
+    whtPercent: number;
+    validUntil?: string;
+    paymentNote?: string;
+    notes?: string;
+  },
+): Promise<void> {
+  const { error } = await supabase()
+    .from("quotations")
+    .update({
+      quote_no: values.quoteNo,
+      client_id: values.clientId,
+      items: values.items,
+      vat_percent: values.vatPercent,
+      wht_percent: values.whtPercent,
+      valid_until: values.validUntil || null,
+      payment_note: values.paymentNote ?? null,
+      notes: values.notes ?? null,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateQuotationStatus(id: string, status: Quotation["status"]): Promise<void> {
   const { error } = await supabase().from("quotations").update({ status }).eq("id", id);
   if (error) throw error;
@@ -739,10 +768,11 @@ type ReceiptRow = {
   notes: string | null;
   invoice_id: string | null;
   client_package_id: string | null;
+  description: string | null;
   share_token: string;
 };
 
-const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, invoice_id, client_package_id, share_token";
+const RECEIPT_COLUMNS = "id, client_id, receipt_no, amount, created_at, notes, invoice_id, client_package_id, description, share_token";
 
 const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   id: r.id,
@@ -753,6 +783,7 @@ const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   notes: r.notes ?? undefined,
   invoiceId: r.invoice_id ?? undefined,
   clientPackageId: r.client_package_id ?? undefined,
+  description: r.description ?? undefined,
   shareToken: r.share_token,
 });
 
@@ -782,6 +813,10 @@ export async function createReceiptRow(values: {
   issuedAt?: string; // ISO date the receipt is dated — defaults to now
   invoiceId?: string;
   clientPackageId?: string;
+  description?: string;
+  // Issue the receipt for an income entry that already exists in the books:
+  // link it instead of creating a second (duplicate) income row.
+  transactionId?: string;
 }): Promise<Receipt> {
   const receiptNo = await nextDocNo("receipts", "RC");
   const { data, error } = await supabase()
@@ -793,6 +828,7 @@ export async function createReceiptRow(values: {
       notes: values.notes,
       invoice_id: values.invoiceId ?? null,
       client_package_id: values.clientPackageId ?? null,
+      description: values.description || null,
       ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(RECEIPT_COLUMNS)
@@ -803,15 +839,24 @@ export async function createReceiptRow(values: {
   // The books: a receipt is income. Deleting the receipt removes this row
   // (transactions.receipt_id cascades).
   const { data: client } = await supabase().from("clients").select("name").eq("id", values.clientId).maybeSingle();
-  const { error: txError } = await supabase().from("transactions").insert({
-    type: "income",
-    category: "รับชำระค่างาน",
-    amount: values.amount,
-    description: `ใบเสร็จ ${receipt.receiptNo}${client ? ` — ${client.name}` : ""}`,
-    occurred_at: (values.issuedAt ?? new Date().toISOString()).slice(0, 10),
-    receipt_id: receipt.id,
-  });
-  if (txError) throw txError;
+  const txDescription = `ใบเสร็จ ${receipt.receiptNo}${client ? ` — ${client.name}` : ""}${values.description ? ` · ${values.description}` : ""}`;
+  if (values.transactionId) {
+    const { error: linkError } = await supabase()
+      .from("transactions")
+      .update({ receipt_id: receipt.id, description: txDescription })
+      .eq("id", values.transactionId);
+    if (linkError) throw linkError;
+  } else {
+    const { error: txError } = await supabase().from("transactions").insert({
+      type: "income",
+      category: "รับชำระค่างาน",
+      amount: values.amount,
+      description: txDescription,
+      occurred_at: (values.issuedAt ?? new Date().toISOString()).slice(0, 10),
+      receipt_id: receipt.id,
+    });
+    if (txError) throw txError;
+  }
 
   // Settling an invoice in full marks it paid.
   if (values.invoiceId) {
@@ -974,6 +1019,7 @@ type TransactionRow = {
   slip_url: string | null;
   occurred_at: string;
   occurred_time: string | null;
+  receipt_id: string | null;
 };
 
 const fromTransactionRow = (r: TransactionRow): Transaction => ({
@@ -985,12 +1031,13 @@ const fromTransactionRow = (r: TransactionRow): Transaction => ({
   slipUrl: r.slip_url ?? undefined,
   occurredAt: r.occurred_at,
   occurredTime: r.occurred_time?.slice(0, 5) ?? undefined,
+  receiptId: r.receipt_id ?? undefined,
 });
 
 export async function listTransactions(): Promise<Transaction[]> {
   const { data, error } = await supabase()
     .from("transactions")
-    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id")
     .order("occurred_at", { ascending: false });
   if (error) throw error;
   return (data as TransactionRow[]).map(fromTransactionRow);
@@ -1010,7 +1057,7 @@ export async function createTransactionRow(
       occurred_at: values.occurredAt,
       occurred_time: values.occurredTime || null,
     })
-    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id")
     .single();
   if (error) throw error;
   return fromTransactionRow(data as TransactionRow);

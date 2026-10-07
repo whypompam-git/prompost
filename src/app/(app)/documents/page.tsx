@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { FileText, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
+import { FileText, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
@@ -26,6 +26,7 @@ import {
   listReceipts,
   saveAgencySettings,
   updateInvoiceStatus,
+  updateQuotationRow,
 } from "@/lib/supabase/queries";
 import type { AgencySettings, Client, Invoice, Quotation, QuotationStatus, Receipt } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ type Row = {
   printHref: string;
   sharePath: string;
   feedback?: string;
+  onEdit?: () => void;
   onDelete: () => void;
 };
 
@@ -64,6 +66,7 @@ export default function DocumentsPage() {
   const [agency, setAgency] = useState<AgencySettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>("closed");
+  const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
 
   const [tab, setTab] = useState<Tab>("quotation");
   const [query, setQuery] = useState("");
@@ -126,6 +129,7 @@ export default function DocumentsPage() {
         printHref: `/print/quotation/${q.id}`,
         sharePath: `/quote/${q.shareToken}`,
         feedback: q.clientFeedback,
+        onEdit: () => setEditingQuotation(q),
         onDelete: () => confirmDelete(`ใบเสนอราคา ${q.quoteNo}`, q, setQuotations, deleteQuotationRow),
       }));
     }
@@ -334,6 +338,15 @@ export default function DocumentsPage() {
                           <Printer size={14} />
                         </a>
                         <CopyLinkButton path={r.sharePath} label="ลิงก์" />
+                        {r.onEdit && (
+                          <button
+                            onClick={r.onEdit}
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                            aria-label="แก้ไข"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
                         <button
                           onClick={r.onDelete}
                           className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
@@ -376,6 +389,38 @@ export default function DocumentsPage() {
             const created = await createQuotationRow(v);
             setQuotations((prev) => [created, ...prev]);
             setModal("closed");
+          }}
+        />
+      )}
+      {editingQuotation && (
+        <QuotationModal
+          initial={editingQuotation}
+          clients={clients}
+          onClose={() => setEditingQuotation(null)}
+          onSave={async (v: QuotationFormValues) => {
+            try {
+              await updateQuotationRow(editingQuotation.id, {
+                quoteNo: v.quoteNo ?? editingQuotation.quoteNo,
+                clientId: v.clientId,
+                items: v.items,
+                vatPercent: v.vatPercent,
+                whtPercent: v.whtPercent,
+                validUntil: v.validUntil,
+                paymentNote: v.paymentNote,
+                notes: v.notes,
+              });
+              setQuotations((prev) =>
+                prev.map((x) =>
+                  x.id === editingQuotation.id
+                    ? { ...x, ...v, quoteNo: v.quoteNo ?? x.quoteNo }
+                    : x,
+                ),
+              );
+              setEditingQuotation(null);
+            } catch (err) {
+              console.error(err);
+              window.alert(`บันทึกไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""} (เลขที่อาจซ้ำกับใบอื่น)`);
+            }
           }}
         />
       )}

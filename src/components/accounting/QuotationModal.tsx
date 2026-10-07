@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { calcQuotationTotals } from "@/lib/accounting";
-import type { Client, QuotationItem } from "@/lib/types";
+import type { Client, Quotation, QuotationItem } from "@/lib/types";
 
 export type QuotationFormValues = {
+  quoteNo?: string;
   clientId: string;
   items: QuotationItem[];
   vatPercent: number;
@@ -19,25 +20,28 @@ const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigit
 const emptyItem = (): QuotationItem => ({ description: "", qty: 1, unitPrice: 0 });
 
 export function QuotationModal({
+  initial,
   clients,
   onClose,
   onSave,
 }: {
+  initial?: Quotation;
   clients: Client[];
   onClose: () => void;
   onSave: (values: QuotationFormValues) => void;
 }) {
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
-  const [items, setItems] = useState<QuotationItem[]>([emptyItem()]);
-  const [vatPercent, setVatPercent] = useState(7);
-  const [whtPercent, setWhtPercent] = useState(0);
-  const [validUntil, setValidUntil] = useState("");
-  const [paymentNote, setPaymentNote] = useState("");
-  const [notes, setNotes] = useState("");
+  const [quoteNo, setQuoteNo] = useState(initial?.quoteNo ?? "");
+  const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? "");
+  const [items, setItems] = useState<QuotationItem[]>(initial?.items.length ? initial.items : [emptyItem()]);
+  const [vatPercent, setVatPercent] = useState(initial?.vatPercent ?? 7);
+  const [whtPercent, setWhtPercent] = useState(initial?.whtPercent ?? 0);
+  const [validUntil, setValidUntil] = useState(initial?.validUntil?.slice(0, 10) ?? "");
+  const [paymentNote, setPaymentNote] = useState(initial?.paymentNote ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
 
   const totals = calcQuotationTotals(items, vatPercent, whtPercent);
   const canSave =
-    clientId.length > 0 && items.some((i) => i.description.trim().length > 0 && i.qty > 0);
+    clientId.length > 0 && (!initial || quoteNo.trim().length > 0) && items.some((i) => i.description.trim().length > 0 && i.qty > 0);
 
   function updateItem(index: number, patch: Partial<QuotationItem>) {
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
@@ -50,6 +54,7 @@ export function QuotationModal({
   function handleSave() {
     if (!canSave) return;
     onSave({
+      quoteNo: initial ? quoteNo.trim() : undefined,
       clientId,
       items: items.filter((i) => i.description.trim().length > 0),
       vatPercent,
@@ -69,13 +74,23 @@ export function QuotationModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-900">สร้างใบเสนอราคา</h3>
+          <h3 className="text-base font-semibold text-gray-900">{initial ? "แก้ไขใบเสนอราคา" : "สร้างใบเสนอราคา"}</h3>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-100">
             <X size={16} />
           </button>
         </div>
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+          {initial && (
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">เลขที่ใบเสนอราคา</span>
+              <input
+                value={quoteNo}
+                onChange={(e) => setQuoteNo(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </label>
+          )}
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">ลูกค้า</span>
             <select
