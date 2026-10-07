@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
@@ -16,11 +16,12 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
   const { data: quotation } = await supabase
     .from("quotations")
     .select(
-      "quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_feedback, client_id, share_token",
+      "quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_feedback, client_id, share_token, file_url",
     )
     .eq("share_token", params.token)
     .maybeSingle();
   if (!quotation) notFound();
+  if (quotation.file_url) redirect(quotation.file_url);
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type, portal_enabled").eq("id", quotation.client_id).maybeSingle(),

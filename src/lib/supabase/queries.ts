@@ -630,11 +630,12 @@ type QuotationRow = {
   payment_note: string | null;
   notes: string | null;
   client_feedback: string | null;
+  file_url: string | null;
   share_token: string;
 };
 
 const QUOTATION_COLUMNS =
-  "id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at, valid_until, payment_note, notes, client_feedback, share_token";
+  "id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at, valid_until, payment_note, notes, client_feedback, file_url, share_token";
 
 const fromQuotationRow = (r: QuotationRow): Quotation => ({
   id: r.id,
@@ -649,6 +650,7 @@ const fromQuotationRow = (r: QuotationRow): Quotation => ({
   paymentNote: r.payment_note ?? undefined,
   notes: r.notes ?? undefined,
   clientFeedback: r.client_feedback ?? undefined,
+  fileUrl: r.file_url ?? undefined,
   shareToken: r.share_token,
 });
 
@@ -712,6 +714,33 @@ export async function createQuotationRow(values: {
       valid_until: values.validUntil || null,
       payment_note: values.paymentNote,
       notes: values.notes,
+    })
+    .select(QUOTATION_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromQuotationRow(data as QuotationRow);
+}
+
+// An old quotation made elsewhere: the file is the document; one summary
+// item carries the amount so list totals still work.
+export async function createUploadedQuotationRow(values: {
+  clientId: string;
+  quoteNo: string;
+  issuedAt: string;
+  amount: number;
+  fileUrl: string;
+}): Promise<Quotation> {
+  const { data, error } = await supabase()
+    .from("quotations")
+    .insert({
+      client_id: values.clientId,
+      quote_no: values.quoteNo,
+      items: [{ description: "ใบเสนอราคา (ไฟล์เดิม)", qty: 1, unitPrice: values.amount }],
+      vat_percent: 0,
+      wht_percent: 0,
+      status: "sent",
+      file_url: values.fileUrl,
+      created_at: values.issuedAt,
     })
     .select(QUOTATION_COLUMNS)
     .single();

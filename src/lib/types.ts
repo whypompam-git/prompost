@@ -124,6 +124,7 @@ export interface Quotation {
   paymentNote?: string; // ช่องทางการชำระเงิน
   notes?: string;
   clientFeedback?: string; // client's requested changes, left via the share link
+  fileUrl?: string; // set = an old quotation uploaded as a file instead of generated in-app
   shareToken: string; // /quote/:shareToken — public read + feedback link
 }
 

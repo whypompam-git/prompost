@@ -3,18 +3,21 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { FileText, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
+import { FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/InvoiceModal";
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
+import { UploadQuotationModal, type UploadQuotationValues } from "@/components/accounting/UploadQuotationModal";
 import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
 import { calcQuotationTotals } from "@/lib/accounting";
 import {
   createInvoiceRow,
   createQuotationRow,
+  createUploadedQuotationRow,
+  uploadClientBrandImage,
   createReceiptRow,
   deleteInvoiceRow,
   deleteQuotationRow,
@@ -35,7 +38,7 @@ const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigit
 const PAGE_SIZE = 15;
 
 type Tab = "quotation" | "invoice" | "receipt";
-type Modal = "closed" | Tab | "agency";
+type Modal = "closed" | Tab | "agency" | "uploadQuotation";
 
 const QUOTE_STATUS: Record<QuotationStatus, { label: string; style: string }> = {
   draft: { label: "ร่าง", style: "bg-gray-100 text-gray-600" },
@@ -52,7 +55,7 @@ type Row = {
   amount: number;
   status?: { key: string; label: string; style: string; onClick?: () => void };
   printHref: string;
-  sharePath: string;
+  sharePath?: string;
   feedback?: string;
   onEdit?: () => void;
   onDelete: () => void;
@@ -142,10 +145,10 @@ export default function DocumentsPage() {
         date: q.createdAt,
         amount: calcQuotationTotals(q.items, q.vatPercent, q.whtPercent).total,
         status: { key: q.status, ...QUOTE_STATUS[q.status] },
-        printHref: `/print/quotation/${q.id}`,
-        sharePath: `/quote/${q.shareToken}`,
+        printHref: q.fileUrl ?? `/print/quotation/${q.id}`,
+        sharePath: q.fileUrl ? undefined : `/quote/${q.shareToken}`,
         feedback: q.clientFeedback,
-        onEdit: () => setEditingQuotation(q),
+        onEdit: q.fileUrl ? undefined : () => setEditingQuotation(q),
         onDelete: () => confirmDelete(`ใบเสนอราคา ${q.quoteNo}`, q, setQuotations, deleteQuotationRow),
       }));
     }
@@ -281,6 +284,15 @@ export default function DocumentsPage() {
               </option>
             ))}
           </select>
+          {tab === "quotation" && (
+            <button
+              onClick={() => setModal("uploadQuotation")}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <FileUp size={15} />
+              อัปโหลดใบเก่า
+            </button>
+          )}
           <button
             onClick={() => setModal(tab)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
@@ -353,7 +365,7 @@ export default function DocumentsPage() {
                         >
                           <Printer size={14} />
                         </a>
-                        <CopyLinkButton path={r.sharePath} label="ลิงก์" />
+                        {r.sharePath && <CopyLinkButton path={r.sharePath} label="ลิงก์" />}
                         {r.onEdit && (
                           <button
                             onClick={r.onEdit}
@@ -405,6 +417,29 @@ export default function DocumentsPage() {
             const created = await createQuotationRow(v);
             setQuotations((prev) => [created, ...prev]);
             setModal("closed");
+          }}
+        />
+      )}
+      {modal === "uploadQuotation" && (
+        <UploadQuotationModal
+          clients={clients}
+          onClose={() => setModal("closed")}
+          onSave={async (v: UploadQuotationValues) => {
+            try {
+              const fileUrl = await uploadClientBrandImage(v.file);
+              const created = await createUploadedQuotationRow({
+                clientId: v.clientId,
+                quoteNo: v.quoteNo,
+                issuedAt: v.issuedAt,
+                amount: v.amount,
+                fileUrl,
+              });
+              setQuotations((prev) => [created, ...prev]);
+              setModal("closed");
+            } catch (err) {
+              console.error(err);
+              window.alert(`อัปโหลดไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+            }
           }}
         />
       )}
