@@ -24,8 +24,9 @@ import {
   listQuotations,
   listReceipts,
   updateClientRow,
+  listStaff,
 } from "@/lib/supabase/queries";
-import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt , Invoice } from "@/lib/types";
+import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt , Invoice, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -49,6 +50,11 @@ export default function ClientInfoPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [staffList, setStaffList] = useState<Staff[]>([]);
+
+  useEffect(() => {
+    listStaff().then(setStaffList).catch(console.error);
+  }, []);
 
   useEffect(() => {
     Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices()])
@@ -259,6 +265,22 @@ export default function ClientInfoPage() {
           <div className="sm:w-1/2">
             <label className={labelClass}>{taxIdLabel}</label>
             <input value={client.taxId ?? ""} onChange={(e) => patch({ taxId: e.target.value })} className={inputClass} />
+          </div>
+
+          <div className="sm:w-1/2">
+            <label className={labelClass}>คนดูแล</label>
+            <select
+              value={client.managerId ?? ""}
+              onChange={(e) => patch({ managerId: e.target.value || undefined })}
+              className={inputClass}
+            >
+              <option value="">ยังไม่มีคนดูแล</option>
+              {staffList.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="sm:w-1/4">

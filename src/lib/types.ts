@@ -21,6 +21,7 @@ export interface Client {
   priority: number; // owner-entered — for sorting by importance, no fixed meaning
   brandBrief?: string; // free text — brand guidelines/brief for editors
   brandImages: string[]; // reference images (logo, mood board, ...) — public URLs
+  managerId?: string; // staff member responsible for this client
 }
 
 export type StaffRole = "owner" | "staff";

@@ -38,13 +38,15 @@ import {
   listQuotations,
   listReceipts,
   recordRoundPayment,
+  listStaff,
+  setClientManager,
   setClientPaymentStatus,
   setClientPhone,
   setClientPortalEnabled,
   setClientPriority,
 } from "@/lib/supabase/queries";
 import { clientLinkPath } from "@/lib/slug";
-import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt } from "@/lib/types";
+import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_LABEL: Record<PaymentStatus, string> = {
@@ -82,9 +84,11 @@ export default function ClientsPage() {
   const [pickPackageFor, setPickPackageFor] = useState<Client | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("priority");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [managerFilter, setManagerFilter] = useState("");
 
   async function loadAll() {
-    const [c, p, cp, r, q, inv, notes] = await Promise.all([
+    const [c, p, cp, r, q, inv, notes, staffRows] = await Promise.all([
       listClients(),
       listPackages(),
       listClientPackages(),
@@ -95,7 +99,9 @@ export default function ClientsPage() {
         console.error(err);
         return {};
       }),
+      listStaff().catch(() => [] as Staff[]),
     ]);
+    setStaff(staffRows);
     setClients(c);
     setPackages(p);
     setReceipts(r);
@@ -152,7 +158,10 @@ export default function ClientsPage() {
   }, [clients, currentRounds, roundPaid]);
 
   const sortedClients = useMemo(() => {
-    const sorted = [...clients].sort((a, b) => {
+    const base = managerFilter
+      ? clients.filter((c) => (managerFilter === "none" ? !c.managerId : c.managerId === managerFilter))
+      : clients;
+    const sorted = [...base].sort((a, b) => {
       switch (sortBy) {
         case "name":
           return a.name.localeCompare(b.name, "th");
@@ -170,7 +179,7 @@ export default function ClientsPage() {
     });
     return sortDir === "desc" ? sorted.reverse() : sorted;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clients, sortBy, sortDir, roundPaid, currentRounds]);
+  }, [clients, sortBy, sortDir, roundPaid, currentRounds, managerFilter]);
 
   function handleSort(key: SortKey) {
     if (key === sortBy) {
@@ -214,6 +223,18 @@ export default function ClientsPage() {
       console.error(err);
       setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, paymentStatus: client.paymentStatus } : c)));
       window.alert("เปลี่ยนสถานะไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function handleManagerChange(client: Client, managerId: string) {
+    const next = managerId || undefined;
+    setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, managerId: next } : c)));
+    try {
+      await setClientManager(client.id, next ?? null);
+    } catch (err) {
+      console.error(err);
+      setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, managerId: client.managerId } : c)));
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -306,7 +327,23 @@ export default function ClientsPage() {
           <StatCard label="รอจ่าย" value={`฿${currency(summary.totalOutstanding)}`} icon={AlertCircle} tone="amber" />
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            คนดูแล
+            <select
+              value={managerFilter}
+              onChange={(e) => setManagerFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm text-gray-700"
+            >
+              <option value="">ทั้งหมด</option>
+              <option value="none">ยังไม่มีคนดูแล</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             onClick={() => setCreating(true)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
@@ -317,13 +354,14 @@ export default function ClientsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-          <table className="w-full min-w-[1480px] text-left text-sm">
+          <table className="w-full min-w-[1600px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
                 <SortHeader label={<Star size={13} />} sortKey="priority" className="w-14" />
                 <SortHeader label="ชื่อร้าน" sortKey="name" />
                 <SortHeader label="ผู้ติดต่อ" sortKey="contactName" />
                 <th className="px-4 py-3 font-medium">เบอร์โทร</th>
+                <th className="px-4 py-3 font-medium">คนดูแล</th>
                 <th className="px-4 py-3 font-medium">แบรนด์/บรีฟ</th>
                 <th className="px-4 py-3 font-medium">ประวัติการคุยล่าสุด</th>
                 <SortHeader label="สถานะ" sortKey="paymentStatus" />
@@ -367,6 +405,24 @@ export default function ClientsPage() {
                         placeholder="—"
                         className="w-32 rounded-lg border border-transparent px-2 py-1 text-gray-600 hover:border-gray-200 focus:border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-300"
                       />
+                    </td>
+                    <td className="px-4 py-3">
+                      <select
+                        value={client.managerId ?? ""}
+                        onChange={(e) => handleManagerChange(client, e.target.value)}
+                        className={cn(
+                          "max-w-[140px] rounded-lg border border-transparent bg-transparent px-1.5 py-1 text-sm hover:border-gray-200 focus:border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-300",
+                          client.managerId ? "text-gray-700" : "text-gray-300",
+                        )}
+                        aria-label="คนดูแล"
+                      >
+                        <option value="">— ยังไม่มี —</option>
+                        {staff.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
                     </td>
                     <td className="max-w-[220px] px-4 py-3">
                       <Link
@@ -472,7 +528,7 @@ export default function ClientsPage() {
               })}
               {sortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={13} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={14} className="px-4 py-10 text-center text-sm text-gray-400">
                     ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
                   </td>
                 </tr>

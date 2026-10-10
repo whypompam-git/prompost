@@ -50,10 +50,11 @@ type ClientRow = {
   priority: number;
   brand_brief: string | null;
   brand_images: string[] | null;
+  manager_id: string | null;
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief, brand_images";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief, brand_images, manager_id";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -73,6 +74,7 @@ const fromClientRow = (r: ClientRow): Client => ({
   priority: r.priority ?? 0,
   brandBrief: r.brand_brief ?? undefined,
   brandImages: r.brand_images ?? [],
+  managerId: r.manager_id ?? undefined,
 });
 
 export async function listClients(): Promise<Client[]> {
@@ -108,6 +110,7 @@ const clientPayload = (values: ClientInput) => ({
   priority: values.priority,
   brand_brief: values.brandBrief || null,
   brand_images: values.brandImages,
+  manager_id: values.managerId || null,
 });
 
 // slug comes from the English name; on a collision, add a numeric suffix.
@@ -144,6 +147,11 @@ export async function updateClientRow(id: string, values: ClientInput): Promise<
 
 export async function setClientPaymentStatus(id: string, status: Client["paymentStatus"]): Promise<void> {
   const { error } = await supabase().from("clients").update({ payment_status: status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function setClientManager(id: string, managerId: string | null): Promise<void> {
+  const { error } = await supabase().from("clients").update({ manager_id: managerId }).eq("id", id);
   if (error) throw error;
 }
 
