@@ -3,15 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronDown, FilePlus2, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
+import { ChevronDown, FilePlus2, FileText, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { MonthRangeFilter } from "@/components/accounting/MonthRangeFilter";
+import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { IssueReceiptModal, type IssueReceiptValues } from "@/components/accounting/IssueReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
+  createQuotationRow,
   createReceiptRow,
   createTransactionRow,
   deleteTransactionRow,
@@ -39,6 +41,8 @@ export default function AccountingPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [issuingFor, setIssuingFor] = useState<Transaction | null>(null);
+  const [quoting, setQuoting] = useState(false);
+  const [createdQuote, setCreatedQuote] = useState<{ id: string; no: string } | null>(null);
 
   useEffect(() => {
     Promise.all([listTransactions(), listClients(), listQuotations()])
@@ -77,6 +81,18 @@ export default function AccountingPage() {
       setTransactions((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values, slipUrl } : t)));
     }
     setModalMode("closed");
+  }
+
+  async function handleCreateQuotation(v: QuotationFormValues) {
+    try {
+      const created = await createQuotationRow(v);
+      setQuotations((prev) => [created, ...prev]);
+      setCreatedQuote({ id: created.id, no: created.quoteNo });
+      setQuoting(false);
+    } catch (err) {
+      console.error(err);
+      window.alert(`ออกใบเสนอราคาไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+    }
   }
 
   async function handleIssueReceipt(tx: Transaction, v: IssueReceiptValues) {
@@ -152,6 +168,20 @@ export default function AccountingPage() {
           </div>
         )}
 
+        {createdQuote && (
+          <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+            <span>ออกใบเสนอราคา {createdQuote.no} แล้ว</span>
+            <span className="flex items-center gap-3">
+              <a href={`/print/quotation/${createdQuote.id}`} target="_blank" rel="noreferrer" className="font-medium underline">
+                เปิดดู / ดาวน์โหลด
+              </a>
+              <button onClick={() => setCreatedQuote(null)} className="text-emerald-500 hover:text-emerald-700">
+                ปิด
+              </button>
+            </span>
+          </div>
+        )}
+
         <section>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
@@ -160,6 +190,13 @@ export default function AccountingPage() {
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <MonthRangeFilter from={monthFrom} to={monthTo} onChange={(f, t) => { setMonthFrom(f); setMonthTo(t); }} />
+              <button
+                onClick={() => setQuoting(true)}
+                className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
+              >
+                <FileText size={16} />
+                ออกใบเสนอราคา
+              </button>
               <button
                 onClick={() => setModalMode("create")}
                 className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -295,6 +332,7 @@ export default function AccountingPage() {
         </section>
       </div>
 
+      {quoting && <QuotationModal clients={clients} onClose={() => setQuoting(false)} onSave={handleCreateQuotation} />}
       {issuingFor && (
         <IssueReceiptModal
           transaction={issuingFor}
