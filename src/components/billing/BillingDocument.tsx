@@ -155,8 +155,8 @@ export function BillingDocument({
         </div>
       )}
 
-      <div className="mt-16 grid grid-cols-2 gap-8 text-center text-sm">
-        <div>
+      <div className={`mt-16 grid gap-8 text-center text-sm ${docType === "receipt" ? "grid-cols-1 justify-items-end" : "grid-cols-2"}`}>
+        <div className={docType === "receipt" ? "w-64" : undefined}>
           <div className="mb-1 flex h-32 items-end justify-center">
             {seller.signatureUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -168,12 +168,14 @@ export function BillingDocument({
             <p className="font-medium">{seller.name || "—"}</p>
           </div>
         </div>
-        <div>
-          <div className="mb-1 h-32" />
-          <div className="border-t border-gray-400 pt-2">
-            <p>ผู้อนุมัติ / ลูกค้า</p>
+        {docType !== "receipt" && (
+          <div>
+            <div className="mb-1 h-32" />
+            <div className="border-t border-gray-400 pt-2">
+              <p>ผู้อนุมัติ / ลูกค้า</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
