@@ -10,6 +10,8 @@ import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/InvoiceModal";
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
+import { EditDocModal, type EditDocValues } from "@/components/accounting/EditDocModal";
+import { fromInputDate } from "@/lib/docDate";
 import { UploadQuotationModal, type UploadQuotationValues } from "@/components/accounting/UploadQuotationModal";
 import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -29,7 +31,9 @@ import {
   listReceipts,
   saveAgencySettings,
   updateInvoiceStatus,
+  updateInvoiceDate,
   updateQuotationRow,
+  updateReceiptRow,
 } from "@/lib/supabase/queries";
 import type { AgencySettings, Client, Invoice, Quotation, QuotationStatus, Receipt } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -70,6 +74,8 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<Modal>("closed");
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
 
   const [tab, setTab] = useState<Tab>("quotation");
   const [query, setQuery] = useState("");
@@ -167,6 +173,7 @@ export default function DocumentsPage() {
         },
         printHref: `/print/invoice/${inv.id}`,
         sharePath: `/invoice/${inv.shareToken}`,
+        onEdit: () => setEditingInvoice(inv),
         onDelete: () => confirmDelete(`ใบแจ้งหนี้ ${inv.invoiceNo}`, inv, setInvoices, deleteInvoiceRow),
       }));
     }
@@ -178,6 +185,7 @@ export default function DocumentsPage() {
       amount: r.amount,
       printHref: `/print/receipt/${r.id}`,
       sharePath: `/receipt/${r.shareToken}`,
+      onEdit: () => setEditingReceipt(r),
       onDelete: () => confirmDelete(`ใบเสร็จ ${r.receiptNo}`, r, setReceipts, deleteReceiptRow),
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -456,6 +464,7 @@ export default function DocumentsPage() {
                 items: v.items,
                 vatPercent: v.vatPercent,
                 whtPercent: v.whtPercent,
+                issuedAt: v.issuedAt,
                 validUntil: v.validUntil,
                 paymentNote: v.paymentNote,
                 notes: v.notes,
@@ -463,7 +472,7 @@ export default function DocumentsPage() {
               setQuotations((prev) =>
                 prev.map((x) =>
                   x.id === editingQuotation.id
-                    ? { ...x, ...v, quoteNo: v.quoteNo ?? x.quoteNo }
+                    ? { ...x, ...v, quoteNo: v.quoteNo ?? x.quoteNo, createdAt: v.issuedAt ?? x.createdAt }
                     : x,
                 ),
               );
@@ -471,6 +480,58 @@ export default function DocumentsPage() {
             } catch (err) {
               console.error(err);
               window.alert(`บันทึกไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""} (เลขที่อาจซ้ำกับใบอื่น)`);
+            }
+          }}
+        />
+      )}
+      {editingInvoice && (
+        <EditDocModal
+          kind="invoice"
+          docNo={editingInvoice.invoiceNo}
+          createdAt={editingInvoice.createdAt}
+          onClose={() => setEditingInvoice(null)}
+          onSave={async (v: EditDocValues) => {
+            try {
+              const issuedAt = fromInputDate(v.date);
+              await updateInvoiceDate(editingInvoice.id, issuedAt);
+              setInvoices((prev) => prev.map((x) => (x.id === editingInvoice.id ? { ...x, createdAt: issuedAt } : x)));
+              setEditingInvoice(null);
+            } catch (err) {
+              console.error(err);
+              window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+            }
+          }}
+        />
+      )}
+      {editingReceipt && (
+        <EditDocModal
+          kind="receipt"
+          docNo={editingReceipt.receiptNo}
+          createdAt={editingReceipt.createdAt}
+          amount={editingReceipt.amount}
+          description={editingReceipt.description}
+          notes={editingReceipt.notes}
+          onClose={() => setEditingReceipt(null)}
+          onSave={async (v: EditDocValues) => {
+            try {
+              const issuedAt = fromInputDate(v.date);
+              await updateReceiptRow(editingReceipt.id, {
+                issuedAt,
+                amount: v.amount ?? editingReceipt.amount,
+                description: v.description,
+                notes: v.notes,
+              });
+              setReceipts((prev) =>
+                prev.map((x) =>
+                  x.id === editingReceipt.id
+                    ? { ...x, createdAt: issuedAt, amount: v.amount ?? x.amount, description: v.description, notes: v.notes }
+                    : x,
+                ),
+              );
+              setEditingReceipt(null);
+            } catch (err) {
+              console.error(err);
+              window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
             }
           }}
         />

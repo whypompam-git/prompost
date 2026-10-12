@@ -706,6 +706,7 @@ export async function createQuotationRow(values: {
   items: QuotationItem[];
   vatPercent: number;
   whtPercent: number;
+  issuedAt?: string; // ISO timestamp for the header date — defaults to now
   validUntil?: string;
   paymentNote?: string;
   notes?: string;
@@ -722,6 +723,7 @@ export async function createQuotationRow(values: {
       valid_until: values.validUntil || null,
       payment_note: values.paymentNote,
       notes: values.notes,
+      ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(QUOTATION_COLUMNS)
     .single();
@@ -764,6 +766,7 @@ export async function updateQuotationRow(
     items: QuotationItem[];
     vatPercent: number;
     whtPercent: number;
+    issuedAt?: string;
     validUntil?: string;
     paymentNote?: string;
     notes?: string;
@@ -773,6 +776,7 @@ export async function updateQuotationRow(
     .from("quotations")
     .update({
       quote_no: values.quoteNo,
+      ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
       client_id: values.clientId,
       items: values.items,
       vat_percent: values.vatPercent,
@@ -963,6 +967,7 @@ export async function createInvoiceRow(values: {
   items: QuotationItem[];
   vatPercent: number;
   whtPercent: number;
+  issuedAt?: string;
   dueDate?: string;
   paymentNote?: string;
   notes?: string;
@@ -979,11 +984,48 @@ export async function createInvoiceRow(values: {
       due_date: values.dueDate || null,
       payment_note: values.paymentNote,
       notes: values.notes,
+      ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(INVOICE_COLUMNS)
     .single();
   if (error) throw error;
   return fromInvoiceRow(data as InvoiceRow);
+}
+
+export async function updateInvoiceDate(id: string, issuedAt: string): Promise<void> {
+  const { error } = await supabase().from("invoices").update({ created_at: issuedAt }).eq("id", id);
+  if (error) throw error;
+}
+
+// Edit an issued receipt, and keep the income entry in the books that points
+// at it (transactions.receipt_id) in step.
+export async function updateReceiptRow(
+  id: string,
+  values: { issuedAt: string; amount: number; description?: string; notes?: string },
+): Promise<void> {
+  const db = supabase();
+  const { data, error } = await db
+    .from("receipts")
+    .update({
+      created_at: values.issuedAt,
+      amount: values.amount,
+      description: values.description || null,
+      notes: values.notes || null,
+    })
+    .eq("id", id)
+    .select("receipt_no, client_id")
+    .single();
+  if (error) throw error;
+  const { data: client } = await db.from("clients").select("name").eq("id", data.client_id).maybeSingle();
+  const { error: txError } = await db
+    .from("transactions")
+    .update({
+      amount: values.amount,
+      occurred_at: values.issuedAt.slice(0, 10),
+      description: `ใบเสร็จ ${data.receipt_no}${client ? ` — ${client.name}` : ""}${values.description ? ` · ${values.description}` : ""}`,
+    })
+    .eq("receipt_id", id);
+  if (txError) throw txError;
 }
 
 export async function updateInvoiceStatus(id: string, status: Invoice["status"]): Promise<void> {

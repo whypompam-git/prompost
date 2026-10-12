@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { calcQuotationTotals } from "@/lib/accounting";
+import { fromInputDate, toInputDate } from "@/lib/docDate";
 import type { Client, QuotationItem } from "@/lib/types";
 
 export type InvoiceFormValues = {
+  issuedAt?: string;
   clientId: string;
   items: QuotationItem[];
   vatPercent: number;
@@ -27,6 +29,7 @@ export function InvoiceModal({
   onClose: () => void;
   onSave: (values: InvoiceFormValues) => void;
 }) {
+  const [issuedAt, setIssuedAt] = useState(toInputDate(new Date().toISOString()));
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
   const [items, setItems] = useState<QuotationItem[]>([emptyItem()]);
   const [vatPercent, setVatPercent] = useState(7);
@@ -50,6 +53,7 @@ export function InvoiceModal({
   function handleSave() {
     if (!canSave) return;
     onSave({
+      issuedAt: issuedAt ? fromInputDate(issuedAt) : undefined,
       clientId,
       items: items.filter((i) => i.description.trim().length > 0),
       vatPercent,
@@ -76,6 +80,15 @@ export function InvoiceModal({
         </div>
 
         <div className="max-h-[70vh] space-y-4 overflow-y-auto pr-1">
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">วันที่ออกเอกสาร</span>
+            <input
+              type="date"
+              value={issuedAt}
+              onChange={(e) => setIssuedAt(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">ลูกค้า</span>
             <select

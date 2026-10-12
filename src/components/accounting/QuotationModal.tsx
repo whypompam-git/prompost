@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { Plus, Trash2, X } from "lucide-react";
 import { calcQuotationTotals } from "@/lib/accounting";
+import { fromInputDate, toInputDate } from "@/lib/docDate";
 import type { Client, Quotation, QuotationItem } from "@/lib/types";
 
 export type QuotationFormValues = {
   quoteNo?: string;
+  issuedAt?: string;
   clientId: string;
   items: QuotationItem[];
   vatPercent: number;
@@ -31,6 +33,7 @@ export function QuotationModal({
   onSave: (values: QuotationFormValues) => void;
 }) {
   const [quoteNo, setQuoteNo] = useState(initial?.quoteNo ?? "");
+  const [issuedAt, setIssuedAt] = useState(toInputDate(initial?.createdAt ?? new Date().toISOString()));
   const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? "");
   const [items, setItems] = useState<QuotationItem[]>(initial?.items.length ? initial.items : [emptyItem()]);
   const [vatPercent, setVatPercent] = useState(initial?.vatPercent ?? 7);
@@ -55,6 +58,7 @@ export function QuotationModal({
     if (!canSave) return;
     onSave({
       quoteNo: initial ? quoteNo.trim() : undefined,
+      issuedAt: issuedAt ? fromInputDate(issuedAt) : undefined,
       clientId,
       items: items.filter((i) => i.description.trim().length > 0),
       vatPercent,
@@ -91,6 +95,15 @@ export function QuotationModal({
               />
             </label>
           )}
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">วันที่ออกเอกสาร</span>
+            <input
+              type="date"
+              value={issuedAt}
+              onChange={(e) => setIssuedAt(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            />
+          </label>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">ลูกค้า</span>
             <select
