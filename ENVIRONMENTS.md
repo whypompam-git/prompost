@@ -67,3 +67,19 @@ the service key, filtered by their token.
 (visible in the site's JavaScript) can no longer read or write anything. It is **not** a
 migration and is never run by the workflow — run it by hand in the SQL editor once you've
 checked the app works through the proxy. `supabase/lockdown/rollback.sql` undoes it.
+
+## Daily LINE digest
+
+`vercel.json` runs `/api/cron/line-digest` every day at 01:00 UTC (08:00 Bangkok). It sends
+today's summary (payments overdue > 7 days, tasks due/overdue, pending leave requests) to a
+LINE group through the Messaging API. Set these in **Vercel → Settings → Environment
+Variables** (they're read at runtime — not build-time, not GitHub):
+
+| Variable | What |
+|---|---|
+| `CRON_SECRET` | any long random string — Vercel sends it as `Authorization: Bearer …` to the cron route; without it the route refuses to run |
+| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers → your Messaging API channel → Channel access token (long-lived) |
+| `LINE_TO` | the group's ID (`C…`) — invite the bot to the group, then read the group ID from a webhook event or `https://api.line.me/v2/bot/group/…`; a user ID (`U…`) also works for 1:1 |
+
+Settings → ระบบ has a preview and a "send now" button (owner only). Nothing is sent when
+there is nothing to report.

@@ -4,11 +4,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, CalendarOff, CircleAlert, MessageSquareText, Receipt } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { bangkokDay, buildDigest } from "@/lib/alerts";
 import {
+  listClientPackages,
   listClients,
   listInvoices,
   listLeaveRequests,
+  listPackages,
   listQuotations,
+  listReceipts,
   listStaff,
   listTasks,
 } from "@/lib/supabase/queries";
@@ -65,6 +69,33 @@ export function NotificationBell() {
             href: "/documents",
           });
         }
+      }
+      const [rounds, packages, receipts] = await Promise.all([listClientPackages(), listPackages(), listReceipts()]);
+      const owed = buildDigest({
+        today: bangkokDay(new Date()),
+        graceDays: 7,
+        clients: clients.map((c) => ({ id: c.id, name: c.name })),
+        staff: [],
+        tasks: [],
+        invoices: [],
+        rounds: rounds.map((r) => ({
+          id: r.id,
+          clientId: r.clientId,
+          packageName: packages.find((p) => p.id === r.packageId)?.name ?? "",
+          amount: r.amount,
+          assignedAt: r.assignedAt,
+        })),
+        receipts: receipts.map((r) => ({ clientPackageId: r.clientPackageId, amount: r.amount })),
+        leave: [],
+      }).overduePayments;
+      for (const p of owed) {
+        out.push({
+          id: `pay:${p.client}:${p.label}:${p.amount}`,
+          icon: "invoice",
+          title: `${p.client} ค้างชำระ ฿${p.amount.toLocaleString("th-TH")}`,
+          detail: `${p.label} · เกิน ${p.days} วัน`,
+          href: "/clients",
+        });
       }
       const today = new Date().toISOString().slice(0, 10);
       for (const inv of invoices) {
