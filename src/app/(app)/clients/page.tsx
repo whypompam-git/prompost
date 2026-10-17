@@ -6,6 +6,7 @@ import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  Download,
   ChevronUp,
   ChevronsUpDown,
   FileText,
@@ -46,6 +47,7 @@ import {
   setClientPriority,
 } from "@/lib/supabase/queries";
 import { clientLinkPath } from "@/lib/slug";
+import { downloadCsv } from "@/lib/exportCsv";
 import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -205,6 +207,29 @@ export default function ClientsPage() {
     );
   }
 
+  function exportClients() {
+    downloadCsv(
+      "ลูกค้า",
+      ["ชื่อร้าน", "ผู้ติดต่อ", "เบอร์โทร", "คนดูแล", "สถานะ", "แพ็คเกจ (รอบปัจจุบัน)", "ยอดรอบปัจจุบัน", "จ่ายแล้ว", "ค้างชำระ", "ความสำคัญ", "ประวัติการคุยล่าสุด"],
+      sortedClients.map((c) => {
+        const round = currentRounds[c.id];
+        return [
+          c.name,
+          c.contactName ?? "",
+          c.phone ?? "",
+          staff.find((s) => s.id === c.managerId)?.name ?? "",
+          PAYMENT_LABEL[c.paymentStatus],
+          round ? (packages.find((p) => p.id === round.packageId)?.name ?? "") : "",
+          round?.amount ?? "",
+          round ? (roundPaid[c.id] ?? 0) : "",
+          round ? roundOutstanding(c.id) : "",
+          c.priority || "",
+          latestNotes[c.id]?.note ?? "",
+        ];
+      }),
+    );
+  }
+
   async function handleSave(values: ClientFormValues, packageId?: string) {
     const created = await createClientRow(values);
     if (packageId) {
@@ -344,6 +369,14 @@ export default function ClientsPage() {
               ))}
             </select>
           </label>
+          <div className="flex items-center gap-2">
+          <button
+            onClick={exportClients}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <Download size={16} />
+            Export
+          </button>
           <button
             onClick={() => setCreating(true)}
             className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
@@ -351,6 +384,7 @@ export default function ClientsPage() {
             <Plus size={16} />
             เพิ่มลูกค้าใหม่
           </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">

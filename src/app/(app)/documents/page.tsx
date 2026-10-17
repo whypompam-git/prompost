@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
+import { Download, FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
@@ -12,6 +12,7 @@ import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/In
 import { ReceiptModal, type ReceiptFormValues } from "@/components/accounting/ReceiptModal";
 import { EditDocModal, type EditDocValues } from "@/components/accounting/EditDocModal";
 import { fromInputDate } from "@/lib/docDate";
+import { downloadCsv } from "@/lib/exportCsv";
 import { UploadQuotationModal, type UploadQuotationValues } from "@/components/accounting/UploadQuotationModal";
 import { AgencySettingsModal } from "@/components/accounting/AgencySettingsModal";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -292,6 +293,20 @@ export default function DocumentsPage() {
               </option>
             ))}
           </select>
+          <button
+            onClick={() =>
+              downloadCsv(
+                `${{ quotation: "ใบเสนอราคา", invoice: "ใบแจ้งหนี้", receipt: "ใบเสร็จ" }[tab]}`,
+                ["เลขที่", "ลูกค้า", "วันที่", "ยอดรวม", "สถานะ"],
+                filtered.map((r) => [r.no, clientName(r.clientId), r.date.slice(0, 10), r.amount, r.status?.label ?? ""]),
+              )
+            }
+            className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            title="ดาวน์โหลดรายการที่แสดงอยู่เป็นไฟล์ Excel (CSV)"
+          >
+            <Download size={15} />
+            Export
+          </button>
           {tab === "quotation" && (
             <button
               onClick={() => setModal("uploadQuotation")}

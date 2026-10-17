@@ -42,3 +42,14 @@ hosting target is chosen — it will consume the same three secrets.
 `supabase/migrations/0001_init.sql` is the reference schema. Apply it once, manually, via
 Supabase Dashboard → SQL Editor → paste the file → Run. There is no CI step that runs
 migrations automatically yet.
+
+## Backups
+
+`.github/workflows/backup.yml` runs weekly (and on demand from the Actions tab) and writes
+`backup-YYYY-MM-DD.json` — every table's data — to a **private** Supabase Storage bucket
+named `backups`, keeping the newest 8. Download one from Supabase → Storage → backups.
+It uses the existing `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` secrets.
+
+This repo is **public**: never commit a backup, and don't use workflow artifacts for them
+(artifacts of a public repo are downloadable by anyone). Uploaded files (slips, logos,
+signatures, brand images) live in their own storage buckets and aren't part of this dump.

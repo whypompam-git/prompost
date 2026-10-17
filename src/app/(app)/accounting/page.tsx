@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { ChevronDown, FilePlus2, FileText, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
+import { ChevronDown, Download, FilePlus2, FileText, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -12,6 +12,7 @@ import { QuotationModal, type QuotationFormValues } from "@/components/accountin
 import { IssueReceiptModal, type IssueReceiptValues } from "@/components/accounting/IssueReceiptModal";
 import { TransactionModal, type TransactionFormValues } from "@/components/accounting/TransactionModal";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { downloadCsv } from "@/lib/exportCsv";
 import {
   createQuotationRow,
   createReceiptRow,
@@ -81,6 +82,22 @@ export default function AccountingPage() {
       setTransactions((prev) => prev.map((t) => (t.id === edit.id ? { ...t, ...values, slipUrl } : t)));
     }
     setModalMode("closed");
+  }
+
+  function exportVisible() {
+    downloadCsv(
+      `บัญชี ${monthFrom || "ทั้งหมด"}${monthTo && monthTo !== monthFrom ? `-${monthTo}` : ""}`,
+      ["วันที่", "เวลา", "ประเภท", "หมวดหมู่", "รายละเอียด", "จำนวนเงิน", "สลิป"],
+      visible.map((t) => [
+        t.occurredAt,
+        t.occurredTime ?? "",
+        t.type === "income" ? "รายรับ" : "รายจ่าย",
+        t.category,
+        t.description ?? "",
+        t.type === "income" ? t.amount : -t.amount,
+        t.slipUrl ?? "",
+      ]),
+    );
   }
 
   async function handleCreateQuotation(v: QuotationFormValues) {
@@ -190,6 +207,14 @@ export default function AccountingPage() {
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <MonthRangeFilter from={monthFrom} to={monthTo} onChange={(f, t) => { setMonthFrom(f); setMonthTo(t); }} />
+              <button
+                onClick={exportVisible}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                title="ดาวน์โหลดรายการที่แสดงอยู่เป็นไฟล์ Excel (CSV)"
+              >
+                <Download size={16} />
+                Export
+              </button>
               <button
                 onClick={() => setQuoting(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
