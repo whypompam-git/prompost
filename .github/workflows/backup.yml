@@ -17,4 +17,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-        run: node scripts/backup.mjs
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "::warning::Supabase secrets not set in GitHub Actions — backup skipped. Add NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SECRET_KEY (see ENVIRONMENTS.md)."
+            exit 0
+          fi
+          node scripts/backup.mjs
