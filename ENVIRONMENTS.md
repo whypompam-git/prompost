@@ -79,6 +79,7 @@ Variables** (they're read at runtime — not build-time, not GitHub):
 |---|---|
 | `CRON_SECRET` | any long random string — Vercel sends it as `Authorization: Bearer …` to the cron route; without it the route refuses to run |
 | `LINE_CHANNEL_ACCESS_TOKEN` | LINE Developers → your Messaging API channel → Channel access token (long-lived) |
+| `LINE_CHANNEL_SECRET` | same channel → Basic settings → Channel secret — verifies LINE's webhook signature (`/api/line/webhook`, used once to read the group ID) |
 | `LINE_TO` | the group's ID (`C…`) — invite the bot to the group, then read the group ID from a webhook event or `https://api.line.me/v2/bot/group/…`; a user ID (`U…`) also works for 1:1 |
 
 Settings → ระบบ has a preview and a "send now" button (owner only). Nothing is sent when

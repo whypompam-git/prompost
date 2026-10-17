@@ -9,6 +9,7 @@ const PUBLIC_PREFIXES = [
   "/api/public",
   "/api/cron", // authenticates itself with CRON_SECRET
   "/api/ai", // authenticates itself with AI_API_TOKEN
+  "/api/line/webhook", // authenticated by LINE's request signature
   "/portal",
   "/quote",
   "/invoice",
