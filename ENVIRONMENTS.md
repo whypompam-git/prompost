@@ -83,3 +83,9 @@ Variables** (they're read at runtime — not build-time, not GitHub):
 
 Settings → ระบบ has a preview and a "send now" button (owner only). Nothing is sent when
 there is nothing to report.
+
+## Region
+
+`vercel.json` pins serverless functions to `sin1` (Singapore) because the Supabase project
+runs in `ap-southeast-1`. Left on Vercel's default (US East) every database call crosses the
+Pacific and pages that fire many requests take several seconds.

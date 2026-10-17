@@ -25,12 +25,28 @@ const FORWARD_REQUEST_HEADERS = [
 ];
 const FORWARD_RESPONSE_HEADERS = ["content-type", "content-range", "content-profile", "preference-applied", "etag", "location"];
 
+// Live access (role / permissions / active) is re-read from the database, but
+// not on every one of the ~10 requests a page fires at once: 15 s is plenty
+// for a permission change or a deactivation to take effect.
+type Access = NonNullable<Awaited<ReturnType<typeof fetchLiveAccess>>>;
+const ACCESS_TTL_MS = 15_000;
+const accessCache = new Map<string, { at: number; value: Access }>();
+
+async function liveAccess(staffId: string): Promise<Access | null> {
+  const hit = accessCache.get(staffId);
+  if (hit && Date.now() - hit.at < ACCESS_TTL_MS) return hit.value;
+  const value = await fetchLiveAccess(staffId);
+  if (value) accessCache.set(staffId, { at: Date.now(), value });
+  else accessCache.delete(staffId);
+  return value;
+}
+
 async function handle(request: NextRequest, { params }: { params: { path: string[] } }) {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const claims = token ? await verifySession(token) : null;
   if (!claims) return NextResponse.json({ message: "not logged in" }, { status: 401 });
 
-  const live = await fetchLiveAccess(claims.staffId);
+  const live = await liveAccess(claims.staffId);
   if (!live || !live.active) return NextResponse.json({ message: "account disabled" }, { status: 401 });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
