@@ -16,8 +16,9 @@
 -- ============================================================================
 
 do $$
-declare t record;
-declare pol record;
+declare
+  t record;
+  pol record;
 begin
   -- every table in public: RLS on
   for t in select tablename from pg_tables where schemaname = 'public' loop
