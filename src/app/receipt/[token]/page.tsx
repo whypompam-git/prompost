@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import { docFileName } from "@/lib/docFileName";
 
 export default async function ReceiptSharePage({ params }: { params: { token: string } }) {

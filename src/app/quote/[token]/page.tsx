@@ -3,7 +3,7 @@ import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { QuotationFeedbackForm } from "@/components/billing/QuotationFeedbackForm";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import { docFileName } from "@/lib/docFileName";
 import type { QuotationItem } from "@/lib/types";
 

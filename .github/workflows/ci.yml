@@ -21,6 +21,9 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
+      - name: Unit tests (database proxy rules)
+        run: npm test
+
       - name: Build
         env:
           # See ENVIRONMENTS.md — set these under Settings > Secrets and variables > Actions

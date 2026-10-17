@@ -681,14 +681,6 @@ export async function getQuotationByShareToken(token: string): Promise<Quotation
   return data ? fromQuotationRow(data as QuotationRow) : null;
 }
 
-export async function submitQuotationFeedback(shareToken: string, feedback: string): Promise<void> {
-  const { error } = await supabase()
-    .from("quotations")
-    .update({ client_feedback: feedback })
-    .eq("share_token", shareToken);
-  if (error) throw error;
-}
-
 // Doc numbers come from the next_doc_no() database function (an atomic
 // per-year counter, never reused after a delete). If that migration hasn't
 // been applied yet, fall back to the old count-based number so issuing a
@@ -1165,16 +1157,28 @@ export async function updateTransactionRow(
   if (error) throw error;
 }
 
-// Uploads a transaction slip to the public "slips" bucket and returns its
-// URL. Object names are random so the URL is unguessable.
-export async function uploadSlip(file: File): Promise<string> {
+// Uploads go straight to Supabase Storage with a one-shot signed URL issued
+// by /api/storage/sign (login-checked). Object names are random, so the
+// public URL is unguessable.
+async function uploadViaSignedUrl(bucket: "slips" | "client-brand", file: File): Promise<string> {
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-  const path = `${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase().storage.from("slips").upload(path, file, {
+  const res = await fetch("/api/storage/sign", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bucket, ext }),
+  });
+  if (!res.ok) throw new Error(`ขอลิงก์อัปโหลดไม่สำเร็จ (${res.status})`);
+  const { path, token } = (await res.json()) as { path: string; token: string };
+  const { error } = await supabase().storage.from(bucket).uploadToSignedUrl(path, token, file, {
     contentType: file.type || undefined,
   });
   if (error) throw error;
-  return supabase().storage.from("slips").getPublicUrl(path).data.publicUrl;
+  return supabase().storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+// Uploads a transaction slip to the public "slips" bucket and returns its URL.
+export async function uploadSlip(file: File): Promise<string> {
+  return uploadViaSignedUrl("slips", file);
 }
 
 export async function uploadTaskCover(file: File): Promise<string> {
@@ -1182,13 +1186,7 @@ export async function uploadTaskCover(file: File): Promise<string> {
 }
 
 export async function uploadClientBrandImage(file: File): Promise<string> {
-  const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
-  const path = `${crypto.randomUUID()}.${ext}`;
-  const { error } = await supabase().storage.from("client-brand").upload(path, file, {
-    contentType: file.type || undefined,
-  });
-  if (error) throw error;
-  return supabase().storage.from("client-brand").getPublicUrl(path).data.publicUrl;
+  return uploadViaSignedUrl("client-brand", file);
 }
 
 export async function setClientBrandImages(id: string, images: string[]): Promise<void> {

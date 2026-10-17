@@ -6,11 +6,11 @@ const PUBLIC_PREFIXES = [
   "/login",
   "/api/auth",
   "/api/portal",
+  "/api/public",
   "/portal",
   "/quote",
   "/invoice",
   "/receipt",
-  "/print",
   "/manifest.json",
   "/sw.js",
   "/icon-",
@@ -34,6 +34,10 @@ export async function middleware(request: NextRequest) {
   const claims = token ? await verifySession(token) : null;
 
   if (!claims) {
+    // data calls get a clean 401 instead of an HTML redirect they can't parse
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ message: "not logged in" }, { status: 401 });
+    }
     const loginUrl = new URL("/login", request.url);
     return NextResponse.redirect(loginUrl);
   }

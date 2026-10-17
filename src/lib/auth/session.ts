@@ -50,7 +50,8 @@ export async function fetchLiveAccess(staffId: string): Promise<{
   name: string;
 } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // service key: once the database is locked down the anon key reads nothing
+  const key = process.env.SUPABASE_SECRET_KEY;
   if (!url || !key) return null;
   try {
     const res = await fetch(

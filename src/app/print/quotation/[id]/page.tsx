@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import { docFileName } from "@/lib/docFileName";
 import type { QuotationItem } from "@/lib/types";
 

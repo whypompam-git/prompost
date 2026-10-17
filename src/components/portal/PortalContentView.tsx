@@ -6,7 +6,7 @@ import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { findPortalClient } from "@/lib/portalClient";
 import { PortalTabs } from "@/components/portal/PortalTabs";
 import { StatTile } from "@/components/portal/StatTile";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import type { TaskStatus, TaskType } from "@/lib/types";
 
 // Public client portal — reached via an unguessable token, no login required.

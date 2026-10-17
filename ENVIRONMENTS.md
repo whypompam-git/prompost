@@ -53,3 +53,17 @@ It uses the existing `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SECRET_KEY` secret
 This repo is **public**: never commit a backup, and don't use workflow artifacts for them
 (artifacts of a public repo are downloadable by anyone). Uploaded files (slips, logos,
 signatures, brand images) live in their own storage buckets and aren't part of this dump.
+
+## Database access & lock-down
+
+The browser never talks to Supabase directly any more. `src/lib/supabase/client.ts`
+reroutes every REST call to `/api/sb/*`, which checks the login session and the
+per-table rules in `src/lib/supabase/proxyRules.ts` (tests: `npm test`) before calling
+Supabase with the service-role key. File uploads use one-shot signed URLs from
+`/api/storage/sign`. Public pages (client link, share links) read via the server with
+the service key, filtered by their token.
+
+`supabase/lockdown/lock_down.sql` then removes every "open access" policy so the anon key
+(visible in the site's JavaScript) can no longer read or write anything. It is **not** a
+migration and is never run by the workflow — run it by hand in the SQL editor once you've
+checked the app works through the proxy. `supabase/lockdown/rollback.sql` undoes it.

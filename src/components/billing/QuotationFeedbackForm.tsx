@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { MessageSquareText } from "lucide-react";
-import { submitQuotationFeedback } from "@/lib/supabase/queries";
 
 export function QuotationFeedbackForm({
   shareToken,
@@ -19,7 +18,12 @@ export function QuotationFeedbackForm({
     if (!feedback.trim()) return;
     setSending(true);
     try {
-      await submitQuotationFeedback(shareToken, feedback.trim());
+      const res = await fetch("/api/public/quote-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: shareToken, feedback: feedback.trim() }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
       setSent(true);
     } catch (err) {
       console.error(err);

@@ -8,7 +8,7 @@ import { findPortalClient } from "@/lib/portalClient";
 import { PortalTabs } from "@/components/portal/PortalTabs";
 import { BalanceSummary } from "@/components/billing/BalanceSummary";
 import { calcQuotationTotals } from "@/lib/accounting";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import type { QuotationItem, QuotationStatus } from "@/lib/types";
 
 const QUOTE_STATUS_LABEL: Record<QuotationStatus, string> = {

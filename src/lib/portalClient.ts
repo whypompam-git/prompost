@@ -1,5 +1,5 @@
 import { isUuid } from "@/lib/slug";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient as createClient } from "@/lib/supabase/admin";
 
 // A portal link key is either a friendly slug (/gravita) or the legacy
 // unguessable token (/portal/<uuid>).
