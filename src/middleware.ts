@@ -8,6 +8,7 @@ const PUBLIC_PREFIXES = [
   "/api/portal",
   "/api/public",
   "/api/cron", // authenticates itself with CRON_SECRET
+  "/api/ai", // authenticates itself with AI_API_TOKEN
   "/portal",
   "/quote",
   "/invoice",
