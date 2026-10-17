@@ -437,6 +437,18 @@ export async function listDistinctShotsAndEquipment(): Promise<{
   return { shots: [...shots].sort(), equipment: [...equipment].sort() };
 }
 
+// Slim read for screens that only count tasks per person — the full list
+// carries scripts and links and is close to 1 MB.
+export async function listTaskAssignments(): Promise<Pick<Task, "id" | "assigneeId" | "status">[]> {
+  const { data, error } = await supabase().from("tasks").select("id, assignee_id, status");
+  if (error) throw error;
+  return (data as { id: string; assignee_id: string | null; status: Task["status"] }[]).map((r) => ({
+    id: r.id,
+    assigneeId: r.assignee_id,
+    status: r.status,
+  }));
+}
+
 export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
   const { data, error } = await supabase()
     .from("tasks")

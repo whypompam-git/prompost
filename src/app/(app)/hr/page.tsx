@@ -17,7 +17,7 @@ import {
   listLeaveRequests,
   listPayrollEntries,
   listStaff,
-  listTasks,
+  listTaskAssignments,
 } from "@/lib/supabase/queries";
 import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -54,7 +54,7 @@ export default function MyStaffPage() {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [team, setTeam] = useState<Staff[]>([]);
   const [allPayroll, setAllPayroll] = useState<PayrollEntry[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [tasks, setTasks] = useState<Pick<Task, "id" | "assigneeId" | "status">[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -64,7 +64,7 @@ export default function MyStaffPage() {
         setMe(self);
         if (auth.permissions.staffList || auth.permissions.othersPayroll) {
           setTeam(staffRows);
-          setTasks(await listTasks());
+          setTasks(await listTaskAssignments());
         }
 
         if (self) {

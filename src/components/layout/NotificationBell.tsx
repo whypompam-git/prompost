@@ -149,7 +149,7 @@ export function NotificationBell() {
   useEffect(() => {
     setSeen(readSeen());
     load().catch(() => {});
-    const timer = setInterval(() => load().catch(() => {}), 60_000);
+    const timer = setInterval(() => load().catch(() => {}), 300_000);
     return () => clearInterval(timer);
   }, [load]);
 
