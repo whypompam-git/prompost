@@ -689,10 +689,14 @@ export async function submitQuotationFeedback(shareToken: string, feedback: stri
   if (error) throw error;
 }
 
-// Doc numbers are assigned by counting existing rows for the current
-// พ.ศ. year — fine for one small team's volume; swap for a Postgres
-// sequence/function if this ever needs to be race-safe under concurrency.
+// Doc numbers come from the next_doc_no() database function (an atomic
+// per-year counter, never reused after a delete). If that migration hasn't
+// been applied yet, fall back to the old count-based number so issuing a
+// document never breaks.
 async function nextDocNo(table: "quotations" | "receipts" | "invoices", prefix: string) {
+  const { data, error: rpcError } = await supabase().rpc("next_doc_no", { p_kind: table, p_prefix: prefix });
+  if (!rpcError && typeof data === "string") return data;
+
   const year = new Date().getFullYear() + 543;
   const { count, error } = await supabase()
     .from(table)
