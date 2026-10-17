@@ -89,3 +89,19 @@ there is nothing to report.
 `vercel.json` pins serverless functions to `sin1` (Singapore) because the Supabase project
 runs in `ap-southeast-1`. Left on Vercel's default (US East) every database call crosses the
 Pacific and pages that fire many requests take several seconds.
+
+## AI workspace API (`/api/ai/*`)
+
+The Claude workspace folder ("พร้อมโพส งานลูกค้า", `_tools/*.mjs`) reads clients/tasks and
+loads/edits tasks through token-protected endpoints instead of calling Supabase with a key:
+
+| Endpoint | What |
+|---|---|
+| `GET /api/ai/export` | read-only snapshot (clients without `portal_token`, notes, tasks, packages, rounds, content sets) |
+| `GET /api/ai/tasks?ids=…` | read specific tasks |
+| `POST /api/ai/tasks` | create a batch for one client slug (insert only, refuses duplicate titles, `dryRun` supported) |
+| `PATCH /api/ai/tasks` | compare-and-set edits of title/script/notes/shots/equipment/dates/ref/category — never status, assignee, client or delete |
+
+Set **`AI_API_TOKEN`** in Vercel (≥ 24 random characters, a *normal* variable, **not** "Sensitive" —
+sensitive values are blanked by `vercel env pull`, which is how the workspace tools read it). Without
+the variable the endpoints answer 503.
