@@ -8,6 +8,7 @@ create table if not exists doc_counters (
 );
 
 alter table doc_counters enable row level security;
+drop policy if exists "open access - no auth yet" on doc_counters;
 create policy "open access - no auth yet" on doc_counters for all using (true) with check (true);
 
 -- Seed each counter from the highest number already issued per พ.ศ. year.

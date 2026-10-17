@@ -8,4 +8,5 @@ create table if not exists content_sets (
 );
 
 alter table content_sets enable row level security;
+drop policy if exists "open access - no auth yet" on content_sets;
 create policy "open access - no auth yet" on content_sets for all using (true) with check (true);

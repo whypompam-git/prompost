@@ -7,4 +7,5 @@ create table if not exists client_notes (
 );
 
 alter table client_notes enable row level security;
+drop policy if exists "open access - no auth yet" on client_notes;
 create policy "open access - no auth yet" on client_notes for all using (true) with check (true);

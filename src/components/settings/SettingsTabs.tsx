@@ -8,6 +8,7 @@ const TABS = [
   { href: "/settings/staff", label: "พนักงาน" },
   { href: "/settings/options", label: "ประเภท & สีงาน" },
   { href: "/settings/trash", label: "ถังขยะ" },
+  { href: "/settings/system", label: "ระบบ" },
 ];
 
 export function SettingsTabs() {

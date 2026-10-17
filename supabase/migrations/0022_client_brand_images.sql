@@ -7,6 +7,9 @@ insert into storage.buckets (id, name, public)
 values ('client-brand', 'client-brand', true)
 on conflict (id) do nothing;
 
+drop policy if exists "client-brand open read" on storage.objects;
 create policy "client-brand open read" on storage.objects for select using (bucket_id = 'client-brand');
+drop policy if exists "client-brand open insert" on storage.objects;
 create policy "client-brand open insert" on storage.objects for insert with check (bucket_id = 'client-brand');
+drop policy if exists "client-brand open delete" on storage.objects;
 create policy "client-brand open delete" on storage.objects for delete using (bucket_id = 'client-brand');
