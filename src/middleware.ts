@@ -11,6 +11,7 @@ const PUBLIC_PREFIXES = [
   "/quote",
   "/invoice",
   "/receipt",
+  "/contract/", // public share + sign page (note the slash: /contracts/* is staff-only)
   "/manifest.json",
   "/sw.js",
   "/icon-",

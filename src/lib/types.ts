@@ -208,3 +208,57 @@ export interface ClientNote {
   createdAt: string; // ISO datetime — immutable, when the row was made
   deletedAt: string | null; // soft-delete — kept in a recoverable trash
 }
+
+export type ContractStatus = "draft" | "sent" | "signed";
+
+export interface ContractClause {
+  heading: string;
+  body: string;
+}
+
+export interface ContractInstallment {
+  label: string; // e.g. "งวดที่ 1 (มัดจำ)"
+  percent: number;
+  amount: number;
+  due: string; // ISO date, "" = on signing
+}
+
+export interface ContractParty {
+  name: string;
+  address: string;
+  taxId: string;
+  phone: string;
+}
+
+export interface ContractTemplate {
+  title: string;
+  intro: string;
+  clauses: ContractClause[];
+  closing: string;
+}
+
+export interface Contract {
+  id: string;
+  contractNo: string;
+  clientId: string;
+  status: ContractStatus;
+  title: string;
+  signDate: string; // ISO date
+  startDate?: string;
+  endDate?: string;
+  packageName?: string;
+  totalAmount: number;
+  installments: ContractInstallment[];
+  parties: { seller: ContractParty; client: ContractParty; bank?: string };
+  intro: string;
+  clauses: ContractClause[];
+  closing: string;
+  shareToken: string;
+  sellerSignatureUrl?: string;
+  clientSignerName?: string;
+  clientSignatureUrl?: string;
+  clientSignedAt?: string;
+  clientSignIp?: string;
+  contentHash?: string;
+  createdAt: string;
+}

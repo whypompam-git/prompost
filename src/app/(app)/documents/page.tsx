@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { Download, FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Download, FileSignature, FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
@@ -35,15 +37,26 @@ import {
   updateInvoiceDate,
   updateQuotationRow,
   updateReceiptRow,
+  createContractFromTemplate,
+  deleteContractRow,
+  listContracts,
+  listPackages,
 } from "@/lib/supabase/queries";
-import type { AgencySettings, Client, Invoice, Quotation, QuotationStatus, Receipt } from "@/lib/types";
+import { CreateContractModal, type CreateContractValues } from "@/components/contracts/CreateContractModal";
+import type { AgencySettings, Client, Contract, Invoice, Package, Quotation, QuotationStatus, Receipt } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 const PAGE_SIZE = 15;
 
-type Tab = "quotation" | "invoice" | "receipt";
+type Tab = "quotation" | "invoice" | "receipt" | "contract";
 type Modal = "closed" | Tab | "agency" | "uploadQuotation";
+
+const CONTRACT_STATUS: Record<Contract["status"], { label: string; style: string }> = {
+  draft: { label: "ร่าง", style: "bg-gray-100 text-gray-600" },
+  sent: { label: "รอลูกค้าเซ็น", style: "bg-amber-100 text-amber-700" },
+  signed: { label: "เซ็นแล้ว", style: "bg-emerald-100 text-emerald-700" },
+};
 
 const QUOTE_STATUS: Record<QuotationStatus, { label: string; style: string }> = {
   draft: { label: "ร่าง", style: "bg-gray-100 text-gray-600" },
@@ -63,10 +76,11 @@ type Row = {
   sharePath?: string;
   feedback?: string;
   onEdit?: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
 };
 
 export default function DocumentsPage() {
+  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -83,6 +97,8 @@ export default function DocumentsPage() {
   const [clientFilter, setClientFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [visible, setVisible] = useState(PAGE_SIZE);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
 
   useEffect(() => {
     // Load each list independently — one failing query (e.g. a migration not
@@ -100,8 +116,12 @@ export default function DocumentsPage() {
       safe("ใบแจ้งหนี้", listInvoices(), [] as Invoice[]),
       safe("ใบเสร็จ", listReceipts(), [] as Receipt[]),
       safe("ข้อมูลผู้เสนอราคา", getAgencySettings(), null as AgencySettings | null),
+      safe("สัญญา", listContracts(), [] as Contract[]),
+      safe("แพ็คเกจ", listPackages(), [] as Package[]),
     ])
-      .then(([c, q, i, r, a]) => {
+      .then(([c, q, i, r, a, ct, pk]) => {
+        setContracts(ct);
+        setPackages(pk);
         setClients(c);
         setQuotations(q);
         setInvoices(i);
@@ -178,6 +198,20 @@ export default function DocumentsPage() {
         onDelete: () => confirmDelete(`ใบแจ้งหนี้ ${inv.invoiceNo}`, inv, setInvoices, deleteInvoiceRow),
       }));
     }
+    if (tab === "contract") {
+      return contracts.map((ct) => ({
+        id: ct.id,
+        no: ct.contractNo,
+        clientId: ct.clientId,
+        date: ct.createdAt,
+        amount: ct.totalAmount,
+        status: { key: ct.status, ...CONTRACT_STATUS[ct.status] },
+        printHref: `/print/contract/${ct.id}`,
+        sharePath: ct.status === "draft" ? undefined : `/contract/${ct.shareToken}`,
+        onEdit: ct.status === "signed" ? undefined : () => router.push(`/contracts/${ct.id}`),
+        onDelete: ct.status === "signed" ? undefined : () => confirmDelete(`สัญญา ${ct.contractNo}`, ct, setContracts, deleteContractRow),
+      }));
+    }
     return receipts.map((r) => ({
       id: r.id,
       no: r.receiptNo,
@@ -190,7 +224,7 @@ export default function DocumentsPage() {
       onDelete: () => confirmDelete(`ใบเสร็จ ${r.receiptNo}`, r, setReceipts, deleteReceiptRow),
     }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, quotations, invoices, receipts]);
+  }, [tab, quotations, invoices, receipts, contracts]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -222,14 +256,17 @@ export default function DocumentsPage() {
             { key: "unpaid", label: "ค้างชำระ" },
             { key: "paid", label: "ชำระแล้ว" },
           ]
-        : [];
+        : tab === "contract"
+          ? Object.entries(CONTRACT_STATUS).map(([k, v]) => ({ key: k, label: v.label }))
+          : [];
 
   const TABS: { key: Tab; label: string; icon: typeof FileText; count: number }[] = [
     { key: "quotation", label: "ใบเสนอราคา", icon: FileText, count: quotations.length },
     { key: "invoice", label: "ใบแจ้งหนี้", icon: ReceiptText, count: invoices.length },
     { key: "receipt", label: "ใบเสร็จ", icon: ReceiptIcon, count: receipts.length },
+    { key: "contract", label: "สัญญา", icon: FileSignature, count: contracts.length },
   ];
-  const createLabel = { quotation: "สร้างใบเสนอราคา", invoice: "สร้างใบแจ้งหนี้", receipt: "ออกใบเสร็จ" }[tab];
+  const createLabel = { quotation: "สร้างใบเสนอราคา", invoice: "สร้างใบแจ้งหนี้", receipt: "ออกใบเสร็จ", contract: "สร้างสัญญา" }[tab];
 
   if (loading) {
     return (
@@ -296,7 +333,7 @@ export default function DocumentsPage() {
           <button
             onClick={() =>
               downloadCsv(
-                `${{ quotation: "ใบเสนอราคา", invoice: "ใบแจ้งหนี้", receipt: "ใบเสร็จ" }[tab]}`,
+                `${{ quotation: "ใบเสนอราคา", invoice: "ใบแจ้งหนี้", receipt: "ใบเสร็จ", contract: "สัญญา" }[tab]}`,
                 ["เลขที่", "ลูกค้า", "วันที่", "ยอดรวม", "สถานะ"],
                 filtered.map((r) => [r.no, clientName(r.clientId), r.date.slice(0, 10), r.amount, r.status?.label ?? ""]),
               )
@@ -307,6 +344,15 @@ export default function DocumentsPage() {
             <Download size={15} />
             Export
           </button>
+          {tab === "contract" && (
+            <Link
+              href="/contracts/template"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Pencil size={15} />
+              แม่แบบสัญญา
+            </Link>
+          )}
           {tab === "quotation" && (
             <button
               onClick={() => setModal("uploadQuotation")}
@@ -398,13 +444,15 @@ export default function DocumentsPage() {
                             <Pencil size={14} />
                           </button>
                         )}
-                        <button
-                          onClick={r.onDelete}
-                          className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
-                          aria-label="ลบ"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        {r.onDelete && (
+                          <button
+                            onClick={r.onDelete}
+                            className="rounded-full p-1.5 text-gray-400 hover:bg-rose-50 hover:text-rose-600"
+                            aria-label="ลบ"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
                       </div>
                     </div>
                     {r.feedback && (
@@ -440,6 +488,22 @@ export default function DocumentsPage() {
             const created = await createQuotationRow(v);
             setQuotations((prev) => [created, ...prev]);
             setModal("closed");
+          }}
+        />
+      )}
+      {modal === "contract" && (
+        <CreateContractModal
+          clients={clients}
+          packages={packages}
+          onClose={() => setModal("closed")}
+          onSave={async (v: CreateContractValues) => {
+            try {
+              const created = await createContractFromTemplate(v);
+              router.push(`/contracts/${created.id}`);
+            } catch (err) {
+              console.error(err);
+              window.alert(`สร้างสัญญาไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+            }
           }}
         />
       )}

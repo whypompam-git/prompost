@@ -70,7 +70,7 @@ test("leave: staff file their own, only the owner decides", () => {
 });
 
 test("financial tables: read for all, write needs a permission", () => {
-  for (const t of ["transactions", "receipts", "quotations", "invoices", "agency_settings"]) {
+  for (const t of ["transactions", "receipts", "quotations", "invoices", "agency_settings", "contracts", "contract_template"]) {
     assert.equal(run(staff, "GET", `rest/v1/${t}`, "?select=*").ok, true, `${t} read`);
     assert.equal(run(staff, "POST", `rest/v1/${t}`, "", [{}]).ok, false, `${t} write`);
     assert.equal(run(finance, "POST", `rest/v1/${t}`, "", [{}]).ok, true, `${t} write w/ permission`);

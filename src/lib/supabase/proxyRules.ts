@@ -26,6 +26,8 @@ const TABLES = new Set([
   "client_packages",
   "clients",
   "content_sets",
+  "contract_template",
+  "contracts",
   "doc_counters", // read-only: numbers are issued through the next_doc_no rpc
   "invoices",
   "leave_requests",
@@ -42,7 +44,15 @@ const TABLES = new Set([
 // Money documents: anyone logged in may read (the clients table shows paid /
 // outstanding to everyone), but writing needs the documents or accounting
 // permission.
-const FINANCIAL_TABLES = new Set(["agency_settings", "invoices", "quotations", "receipts", "transactions"]);
+const FINANCIAL_TABLES = new Set([
+  "agency_settings",
+  "contract_template",
+  "contracts",
+  "invoices",
+  "quotations",
+  "receipts",
+  "transactions",
+]);
 
 const SELF_EDITABLE_STAFF_COLUMNS = new Set(["name", "photo_url", "bank_name", "bank_account_no", "bank_account_name"]);
 const RPCS = new Set(["next_doc_no"]);

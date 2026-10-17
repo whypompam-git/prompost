@@ -3,10 +3,15 @@ import { cachedFetch } from "@/lib/offline/cache";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
+import { DEFAULT_CONTRACT_TEMPLATE, fillVariables } from "@/lib/contractTemplate";
 import type {
   Client,
   ClientNote,
   ClientPackage,
+  Contract,
+  ContractInstallment,
+  ContractParty,
+  ContractTemplate,
   Invoice,
   LeaveRequest,
   LeaveStatus,
@@ -685,7 +690,7 @@ export async function getQuotationByShareToken(token: string): Promise<Quotation
 // per-year counter, never reused after a delete). If that migration hasn't
 // been applied yet, fall back to the old count-based number so issuing a
 // document never breaks.
-async function nextDocNo(table: "quotations" | "receipts" | "invoices", prefix: string) {
+async function nextDocNo(table: "quotations" | "receipts" | "invoices" | "contracts", prefix: string) {
   const { data, error: rpcError } = await supabase().rpc("next_doc_no", { p_kind: table, p_prefix: prefix });
   if (!rpcError && typeof data === "string") return data;
 
@@ -1544,4 +1549,191 @@ export async function createTasksFromSet(values: {
   const { error } = await supabase().from("tasks").insert(rows);
   if (error) throw error;
   return rows.length;
+}
+
+// ── Contracts ──────────────────────────────────────────────────────────
+type ContractRow = {
+  id: string;
+  contract_no: string;
+  client_id: string;
+  status: Contract["status"];
+  title: string;
+  sign_date: string;
+  start_date: string | null;
+  end_date: string | null;
+  package_name: string | null;
+  total_amount: number;
+  installments: ContractInstallment[];
+  parties: Contract["parties"];
+  intro: string;
+  clauses: Contract["clauses"];
+  closing: string;
+  share_token: string;
+  seller_signature_url: string | null;
+  client_signer_name: string | null;
+  client_signature_url: string | null;
+  client_signed_at: string | null;
+  client_sign_ip: string | null;
+  content_hash: string | null;
+  created_at: string;
+};
+
+export const CONTRACT_COLUMNS =
+  "id, contract_no, client_id, status, title, sign_date, start_date, end_date, package_name, total_amount, installments, parties, intro, clauses, closing, share_token, seller_signature_url, client_signer_name, client_signature_url, client_signed_at, client_sign_ip, content_hash, created_at";
+
+export const fromContractRow = (r: ContractRow): Contract => ({
+  id: r.id,
+  contractNo: r.contract_no,
+  clientId: r.client_id,
+  status: r.status,
+  title: r.title,
+  signDate: r.sign_date,
+  startDate: r.start_date ?? undefined,
+  endDate: r.end_date ?? undefined,
+  packageName: r.package_name ?? undefined,
+  totalAmount: Number(r.total_amount),
+  installments: r.installments ?? [],
+  parties: r.parties,
+  intro: r.intro,
+  clauses: r.clauses ?? [],
+  closing: r.closing,
+  shareToken: r.share_token,
+  sellerSignatureUrl: r.seller_signature_url ?? undefined,
+  clientSignerName: r.client_signer_name ?? undefined,
+  clientSignatureUrl: r.client_signature_url ?? undefined,
+  clientSignedAt: r.client_signed_at ?? undefined,
+  clientSignIp: r.client_sign_ip ?? undefined,
+  contentHash: r.content_hash ?? undefined,
+  createdAt: r.created_at,
+});
+
+export async function getContractTemplate(): Promise<ContractTemplate> {
+  const { data, error } = await supabase().from("contract_template").select("content").eq("id", true).maybeSingle();
+  if (error) throw error;
+  return (data?.content as ContractTemplate | undefined) ?? DEFAULT_CONTRACT_TEMPLATE;
+}
+
+export async function saveContractTemplate(content: ContractTemplate): Promise<void> {
+  const { error } = await supabase()
+    .from("contract_template")
+    .upsert({ id: true, content, updated_at: new Date().toISOString() });
+  if (error) throw error;
+}
+
+export async function listContracts(): Promise<Contract[]> {
+  const { data, error } = await supabase()
+    .from("contracts")
+    .select(CONTRACT_COLUMNS)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as ContractRow[]).map(fromContractRow);
+}
+
+export async function getContract(id: string): Promise<Contract | null> {
+  const { data, error } = await supabase().from("contracts").select(CONTRACT_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? fromContractRow(data as ContractRow) : null;
+}
+
+// Copy the template into a new draft contract: parties are snapshotted from
+// the client + agency settings, {{variables}} are filled in, "[ระบุ…]"
+// placeholders stay for the editor.
+export async function createContractFromTemplate(values: {
+  clientId: string;
+  signDate: string;
+  startDate?: string;
+  endDate?: string;
+  packageName?: string;
+  totalAmount: number;
+  installments: ContractInstallment[];
+}): Promise<Contract> {
+  const db = supabase();
+  const [template, agency, { data: client, error: clientError }] = await Promise.all([
+    getContractTemplate(),
+    getAgencySettings(),
+    db.from("clients").select("name, billing_name, address, tax_id, phone").eq("id", values.clientId).single(),
+  ]);
+  if (clientError || !client) throw clientError ?? new Error("ไม่พบลูกค้า");
+
+  const clientParty: ContractParty = {
+    name: client.billing_name || client.name,
+    address: client.address ?? "",
+    taxId: client.tax_id ?? "",
+    phone: client.phone ?? "",
+  };
+  const sellerParty: ContractParty = {
+    name: agency.name,
+    address: agency.address,
+    taxId: agency.taxId,
+    phone: agency.phone,
+  };
+  const vars = {
+    signDate: values.signDate,
+    startDate: values.startDate,
+    endDate: values.endDate,
+    packageName: values.packageName,
+    total: values.totalAmount,
+    installments: values.installments,
+    bank: agency.bankInfo || undefined,
+    client: clientParty,
+    seller: sellerParty,
+  };
+  const fill = (t: string) => fillVariables(t, vars);
+
+  const contractNo = await nextDocNo("contracts", "CT");
+  const { data, error } = await db
+    .from("contracts")
+    .insert({
+      contract_no: contractNo,
+      client_id: values.clientId,
+      title: template.title,
+      sign_date: values.signDate,
+      start_date: values.startDate || null,
+      end_date: values.endDate || null,
+      package_name: values.packageName || null,
+      total_amount: values.totalAmount,
+      installments: values.installments,
+      parties: { seller: sellerParty, client: clientParty, bank: agency.bankInfo || undefined },
+      intro: fill(template.intro),
+      clauses: template.clauses.map((c) => ({ heading: c.heading, body: fill(c.body) })),
+      closing: fill(template.closing),
+      seller_signature_url: agency.signatureUrl ?? null,
+    })
+    .select(CONTRACT_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromContractRow(data as ContractRow);
+}
+
+export async function updateContractRow(
+  id: string,
+  values: Pick<Contract, "title" | "signDate" | "startDate" | "endDate" | "packageName" | "totalAmount" | "installments" | "parties" | "intro" | "clauses" | "closing">,
+): Promise<void> {
+  const { error } = await supabase()
+    .from("contracts")
+    .update({
+      title: values.title,
+      sign_date: values.signDate,
+      start_date: values.startDate || null,
+      end_date: values.endDate || null,
+      package_name: values.packageName || null,
+      total_amount: values.totalAmount,
+      installments: values.installments,
+      parties: values.parties,
+      intro: values.intro,
+      clauses: values.clauses,
+      closing: values.closing,
+    })
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function setContractStatus(id: string, status: "draft" | "sent"): Promise<void> {
+  const { error } = await supabase().from("contracts").update({ status }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteContractRow(id: string): Promise<void> {
+  const { error } = await supabase().from("contracts").delete().eq("id", id);
+  if (error) throw error;
 }

@@ -13,5 +13,7 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "transactions", columns: "occurred_time, receipt_id", migration: "0016, 0024" },
   { table: "agency_settings", columns: "signature_url", migration: "0025" },
   { table: "quotations", columns: "file_url", migration: "0027" },
+  { table: "contracts", columns: "contract_no, status, clauses, client_signed_at, content_hash", migration: "0030" },
+  { table: "contract_template", columns: "content", migration: "0030" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
 ];
