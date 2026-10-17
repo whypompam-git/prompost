@@ -45,11 +45,13 @@ export async function middleware(request: NextRequest) {
 
   const gate = pathname.startsWith("/accounting")
     ? "accounting"
-    : pathname.startsWith("/documents")
+    : pathname.startsWith("/documents") || pathname.startsWith("/contracts")
       ? "documents"
-      : pathname.startsWith("/settings")
-        ? "owner"
-        : null;
+      : pathname.startsWith("/reports")
+        ? "financialTotals"
+        : pathname.startsWith("/settings")
+          ? "owner"
+          : null;
   if (gate) {
     const live = await fetchLiveAccess(claims.staffId);
     const role = live?.role ?? claims.role;

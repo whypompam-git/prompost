@@ -12,6 +12,7 @@ import {
   X,
   UserCog,
   Wallet,
+  BarChart3,
   Package,
   LayoutList,
   Settings,
@@ -31,6 +32,7 @@ const MORE_ITEMS = [
   { href: "/hr", label: "พนักงาน", icon: UserCog },
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" as const },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "accounting" as const },
+  { href: "/reports", label: "รายงาน", icon: BarChart3, permission: "financialTotals" as const },
   { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 
