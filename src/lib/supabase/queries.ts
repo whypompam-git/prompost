@@ -21,6 +21,7 @@ import type {
   QuotationItem,
   Receipt,
   Staff,
+  Team,
   Task,
   TaskSettings,
   TaskStatus,
@@ -197,10 +198,11 @@ type StaffRow = {
   bank_name: string | null;
   bank_account_no: string | null;
   bank_account_name: string | null;
+  team_id: string | null;
 };
 
 const STAFF_COLUMNS =
-  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url, bank_name, bank_account_no, bank_account_name";
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url, bank_name, bank_account_no, bank_account_name, team_id";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -217,6 +219,7 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   bankName: r.bank_name ?? undefined,
   bankAccountNo: r.bank_account_no ?? undefined,
   bankAccountName: r.bank_account_name ?? undefined,
+  teamId: r.team_id ?? undefined,
 });
 
 export async function listStaff(): Promise<Staff[]> {
@@ -253,6 +256,7 @@ export async function createStaffRow(
       role: values.role,
       can_view_accounting: values.permissions.accounting,
       permissions: values.permissions,
+      team_id: values.teamId ?? null,
       pin_hash: pin ? bcrypt.hashSync(pin, 10) : null,
     })
     .select(STAFF_COLUMNS)
@@ -277,12 +281,46 @@ export async function updateStaffRow(
     role: values.role,
     can_view_accounting: values.permissions.accounting,
     permissions: values.permissions,
+    team_id: values.teamId ?? null,
   };
   if (pin) {
     const bcrypt = await import("bcryptjs");
     patch.pin_hash = bcrypt.hashSync(pin, 10);
   }
   const { error } = await supabase().from("staff").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+// ── Teams ────────────────────────────────────────────────────────────────
+type TeamRow = { id: string; name: string; sort_order: number };
+const fromTeamRow = (r: TeamRow): Team => ({ id: r.id, name: r.name, sortOrder: r.sort_order });
+
+export async function listTeams(): Promise<Team[]> {
+  return cachedFetch("teams", async () => {
+    const { data, error } = await supabase().from("teams").select("id, name, sort_order").order("sort_order").order("created_at");
+    if (error) throw error;
+    return (data as TeamRow[]).map(fromTeamRow);
+  });
+}
+
+export async function createTeam(name: string, sortOrder: number): Promise<Team> {
+  const { data, error } = await supabase()
+    .from("teams")
+    .insert({ name: name.trim(), sort_order: sortOrder })
+    .select("id, name, sort_order")
+    .single();
+  if (error) throw error;
+  return fromTeamRow(data as TeamRow);
+}
+
+export async function renameTeam(id: string, name: string): Promise<void> {
+  const { error } = await supabase().from("teams").update({ name: name.trim() }).eq("id", id);
+  if (error) throw error;
+}
+
+// Members keep working — staff.team_id is set null by the FK.
+export async function deleteTeam(id: string): Promise<void> {
+  const { error } = await supabase().from("teams").delete().eq("id", id);
   if (error) throw error;
 }
 

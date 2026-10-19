@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { COLOR_STEMS, PALETTE } from "@/lib/colors";
 import { ALL_PERMISSIONS, PERMISSION_KEYS, PERMISSION_LABELS, type Permissions } from "@/lib/permissions";
-import type { Staff } from "@/lib/types";
+import type { Staff, Team } from "@/lib/types";
 
 const AVATAR_COLORS = [
   "bg-orange-500",
@@ -19,15 +19,22 @@ export type StaffFormValues = Omit<Staff, "id" | "avatarColor">;
 
 export function StaffModal({
   initial,
+  teams,
+  onCreateTeam,
   onClose,
   onSave,
 }: {
   initial?: Staff;
+  teams: Team[];
+  onCreateTeam: (name: string) => Promise<Team>;
   onClose: () => void;
   onSave: (values: StaffFormValues, avatarColor: string, pin?: string) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
+  const [teamId, setTeamId] = useState(initial?.teamId ?? "");
+  const [teamOptions, setTeamOptions] = useState(teams);
+  const [newTeam, setNewTeam] = useState("");
   const [phone, setPhone] = useState(initial?.phone ?? "");
   const [email, setEmail] = useState(initial?.email ?? "");
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
@@ -48,6 +55,19 @@ export function StaffModal({
     pinValid &&
     (!isNew || /^\d{4}$/.test(pin));
 
+  async function addTeam() {
+    const name = newTeam.trim();
+    if (!name) return;
+    try {
+      const team = await onCreateTeam(name);
+      setTeamOptions((prev) => [...prev, team]);
+      setTeamId(team.id);
+      setNewTeam("");
+    } catch {
+      window.alert("เพิ่มทีมไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
   function handleSave() {
     if (!canSave) return;
     const avatarColor = color;
@@ -55,6 +75,7 @@ export function StaffModal({
       {
         name: name.trim(),
         position: position.trim(),
+        teamId: teamId || undefined,
         phone,
         email,
         hireDate,
@@ -99,6 +120,42 @@ export function StaffModal({
               placeholder="เช่น Video Editor"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
+          </Field>
+          <Field label="ทีม">
+            <select
+              value={teamId}
+              onChange={(e) => setTeamId(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            >
+              <option value="">ไม่ระบุทีม</option>
+              {teamOptions.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <div className="mt-2 flex gap-2">
+              <input
+                value={newTeam}
+                onChange={(e) => setNewTeam(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addTeam();
+                  }
+                }}
+                placeholder="เพิ่มทีมใหม่ เช่น ทีม 4"
+                className="min-w-0 flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+              <button
+                type="button"
+                onClick={addTeam}
+                disabled={!newTeam.trim()}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+              >
+                เพิ่ม
+              </button>
+            </div>
           </Field>
           <div className="grid grid-cols-2 gap-3">
             <Field label="เบอร์โทร">

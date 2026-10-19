@@ -26,6 +26,12 @@ export interface Client {
 
 export type StaffRole = "owner" | "staff";
 
+export interface Team {
+  id: string;
+  name: string;
+  sortOrder: number;
+}
+
 export interface Staff {
   id: string;
   name: string;
@@ -37,6 +43,7 @@ export interface Staff {
   baseSalary: number;
   role: StaffRole;
   permissions: Permissions;
+  teamId?: string; // team the staff member belongs to
   photoUrl?: string; // data URL, self-uploaded via /profile
   bankName?: string; // self-entered from /profile — for the owner's one-tap payout
   bankAccountNo?: string;

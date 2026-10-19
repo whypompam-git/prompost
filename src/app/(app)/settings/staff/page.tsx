@@ -21,20 +21,24 @@ import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createStaffRow,
+  createTeam,
+  deleteTeam,
   deleteStaffRow,
   ensurePayrollEntriesForMonth,
   listInactiveStaff,
   listLeaveRequests,
   listPayrollEntries,
   listStaff,
+  listTeams,
   permanentlyDeleteStaffRow,
   reactivateStaffRow,
+  renameTeam,
   togglePayrollPaid,
   updateLeaveStatus,
   updatePayrollEntry,
   updateStaffRow,
 } from "@/lib/supabase/queries";
-import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff } from "@/lib/types";
+import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff, Team } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const LEAVE_TYPE_LABEL: Record<LeaveRequest["leaveType"], string> = {
@@ -67,6 +71,7 @@ export default function StaffSettingsPage() {
   const [inactiveStaff, setInactiveStaff] = useState<Staff[]>([]);
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [payroll, setPayroll] = useState<PayrollEntry[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [staffModalMode, setStaffModalMode] = useState<"closed" | "create" | { edit: Staff }>(
@@ -79,11 +84,13 @@ export default function StaffSettingsPage() {
       return;
     }
     async function load() {
-      const [staffRows, inactiveRows, leaveRows] = await Promise.all([
+      const [staffRows, inactiveRows, leaveRows, teamRows] = await Promise.all([
         listStaff(),
         listInactiveStaff(),
         listLeaveRequests(),
+        listTeams().catch(() => [] as Team[]), // table missing until migration 0031 runs
       ]);
+      setTeams(teamRows);
       await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
       const payrollRows = await listPayrollEntries(currentPeriodMonth);
       const activeIds = new Set(staffRows.map((s) => s.id));
@@ -97,6 +104,28 @@ export default function StaffSettingsPage() {
   }, [auth.role, router]);
 
   const staffName = (id: string) => staff.find((s) => s.id === id)?.name ?? "—";
+
+  async function handleCreateTeam(name: string) {
+    const created = await createTeam(name, teams.reduce((m, t) => Math.max(m, t.sortOrder), 0) + 1);
+    setTeams((prev) => [...prev, created]);
+    return created;
+  }
+
+  async function handleRenameTeam(t: Team) {
+    const name = window.prompt("เปลี่ยนชื่อทีม", t.name)?.trim();
+    if (!name || name === t.name) return;
+    await renameTeam(t.id, name);
+    setTeams((prev) => prev.map((x) => (x.id === t.id ? { ...x, name } : x)));
+  }
+
+  async function handleDeleteTeam(t: Team) {
+    const members = staff.filter((s) => s.teamId === t.id).length;
+    const note = members > 0 ? ` (สมาชิก ${members} คนจะกลายเป็น "ไม่ระบุทีม")` : "";
+    if (!window.confirm(`ลบ "${t.name}"${note}?`)) return;
+    await deleteTeam(t.id);
+    setTeams((prev) => prev.filter((x) => x.id !== t.id));
+    setStaff((prev) => prev.map((s) => (s.teamId === t.id ? { ...s, teamId: undefined } : s)));
+  }
 
   async function handleSaveStaff(values: StaffFormValues, avatarColor: string, pin?: string) {
     if (staffModalMode === "create") {
@@ -195,6 +224,34 @@ export default function StaffSettingsPage() {
       <SettingsTabs />
       <div className="flex-1 space-y-6 p-6">
         <section>
+          <h2 className="mb-3 text-sm font-semibold text-gray-700">ทีม</h2>
+          <Card className="flex flex-wrap items-center gap-2">
+            {teams.map((t) => (
+              <span key={t.id} className="flex items-center gap-1 rounded-full bg-gray-100 py-1 pl-3 pr-1.5 text-sm text-gray-700">
+                {t.name}
+                <span className="text-xs text-gray-400">({staff.filter((s) => s.teamId === t.id).length})</span>
+                <button onClick={() => handleRenameTeam(t)} className="rounded-full p-1 text-gray-400 hover:bg-white hover:text-gray-600" aria-label="เปลี่ยนชื่อทีม">
+                  <Pencil size={12} />
+                </button>
+                <button onClick={() => handleDeleteTeam(t)} className="rounded-full p-1 text-gray-400 hover:bg-white hover:text-rose-500" aria-label="ลบทีม">
+                  <Trash2 size={12} />
+                </button>
+              </span>
+            ))}
+            <button
+              onClick={() => {
+                const name = window.prompt("ชื่อทีมใหม่", `ทีม ${teams.length + 1}`)?.trim();
+                if (name) handleCreateTeam(name);
+              }}
+              className="flex items-center gap-1 rounded-full border border-dashed border-gray-300 px-3 py-1 text-sm text-gray-500 hover:bg-gray-50"
+            >
+              <Plus size={14} />
+              เพิ่มทีม
+            </button>
+          </Card>
+        </section>
+
+        <section>
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-sm font-semibold text-gray-700">รายชื่อพนักงาน</h2>
             <button
@@ -214,6 +271,7 @@ export default function StaffSettingsPage() {
                   <p className="truncate text-xs text-gray-500">
                     {s.position}
                     {s.role === "owner" && !s.position.includes("เจ้าของ") && " · เจ้าของ"}
+                    {s.teamId && ` · ${teams.find((t) => t.id === s.teamId)?.name ?? ""}`}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
@@ -403,6 +461,8 @@ export default function StaffSettingsPage() {
       {staffModalMode !== "closed" && (
         <StaffModal
           initial={staffModalMode === "create" ? undefined : staffModalMode.edit}
+          teams={teams}
+          onCreateTeam={handleCreateTeam}
           onClose={() => setStaffModalMode("closed")}
           onSave={handleSaveStaff}
         />

@@ -79,6 +79,13 @@ test("financial tables: read for all, write needs a permission", () => {
   assert.equal(run(finance, "POST", "rest/v1/rpc/next_doc_no", "", {}).ok, true);
 });
 
+test("teams: anyone reads, only the owner writes", () => {
+  assert.equal(run(staff, "GET", "rest/v1/teams", "?select=*").ok, true);
+  assert.equal(run(staff, "POST", "rest/v1/teams", "", [{ name: "x" }]).ok, false);
+  assert.equal(run(owner, "POST", "rest/v1/teams", "", [{ name: "x" }]).ok, true);
+  assert.equal(run(staff, "PATCH", "rest/v1/staff", "?id=eq.staff-1", { team_id: "t" }).ok, false);
+});
+
 test("task_settings write is owner-only", () => {
   assert.equal(run(staff, "POST", "rest/v1/task_settings", "", {}).ok, false);
   assert.equal(run(owner, "POST", "rest/v1/task_settings", "", {}).ok, true);

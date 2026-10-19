@@ -38,6 +38,7 @@ const TABLES = new Set([
   "staff",
   "task_settings",
   "tasks",
+  "teams",
   "transactions",
 ]);
 
@@ -134,7 +135,7 @@ export function authorizeProxyRequest(input: {
     }
   }
 
-  if (table === "task_settings" && write && !isOwner) return deny(403, "owner only");
+  if ((table === "task_settings" || table === "teams") && write && !isOwner) return deny(403, "owner only");
   if (table === "doc_counters" && write) return deny(403, "use the next_doc_no rpc");
 
   if (FINANCIAL_TABLES.has(table) && write && !canWriteFinance) {
