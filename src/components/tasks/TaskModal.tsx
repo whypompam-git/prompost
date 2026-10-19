@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { STATUS_LABEL } from "@/components/ui/StatusBadge";
+import { defaultStatusFor, statusLabel, statusesFor } from "@/lib/workflow";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, Staff, Task, TaskStatus, TaskType } from "@/lib/types";
 
@@ -31,8 +31,8 @@ export function TaskModal({
   const [title, setTitle] = useState("");
   const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? "");
   const { types } = useTaskSettings();
-  const [type, setType] = useState<TaskType>("shoot");
-  const [status, setStatus] = useState<TaskStatus>("todo");
+  const [type, setType] = useState<TaskType>("plan");
+  const [status, setStatus] = useState<TaskStatus>("waiting");
   const [assigneeId, setAssigneeId] = useState("");
   const [scheduledDate, setScheduledDate] = useState(defaultDate ?? todayIso());
   const [dueDate, setDueDate] = useState(defaultDate ?? todayIso());
@@ -96,7 +96,10 @@ export function TaskModal({
             <Field label="ประเภทงาน">
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value as TaskType)}
+                onChange={(e) => {
+                  setType(e.target.value as TaskType);
+                  setStatus(defaultStatusFor(e.target.value));
+                }}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               >
                 {types.map((opt) => (
@@ -113,9 +116,9 @@ export function TaskModal({
                 onChange={(e) => setStatus(e.target.value as TaskStatus)}
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               >
-                {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
+                {statusesFor(type).map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {statusLabel(type, s)}
                   </option>
                 ))}
               </select>

@@ -19,10 +19,12 @@ export type PortalTask = {
   cover_url: string | null;
   equipment: string[] | null;
   shots: string[] | null;
+  revision_count?: number | null;
+  revision_brief?: string | null;
 };
 
 type SortKey = "default" | "name" | "status";
-const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, review: 2, done: 3 };
+const STATUS_ORDER: Record<TaskStatus, number> = { waiting: 0, todo: 1, in_progress: 2, review: 3, done: 4 };
 
 const OPTIONS: { key: SortKey; label: string }[] = [
   { key: "default", label: "ล่าสุด" },
@@ -89,6 +91,8 @@ export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clie
             coverUrl={task.cover_url}
             equipment={task.equipment ?? []}
             shots={task.shots ?? []}
+            revisionCount={task.revision_count ?? 0}
+            revisionBrief={task.revision_brief ?? null}
           />
         ))}
         {sorted.length === 0 && (

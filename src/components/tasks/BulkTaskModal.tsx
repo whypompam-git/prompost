@@ -39,7 +39,7 @@ export function BulkTaskModal({
   const [count, setCount] = useState(10);
   const [startTouched, setStartTouched] = useState(false);
   const [startAtManual, setStartAtManual] = useState(1);
-  const [type, setType] = useState("shoot");
+  const [type, setType] = useState("plan");
   const [scheduledDate, setScheduledDate] = useState(todayIso());
   const [dueDate, setDueDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);

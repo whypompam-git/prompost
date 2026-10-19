@@ -1,16 +1,17 @@
 "use client";
 
+import { announceChanges, flowPatch } from "@/lib/taskFlow";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Users, ListTodo, Loader, CheckCircle2, Plus, Layers } from "lucide-react";
+import { Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { StaffFilter } from "@/components/dashboard/StaffFilter";
 import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
-import { StatCard } from "@/components/dashboard/StatCard";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
+import { cn } from "@/lib/utils";
 import { Toast } from "@/components/ui/Toast";
 import { LoadingView } from "@/components/ui/LoadingView";
 import {
@@ -23,10 +24,13 @@ import {
   listClients,
   listStaff,
   listTasks,
+  listTeams,
   updateTaskRow,
 } from "@/lib/supabase/queries";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { STAGES } from "@/lib/workflow";
 import { queueTaskEdit } from "@/lib/offline/queue";
-import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
+import type { Client, Staff, Task, TaskStatus, Team } from "@/lib/types";
 
 const FILTER_KEY = "prompost:dashboard-filters";
 
@@ -35,6 +39,8 @@ function readSavedFilters(): {
   staff?: string;
   sortBy?: TaskSortKey;
   sortDir?: "asc" | "desc";
+  view?: "team" | "mine";
+  team?: string;
 } {
   try {
     return JSON.parse(localStorage.getItem(FILTER_KEY) ?? "{}");
@@ -57,6 +63,8 @@ function DashboardPageInner() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const auth = useAuth();
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -71,16 +79,20 @@ function DashboardPageInner() {
   const [staffFilter, setStaffFilter] = useState<string>(saved.staff ?? "");
   const [sortBy, setSortBy] = useState<TaskSortKey>(saved.sortBy ?? "dueDate");
   const [sortDir, setSortDir] = useState<"asc" | "desc">(saved.sortDir ?? "asc");
+  const [view, setView] = useState<"team" | "mine">(saved.view ?? "team");
+  const [teamFilter, setTeamFilter] = useState<string>(saved.team ?? "");
+  const [stageFilter, setStageFilter] = useState<string>("");
 
   useEffect(() => {
     try {
-      localStorage.setItem(FILTER_KEY, JSON.stringify({ clients: clientFilter, staff: staffFilter, sortBy, sortDir }));
+      localStorage.setItem(FILTER_KEY, JSON.stringify({ clients: clientFilter, staff: staffFilter, sortBy, sortDir, view, team: teamFilter }));
     } catch {}
-  }, [clientFilter, staffFilter, sortBy, sortDir]);
+  }, [clientFilter, staffFilter, sortBy, sortDir, view, teamFilter]);
 
   useEffect(() => {
-    Promise.all([listTasks(), listClients(), listStaff()])
-      .then(([t, c, s]) => {
+    Promise.all([listTasks(), listClients(), listStaff(), listTeams().catch(() => [] as Team[])])
+      .then(([t, c, s, tm]) => {
+        setTeams(tm);
         setTasks(t);
         setClients(c);
         setStaff(s);
@@ -96,14 +108,27 @@ function DashboardPageInner() {
     }
   }, [searchParams, router]);
 
-  const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
+  // what the stage chips count: everything in view, before the stage chip itself filters
+  const scopeTasks = useMemo(
+    () => (view === "mine" ? tasks.filter((t) => t.assigneeId === auth.staffId || t.shotById === auth.staffId) : tasks),
+    [tasks, view, auth.staffId],
+  );
 
-  const STATUS_ORDER: Record<TaskStatus, number> = { todo: 0, in_progress: 1, review: 2, done: 3 };
+  const STATUS_ORDER: Record<TaskStatus, number> = { waiting: 0, todo: 1, in_progress: 2, review: 3, done: 4 };
   const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
 
   const visibleTasks = useMemo(() => {
     let filtered = clientFilter.length ? tasks.filter((t) => clientFilter.includes(t.clientId)) : tasks;
-    if (staffFilter) filtered = filtered.filter((t) => t.assigneeId === staffFilter);
+    if (view === "mine") {
+      filtered = filtered.filter((t) => t.assigneeId === auth.staffId || t.shotById === auth.staffId);
+    } else {
+      if (staffFilter) filtered = filtered.filter((t) => t.assigneeId === staffFilter);
+      if (teamFilter) {
+        const inTeam = new Set(staff.filter((s) => s.teamId === teamFilter).map((s) => s.id));
+        filtered = filtered.filter((t) => t.shotTeamId === teamFilter || (t.assigneeId && inTeam.has(t.assigneeId)));
+      }
+    }
+    if (stageFilter) filtered = filtered.filter((t) => t.type === stageFilter);
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -129,7 +154,7 @@ function DashboardPageInner() {
       }
     });
     return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [tasks, clients, clientFilter, staffFilter, sortBy, sortDir, staff]);
+  }, [tasks, clients, clientFilter, staffFilter, sortBy, sortDir, staff, view, teamFilter, stageFilter, auth.staffId]);
 
   function handleSort(key: TaskSortKey) {
     if (key === sortBy) {
@@ -140,20 +165,27 @@ function DashboardPageInner() {
     }
   }
 
+  // every quick edit goes through the pipeline rules (hand-offs + notifications)
+  function applyChange(taskId: string, fields: Partial<Omit<Task, "id">>) {
+    const prev = tasks.find((t) => t.id === taskId);
+    if (!prev) return;
+    const patch = flowPatch(prev, fields);
+    setTasks((p) => p.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
+    updateTaskRow(taskId, patch)
+      .then(() => announceChanges(prev, { ...prev, ...patch }))
+      .catch(() => queueTaskEdit(taskId, patch));
+  }
+
   function updateStatus(taskId: string, status: TaskStatus) {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
-    updateTaskRow(taskId, { status }).catch(() => queueTaskEdit(taskId, { status }));
+    applyChange(taskId, { status });
   }
 
   function updateAssignee(taskId: string, assigneeId: string) {
-    const patch = { assigneeId: assigneeId || null };
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
-    updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
+    applyChange(taskId, { assigneeId: assigneeId || null });
   }
 
   function updateTask(taskId: string, patch: Partial<Omit<Task, "id">>) {
-    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
-    updateTaskRow(taskId, patch).catch(() => queueTaskEdit(taskId, patch));
+    applyChange(taskId, patch);
   }
 
   async function handleBulkSave(values: BulkTaskValues) {
@@ -176,6 +208,7 @@ function DashboardPageInner() {
 
   async function handleSave(values: TaskFormValues) {
     const created = await createTaskRow(values);
+    announceChanges(null, created);
     setTasks((prev) => [created, ...prev]);
     setCreating(false);
     setToast("สำเร็จ");
@@ -202,8 +235,8 @@ function DashboardPageInner() {
     setToast("สำเร็จ");
   }
 
-  function bulkStatus(status: TaskStatus) {
-    selected.forEach((id) => updateStatus(id, status));
+  function bulkStage(stage: string) {
+    selected.forEach((id) => updateTask(id, { type: stage }));
     setToast("สำเร็จ");
   }
 
@@ -248,11 +281,54 @@ function DashboardPageInner() {
       <Topbar title="แดชบอร์ด" subtitle="ภาพรวมงานและลูกค้าทั้งหมด" />
 
       <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
-        <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
-          <StatCard label="ลูกค้าทั้งหมด" value={clients.length} icon={Users} tone="orange" />
-          <StatCard label="ต้องทำ" value={countByStatus("todo")} icon={ListTodo} tone="gray" />
-          <StatCard label="กำลังทำ" value={countByStatus("in_progress")} icon={Loader} tone="sky" />
-          <StatCard label="เสร็จแล้ว" value={countByStatus("done")} icon={CheckCircle2} tone="emerald" />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-sm font-medium">
+            {([["team", "งานทีม"], ["mine", "งานของฉัน"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setView(key)}
+                className={cn("rounded-md px-3 py-1.5", view === key ? "bg-brand-500 text-white" : "text-gray-600 hover:bg-gray-50")}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {view === "team" && teams.length > 0 && (
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none"
+            >
+              <option value="">ทุกทีม</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setStageFilter("")}
+            className={cn("rounded-full border px-3 py-1 text-xs font-medium", !stageFilter ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")}
+          >
+            ทั้งหมด {scopeTasks.length}
+          </button>
+          {STAGES.map((st) => {
+            const n = scopeTasks.filter((t) => t.type === st.key).length;
+            if (n === 0 && st.key === "other") return null;
+            return (
+              <button
+                key={st.key}
+                onClick={() => setStageFilter(stageFilter === st.key ? "" : st.key)}
+                className={cn("rounded-full border px-3 py-1 text-xs font-medium", stageFilter === st.key ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")}
+              >
+                {st.label} {n}
+              </button>
+            );
+          })}
         </div>
 
         <div>
@@ -260,7 +336,7 @@ function DashboardPageInner() {
             <h2 className="text-sm font-semibold text-gray-700">รายการงานล่าสุด</h2>
             <div className="flex flex-wrap items-center gap-2">
               <ClientMultiFilter clients={clients} selected={clientFilter} onChange={setClientFilter} />
-              <StaffFilter staff={staff} selected={staffFilter} onChange={setStaffFilter} />
+              {view === "team" && <StaffFilter staff={staff} selected={staffFilter} onChange={setStaffFilter} />}
               <button
                 onClick={() => setBulkOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
@@ -301,7 +377,7 @@ function DashboardPageInner() {
           clients={clients}
           staff={staff}
           onPatch={bulkPatch}
-          onStatus={bulkStatus}
+          onStage={bulkStage}
           onDelete={bulkDelete}
           onClear={() => setSelected(new Set())}
         />

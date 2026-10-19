@@ -8,9 +8,14 @@ test("a valid batch is normalised (defaults, nulls, trimming)", () => {
   const r = validateNewTasks([{ title: " ชื่อ ", scheduledDate: "2026-10-18", dueDate: "2026-10-18" }]);
   assert.equal(r.ok, true);
   if (r.ok) assert.deepEqual(r.rows[0], {
-    title: "ชื่อ", type: "other", status: "todo", assignee_id: null, scheduled_date: "2026-10-18", due_date: "2026-10-18",
+    title: "ชื่อ", type: "plan", status: "waiting", assignee_id: null, scheduled_date: "2026-10-18", due_date: "2026-10-18",
     notes: null, ref_link: null, content_category: null, script_text: null, shots: [], equipment: [], post_date: null,
   });
+});
+
+test("a status that does not exist in the stage is rejected", () => {
+  assert.equal(validateNewTasks([{ ...good, type: "plan", status: "todo" }]).ok, false);
+  assert.equal(validateNewTasks([{ ...good, type: "shoot", status: "done" }]).ok, true);
 });
 
 test("bad batches are rejected with readable errors", () => {

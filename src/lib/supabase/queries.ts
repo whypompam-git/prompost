@@ -1,5 +1,6 @@
 import { createClient } from "./client";
 import { cachedFetch } from "@/lib/offline/cache";
+import { defaultStatusFor } from "@/lib/workflow";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -413,10 +414,14 @@ type TaskRow = {
   cover_url: string | null;
   start_time: string | null;
   end_time: string | null;
+  shot_by: string | null;
+  shot_team_id: string | null;
+  revision_count: number | null;
+  revision_brief: string | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -439,6 +444,10 @@ const fromTaskRow = (r: TaskRow): Task => ({
   coverUrl: r.cover_url ?? undefined,
   startTime: r.start_time?.slice(0, 5) ?? undefined,
   endTime: r.end_time?.slice(0, 5) ?? undefined,
+  shotById: r.shot_by,
+  shotTeamId: r.shot_team_id,
+  revisionCount: r.revision_count ?? 0,
+  revisionBrief: r.revision_brief ?? undefined,
 });
 
 export async function listTasks(): Promise<Task[]> {
@@ -487,6 +496,13 @@ export async function listTaskAssignments(): Promise<Pick<Task, "id" | "assignee
   }));
 }
 
+// Slim read for the clients list: which stage every clip is in, per client.
+export async function listTaskStageRows(): Promise<{ clientId: string; type: string }[]> {
+  const { data, error } = await supabase().from("tasks").select("client_id, type");
+  if (error) throw error;
+  return (data as { client_id: string; type: string }[]).map((r) => ({ clientId: r.client_id, type: r.type }));
+}
+
 export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
   const { data, error } = await supabase()
     .from("tasks")
@@ -510,6 +526,8 @@ export async function createTaskRow(values: Omit<Task, "id">): Promise<Task> {
       cover_url: values.coverUrl || null,
       start_time: values.startTime || null,
       end_time: values.endTime || null,
+      shot_by: values.shotById ?? null,
+      shot_team_id: values.shotTeamId ?? null,
     })
     .select(TASK_COLUMNS)
     .single();
@@ -538,6 +556,8 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.coverUrl !== undefined) patch.cover_url = values.coverUrl || null;
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
   if (values.endTime !== undefined) patch.end_time = values.endTime || null;
+  if (values.shotById !== undefined) patch.shot_by = values.shotById;
+  if (values.shotTeamId !== undefined) patch.shot_team_id = values.shotTeamId;
   patch.updated_at = new Date().toISOString();
 
   const { error } = await supabase().from("tasks").update(patch).eq("id", id);
@@ -1414,9 +1434,10 @@ type ClientNoteRow = {
   note_date: string;
   created_at: string;
   deleted_at: string | null;
+  talked_by: string | null;
 };
 
-const CLIENT_NOTE_COLUMNS = "id, client_id, note, note_date, created_at, deleted_at";
+const CLIENT_NOTE_COLUMNS = "id, client_id, note, note_date, created_at, deleted_at, talked_by";
 
 const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
   id: r.id,
@@ -1425,6 +1446,7 @@ const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
   noteDate: r.note_date,
   createdAt: r.created_at,
   deletedAt: r.deleted_at,
+  talkedBy: r.talked_by,
 });
 
 export async function listClientNotes(clientId: string): Promise<ClientNote[]> {
@@ -1456,20 +1478,20 @@ export async function listLatestClientNotes(): Promise<Record<string, ClientNote
   return out;
 }
 
-export async function createClientNoteRow(clientId: string, note: string, noteDate: string): Promise<ClientNote> {
+export async function createClientNoteRow(clientId: string, note: string, noteDate: string, talkedBy?: string | null): Promise<ClientNote> {
   const { data, error } = await supabase()
     .from("client_notes")
-    .insert({ client_id: clientId, note, note_date: noteDate })
+    .insert({ client_id: clientId, note, note_date: noteDate, talked_by: talkedBy ?? null })
     .select(CLIENT_NOTE_COLUMNS)
     .single();
   if (error) throw error;
   return fromClientNoteRow(data as ClientNoteRow);
 }
 
-export async function updateClientNoteRow(id: string, values: { note: string; noteDate: string }): Promise<void> {
+export async function updateClientNoteRow(id: string, values: { note: string; noteDate: string; talkedBy?: string | null }): Promise<void> {
   const { error } = await supabase()
     .from("client_notes")
-    .update({ note: values.note, note_date: values.noteDate })
+    .update({ note: values.note, note_date: values.noteDate, ...(values.talkedBy !== undefined ? { talked_by: values.talkedBy } : {}) })
     .eq("id", id);
   if (error) throw error;
 }
@@ -1538,7 +1560,7 @@ export async function createTasksBulk(values: {
     client_id: values.clientId,
     title: `${values.clientName}-${values.startAt + i}`,
     type: values.type,
-    status: "todo",
+    status: defaultStatusFor(values.type),
     scheduled_date: values.scheduledDate,
     due_date: values.dueDate,
   }));
@@ -1589,7 +1611,7 @@ export async function createTasksFromSet(values: {
     client_id: values.clientId,
     title: it.title.trim() || values.clientName,
     type: values.type,
-    status: "todo",
+    status: defaultStatusFor(values.type),
     scheduled_date: values.scheduledDate,
     due_date: values.dueDate,
     script_text: it.script || null,
@@ -1785,5 +1807,79 @@ export async function setContractStatus(id: string, status: "draft" | "sent"): P
 
 export async function deleteContractRow(id: string): Promise<void> {
   const { error } = await supabase().from("contracts").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Revisions & notifications ───────────────────────────────────────────
+export type TaskRevision = { id: string; round: number; brief: string; source: "client" | "qc"; createdAt: string };
+
+export async function listTaskRevisions(taskId: string): Promise<TaskRevision[]> {
+  const { data, error } = await supabase()
+    .from("task_revisions")
+    .select("id, round, brief, source, created_at")
+    .eq("task_id", taskId)
+    .order("round", { ascending: false });
+  if (error) throw error;
+  return (data as { id: string; round: number; brief: string; source: "client" | "qc"; created_at: string }[]).map((r) => ({
+    id: r.id,
+    round: r.round,
+    brief: r.brief,
+    source: r.source,
+    createdAt: r.created_at,
+  }));
+}
+
+export type AppNotification = {
+  id: string;
+  kind: string;
+  taskId: string | null;
+  clientId: string | null;
+  title: string;
+  body: string | null;
+  count: number;
+  createdAt: string;
+  readAt: string | null;
+};
+
+// The proxy pins this to the signed-in person, whatever filter is sent.
+export async function listNotifications(limit = 50): Promise<AppNotification[]> {
+  const { data, error } = await supabase()
+    .from("notifications")
+    .select("id, kind, task_id, client_id, title, body, count, created_at, read_at")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (
+    data as {
+      id: string;
+      kind: string;
+      task_id: string | null;
+      client_id: string | null;
+      title: string;
+      body: string | null;
+      count: number;
+      created_at: string;
+      read_at: string | null;
+    }[]
+  ).map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    taskId: r.task_id,
+    clientId: r.client_id,
+    title: r.title,
+    body: r.body,
+    count: r.count,
+    createdAt: r.created_at,
+    readAt: r.read_at,
+  }));
+}
+
+export async function markNotificationsRead(ids: string[] | "all"): Promise<void> {
+  let q = supabase().from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
+  if (ids !== "all") {
+    if (ids.length === 0) return;
+    q = q.in("id", ids);
+  }
+  const { error } = await q;
   if (error) throw error;
 }

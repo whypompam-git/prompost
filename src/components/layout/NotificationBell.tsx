@@ -3,11 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Bell, CalendarOff, CircleAlert, MessageSquareText, Receipt } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { bangkokDay, buildDigest } from "@/lib/alerts";
 import {
   listClientPackages,
   listClients,
+  listNotifications,
+  markNotificationsRead,
+  type AppNotification,
   listInvoices,
   listLeaveRequests,
   listPackages,
@@ -17,6 +21,15 @@ import {
   listTasks,
 } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
+
+const ACTION_KINDS = new Set(["client_revise", "qc_revise", "assigned", "overdue"]);
+const timeAgo = (iso: string) => {
+  const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (m < 1) return "เมื่อสักครู่";
+  if (m < 60) return `${m} นาทีก่อน`;
+  if (m < 1440) return `${Math.round(m / 60)} ชม.ก่อน`;
+  return `${Math.round(m / 1440)} วันก่อน`;
+};
 
 const SEEN_KEY = "prompost:seen-notifications";
 const DAY = 86_400_000;
@@ -50,6 +63,9 @@ export function NotificationBell() {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [seen, setSeen] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState(false);
+  const router = useRouter();
+  const [inbox, setInbox] = useState<AppNotification[]>([]);
+  const [tab, setTab] = useState<"all" | "todo">("all");
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -146,6 +162,33 @@ export function NotificationBell() {
     setNotices(out);
   }, [auth.permissions.documents, auth.permissions.accounting, auth.staffId, isOwner]);
 
+  const loadInbox = useCallback(async () => {
+    setInbox(await listNotifications(50));
+  }, []);
+
+  // the personal inbox is cheap (one small query) so it refreshes faster
+  useEffect(() => {
+    loadInbox().catch(() => {});
+    const timer = setInterval(() => {
+      if (document.visibilityState === "visible") loadInbox().catch(() => {});
+    }, 45_000);
+    return () => clearInterval(timer);
+  }, [loadInbox]);
+
+  async function openInboxItem(n: AppNotification) {
+    setOpen(false);
+    if (!n.readAt) {
+      setInbox((prev) => prev.map((x) => (x.id === n.id ? { ...x, readAt: new Date().toISOString() } : x)));
+      markNotificationsRead([n.id]).catch(() => {});
+    }
+    router.push(n.taskId ? `/tasks/${n.taskId}` : n.clientId ? `/clients/${n.clientId}` : "/dashboard");
+  }
+
+  async function readAll() {
+    setInbox((prev) => prev.map((x) => ({ ...x, readAt: x.readAt ?? new Date().toISOString() })));
+    markNotificationsRead("all").catch(() => {});
+  }
+
   useEffect(() => {
     setSeen(readSeen());
     load().catch(() => {});
@@ -161,7 +204,9 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const unseen = notices.filter((n) => !seen.has(n.id)).length;
+  const unreadInbox = inbox.filter((n) => !n.readAt).length;
+  const unseen = notices.filter((n) => !seen.has(n.id)).length + unreadInbox;
+  const shownInbox = tab === "todo" ? inbox.filter((n) => ACTION_KINDS.has(n.kind)) : inbox;
 
   function toggle() {
     const next = !open;
@@ -195,11 +240,50 @@ export function NotificationBell() {
 
       {open && (
         <div className="pp-pop-menu absolute right-0 top-11 z-40 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
-          <div className="border-b border-gray-100 px-4 py-3 text-sm font-semibold text-gray-800">
-            การแจ้งเตือน
+          <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+            <span className="text-sm font-semibold text-gray-800">การแจ้งเตือน</span>
+            {unreadInbox > 0 && (
+              <button onClick={readAll} className="text-xs font-medium text-brand-600 hover:underline">
+                อ่านทั้งหมด
+              </button>
+            )}
+          </div>
+          <div className="flex gap-1 border-b border-gray-100 px-3 py-2 text-xs font-medium">
+            {([["all", "ทั้งหมด"], ["todo", "ต้องทำ"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={cn("rounded-full px-3 py-1", tab === key ? "bg-brand-500 text-white" : "text-gray-500 hover:bg-gray-50")}
+              >
+                {label}
+              </button>
+            ))}
           </div>
           <div className="max-h-96 overflow-y-auto">
-            {notices.map((n) => {
+            {shownInbox.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => openInboxItem(n)}
+                className={cn(
+                  "flex w-full gap-3 border-b border-gray-50 px-4 py-3 text-left hover:bg-gray-50",
+                  !n.readAt && "bg-brand-50/50",
+                )}
+              >
+                <span className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", n.readAt ? "bg-transparent" : "bg-brand-500")} />
+                <div className="min-w-0">
+                  <p className={cn("text-sm text-gray-800", !n.readAt && "font-medium", (n.kind === "client_revise" || n.kind === "qc_revise") && "text-rose-700")}>
+                    {n.title}
+                    {n.count > 1 && <span className="ml-1.5 rounded-full bg-gray-200 px-1.5 py-0.5 text-[10px] font-semibold text-gray-600">×{n.count}</span>}
+                  </p>
+                  {n.body && <p className="line-clamp-2 text-xs text-gray-500">{n.body}</p>}
+                  <p className="mt-0.5 text-[11px] text-gray-400">{timeAgo(n.createdAt)}</p>
+                </div>
+              </button>
+            ))}
+            {tab === "todo" ? null : notices.length > 0 && shownInbox.length > 0 && (
+              <p className="bg-gray-50 px-4 py-1.5 text-[11px] font-medium text-gray-400">เตือนอัตโนมัติ</p>
+            )}
+            {(tab === "todo" ? [] : notices).map((n) => {
               const Icon = ICONS[n.icon];
               return (
                 <Link
@@ -219,7 +303,7 @@ export function NotificationBell() {
                 </Link>
               );
             })}
-            {notices.length === 0 && (
+            {shownInbox.length === 0 && (tab === "todo" || notices.length === 0) && (
               <p className="px-4 py-8 text-center text-sm text-gray-400">ไม่มีการแจ้งเตือน</p>
             )}
           </div>

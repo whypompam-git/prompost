@@ -96,3 +96,18 @@ test("storage is never available through the proxy", () => {
   assert.equal(run(owner, "DELETE", "storage/v1/object/slips/a.png").ok, false);
   assert.equal(run(owner, "GET", "storage/v1/object/list/backups").ok, false);
 });
+
+test("notifications: own inbox only, mark-read only, no creating from the browser", () => {
+  const r = run(staff, "GET", "rest/v1/notifications", "?select=*&recipient_id=eq.someone-else");
+  assert.equal(r.ok && r.search.includes("recipient_id=eq.staff-1"), true);
+  assert.equal(r.ok && r.search.includes("someone-else"), false);
+  assert.equal(run(staff, "POST", "rest/v1/notifications", "", [{ title: "x" }]).ok, false);
+  assert.equal(run(staff, "DELETE", "rest/v1/notifications", "?id=eq.1").ok, false);
+  assert.equal(run(staff, "PATCH", "rest/v1/notifications", "?id=eq.1", { read_at: "2026-01-01" }).ok, true);
+  assert.equal(run(staff, "PATCH", "rest/v1/notifications", "?id=eq.1", { title: "hacked" }).ok, false);
+});
+
+test("task_revisions are read-only from the browser", () => {
+  assert.equal(run(staff, "GET", "rest/v1/task_revisions", "?task_id=eq.1").ok, true);
+  assert.equal(run(owner, "POST", "rest/v1/task_revisions", "", [{ brief: "x" }]).ok, false);
+});

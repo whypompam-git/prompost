@@ -17,5 +17,9 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "contract_template", columns: "content", migration: "0030" },
   { table: "teams", columns: "id, name, sort_order", migration: "0031" },
   { table: "staff", columns: "team_id", migration: "0031" },
+  { table: "tasks", columns: "shot_by, shot_team_id, revision_count, revision_brief", migration: "0032" },
+  { table: "task_revisions", columns: "id, task_id, round, brief, source", migration: "0032" },
+  { table: "notifications", columns: "id, recipient_id, kind, title, count, read_at", migration: "0032" },
+  { table: "client_notes", columns: "talked_by", migration: "0032" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
 ];

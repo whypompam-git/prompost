@@ -24,6 +24,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
+import { StageSummary } from "@/components/clients/StageSummary";
 import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import {
@@ -40,6 +41,7 @@ import {
   listReceipts,
   recordRoundPayment,
   listStaff,
+  listTaskStageRows,
   setClientManager,
   setClientPaymentStatus,
   setClientPhone,
@@ -88,9 +90,10 @@ export default function ClientsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [staff, setStaff] = useState<Staff[]>([]);
   const [managerFilter, setManagerFilter] = useState("");
+  const [taskStages, setTaskStages] = useState<{ clientId: string; type: string }[]>([]);
 
   async function loadAll() {
-    const [c, p, cp, r, q, inv, notes, staffRows] = await Promise.all([
+    const [c, p, cp, r, q, inv, notes, staffRows, stageRows] = await Promise.all([
       listClients(),
       listPackages(),
       listClientPackages(),
@@ -102,8 +105,10 @@ export default function ClientsPage() {
         return {};
       }),
       listStaff().catch(() => [] as Staff[]),
+      listTaskStageRows().catch(() => [] as { clientId: string; type: string }[]),
     ]);
     setStaff(staffRows);
+    setTaskStages(stageRows);
     setClients(c);
     setPackages(p);
     setReceipts(r);
@@ -396,6 +401,7 @@ export default function ClientsPage() {
                 <SortHeader label="ผู้ติดต่อ" sortKey="contactName" />
                 <th className="px-4 py-3 font-medium">เบอร์โทร</th>
                 <th className="px-4 py-3 font-medium">คนดูแล</th>
+                <th className="px-4 py-3 font-medium">คลิปตามขั้นตอน</th>
                 <th className="px-4 py-3 font-medium">แบรนด์/บรีฟ</th>
                 <th className="px-4 py-3 font-medium">ประวัติการคุยล่าสุด</th>
                 <SortHeader label="สถานะ" sortKey="paymentStatus" />
@@ -457,6 +463,9 @@ export default function ClientsPage() {
                           </option>
                         ))}
                       </select>
+                    </td>
+                    <td className="min-w-[200px] max-w-[260px] px-4 py-3">
+                      <StageSummary tasks={taskStages.filter((t) => t.clientId === client.id)} compact />
                     </td>
                     <td className="max-w-[220px] px-4 py-3">
                       <Link
@@ -562,7 +571,7 @@ export default function ClientsPage() {
               })}
               {sortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={14} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={15} className="px-4 py-10 text-center text-sm text-gray-400">
                     ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
                   </td>
                 </tr>

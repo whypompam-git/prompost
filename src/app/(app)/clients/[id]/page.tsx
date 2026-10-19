@@ -4,10 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { CheckCircle2, ListTodo, Loader, Film, Layers, Plus } from "lucide-react";
+import { Layers, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
-import { StatCard } from "@/components/dashboard/StatCard";
+import { StageSummary } from "@/components/clients/StageSummary";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -25,7 +25,8 @@ import {
   listTasks,
   type ContentSet,
 } from "@/lib/supabase/queries";
-import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
+import { SUMMARY_GROUPS } from "@/lib/workflow";
+import type { Client, Staff, Task } from "@/lib/types";
 
 export default function ClientContentDashboardPage() {
   const { typeLabel } = useTaskSettings();
@@ -89,7 +90,10 @@ export default function ClientContentDashboardPage() {
     setToast("สำเร็จ");
   }
 
-  const countByStatus = (status: TaskStatus) => tasks.filter((t) => t.status === status).length;
+  const [stagePick, setStagePick] = useState<string | null>(null);
+  const shownTasks = stagePick
+    ? tasks.filter((t) => (SUMMARY_GROUPS.find((g) => g.key === stagePick)?.stages as string[] | undefined)?.includes(t.type))
+    : tasks;
 
   if (loading) {
     return (
@@ -118,12 +122,7 @@ export default function ClientContentDashboardPage() {
       <Topbar back="/clients" title={client.name} subtitle="รายงานคอนเทนต์" />
       <ClientSubNav clientId={client.id} />
       <div className="flex-1 space-y-6 p-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <StatCard label="คลิปทั้งหมด" value={tasks.length} icon={Film} tone="orange" />
-          <StatCard label="ต้องทำ" value={countByStatus("todo")} icon={ListTodo} tone="gray" />
-          <StatCard label="กำลังทำ" value={countByStatus("in_progress")} icon={Loader} tone="sky" />
-          <StatCard label="เสร็จแล้ว" value={countByStatus("done")} icon={CheckCircle2} tone="emerald" />
-        </div>
+        <StageSummary tasks={tasks} onPick={setStagePick} active={stagePick} />
 
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -156,7 +155,7 @@ export default function ClientContentDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {tasks.map((task) => (
+                {shownTasks.map((task) => (
                   <tr
                     key={task.id}
                     className="cursor-pointer hover:bg-gray-50/60"
@@ -168,11 +167,11 @@ export default function ClientContentDashboardPage() {
                       {format(new Date(task.dueDate), "d MMM yyyy", { locale: th })}
                     </td>
                     <td className="px-5 py-3">
-                      <StatusBadge status={task.status} />
+                      <StatusBadge status={task.status} stage={task.type} />
                     </td>
                   </tr>
                 ))}
-                {tasks.length === 0 && (
+                {shownTasks.length === 0 && (
                   <tr>
                     <td colSpan={4} className="px-5 py-6 text-center text-sm text-gray-400">
                       ยังไม่มีงานสำหรับลูกค้ารายนี้

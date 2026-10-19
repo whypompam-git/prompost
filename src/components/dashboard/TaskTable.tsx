@@ -6,9 +6,8 @@ import { th } from "date-fns/locale";
 import Link from "next/link";
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, ScrollText } from "lucide-react";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
-import { STATUS_LABEL } from "@/components/ui/StatusBadge";
+import { statusLabel, statusesFor } from "@/lib/workflow";
 import { isStem, pillClass, stemFromBg } from "@/lib/colors";
-import { STATUS_KEYS } from "@/lib/taskSettings";
 import { useTaskSettings } from "@/lib/useTaskSettings";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -158,7 +157,7 @@ export function TaskTable({
   const clientOf = (id: string) => clients.find((c) => c.id === id);
   const clientName = (id: string) => clientOf(id)?.name ?? "—";
   const typeOptions = types.map((t) => ({ value: t.key, label: t.label }));
-  const statusOptions = STATUS_KEYS.map((k) => ({ value: k, label: STATUS_LABEL[k] }));
+  const statusOptionsFor = (stage: string) => statusesFor(stage).map((k) => ({ value: k, label: statusLabel(stage, k) }));
   const assigneeOptions = [
     { value: "", label: "ยังไม่มอบหมาย" },
     ...staff.map((s) => ({ value: s.id, label: s.name })),
@@ -270,10 +269,10 @@ export function TaskTable({
                   onChange={(v) => onUpdateTask(task.id, { type: v })}
                 />
                 <PillSelect
-                  label={STATUS_LABEL[task.status]}
+                  label={statusLabel(task.type, task.status)}
                   color={statusColor(task.status)}
                   value={task.status}
-                  options={statusOptions}
+                  options={statusOptionsFor(task.type)}
                   onChange={(v) => onUpdateStatus(task.id, v as TaskStatus)}
                 />
                 <PillSelect
@@ -370,10 +369,10 @@ export function TaskTable({
                   </td>
                   <td className="px-5 py-3">
                     <PillSelect
-                      label={STATUS_LABEL[task.status]}
+                      label={statusLabel(task.type, task.status)}
                       color={statusColor(task.status)}
                       value={task.status}
-                      options={statusOptions}
+                      options={statusOptionsFor(task.type)}
                       onChange={(v) => onUpdateStatus(task.id, v as TaskStatus)}
                     />
                   </td>

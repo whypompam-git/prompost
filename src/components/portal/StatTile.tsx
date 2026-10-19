@@ -5,13 +5,15 @@ export function StatTile({
 }: {
   label: string;
   value: number;
-  tone: "gray" | "emerald" | "sky" | "amber";
+  tone: "gray" | "emerald" | "sky" | "amber" | "violet" | "rose";
 }) {
   const toneStyle: Record<string, string> = {
     gray: "bg-white text-gray-900",
     emerald: "bg-emerald-50 text-emerald-700",
     sky: "bg-sky-50 text-sky-700",
     amber: "bg-amber-50 text-amber-700",
+    violet: "bg-violet-50 text-violet-700",
+    rose: "bg-rose-50 text-rose-700",
   };
   return (
     <div className={`rounded-2xl border border-gray-100 p-4 text-center shadow-card ${toneStyle[tone]}`}>

@@ -60,9 +60,9 @@ export interface TaskTypeOption {
 
 export interface TaskSettings {
   types: TaskTypeOption[];
-  statusColors: Record<"todo" | "in_progress" | "review" | "done", string>;
+  statusColors: Record<TaskStatus, string>;
 }
-export type TaskStatus = "todo" | "in_progress" | "review" | "done";
+export type TaskStatus = "todo" | "in_progress" | "review" | "done" | "waiting";
 export type ContentCategory = "mass" | "royalty" | "sell";
 
 export interface Task {
@@ -84,6 +84,10 @@ export interface Task {
   postDate?: string; // ISO date — "วันที่โพส"
   finalUrl?: string; // Google Drive link — final delivered video
   coverUrl?: string; // uploaded clip cover image — shown next to Final on the client link
+  shotById?: string | null; // who shot it
+  shotTeamId?: string | null; // which team shot it
+  revisionCount?: number; // how many times it was sent back (client or QC)
+  revisionBrief?: string; // the latest revision brief
   startTime?: string; // "HH:mm" — optional, like Google Calendar's timed vs all-day
   endTime?: string; // "HH:mm"
 }
@@ -214,6 +218,7 @@ export interface ClientNote {
   noteDate: string; // ISO date — editable, for backdating
   createdAt: string; // ISO datetime — immutable, when the row was made
   deletedAt: string | null; // soft-delete — kept in a recoverable trash
+  talkedBy?: string | null; // staff member who talked with the client
 }
 
 export type ContractStatus = "draft" | "sent" | "signed";

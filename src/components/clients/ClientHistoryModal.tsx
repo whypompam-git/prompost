@@ -7,10 +7,12 @@ import { Pencil, Send, Trash2, X } from "lucide-react";
 import {
   createClientNoteRow,
   listClientNotes,
+  listStaff,
   trashClientNoteRow,
   updateClientNoteRow,
 } from "@/lib/supabase/queries";
-import type { Client, ClientNote } from "@/lib/types";
+import { useAuth } from "@/lib/auth/AuthContext";
+import type { Client, ClientNote, Staff } from "@/lib/types";
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -18,12 +20,21 @@ const todayIso = () => new Date().toISOString().slice(0, 10);
 // see the whole history, back-date or edit an entry, and delete goes to a
 // recoverable trash (Settings) rather than erasing it outright.
 export function ClientHistoryModal({ client, onClose }: { client: Client; onClose: () => void }) {
+  const auth = useAuth();
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [draftBy, setDraftBy] = useState(auth.staffId);
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
   const [draftDate, setDraftDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; note: string; noteDate: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; note: string; noteDate: string; talkedBy: string } | null>(null);
+
+  useEffect(() => {
+    listStaff().then(setStaff).catch(() => {});
+  }, []);
+
+  const nameOf = (id?: string | null) => staff.find((s) => s.id === id)?.name;
 
   useEffect(() => {
     listClientNotes(client.id)
@@ -36,7 +47,7 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
     if (!draft.trim()) return;
     setSaving(true);
     try {
-      const created = await createClientNoteRow(client.id, draft.trim(), draftDate);
+      const created = await createClientNoteRow(client.id, draft.trim(), draftDate, draftBy || null);
       setNotes((prev) => [created, ...prev].sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
       setDraft("");
       setDraftDate(todayIso());
@@ -51,11 +62,11 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
 
   async function handleSaveEdit() {
     if (!editing || !editing.note.trim()) return;
-    const { id, note, noteDate } = editing;
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, note: note.trim(), noteDate } : n)).sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
+    const { id, note, noteDate, talkedBy } = editing;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, note: note.trim(), noteDate, talkedBy: talkedBy || null } : n)).sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
     setEditing(null);
     try {
-      await updateClientNoteRow(id, { note: note.trim(), noteDate });
+      await updateClientNoteRow(id, { note: note.trim(), noteDate, talkedBy: talkedBy || null });
     } catch (err) {
       console.error(err);
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -93,6 +104,15 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
           <div className="flex items-center gap-2">
             <span className="text-xs font-medium text-gray-500">วันที่คุย</span>
             <input type="date" value={draftDate} onChange={(e) => setDraftDate(e.target.value)} className={field} />
+            <span className="text-xs font-medium text-gray-500">ใครคุย</span>
+            <select value={draftBy} onChange={(e) => setDraftBy(e.target.value)} className={field}>
+              <option value="">ไม่ระบุ</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-2">
             <textarea
@@ -125,6 +145,14 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                   onChange={(e) => setEditing({ ...editing, noteDate: e.target.value })}
                   className={field}
                 />
+                <select value={editing.talkedBy} onChange={(e) => setEditing({ ...editing, talkedBy: e.target.value })} className={`w-full ${field}`}>
+                  <option value="">ไม่ระบุคนคุย</option>
+                  {staff.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
                 <textarea
                   value={editing.note}
                   onChange={(e) => setEditing({ ...editing, note: e.target.value })}
@@ -143,10 +171,13 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
             ) : (
               <div key={n.id} className="group rounded-lg bg-gray-50 p-3">
                 <div className="mb-1 flex items-center justify-between">
-                  <p className="text-xs text-gray-400">{format(new Date(n.noteDate), "d MMM yyyy", { locale: th })}</p>
+                  <p className="text-xs text-gray-400">
+                    {format(new Date(n.noteDate), "d MMM yyyy", { locale: th })}
+                    {nameOf(n.talkedBy) && <span className="ml-2 font-medium text-gray-600">· คุยโดย {nameOf(n.talkedBy)}</span>}
+                  </p>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                     <button
-                      onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate })}
+                      onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate, talkedBy: n.talkedBy ?? "" })}
                       className="rounded-full p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
                       aria-label="แก้ไข"
                     >

@@ -1,9 +1,8 @@
 "use client";
 
 import { Trash2, X } from "lucide-react";
-import { STATUS_LABEL } from "@/components/ui/StatusBadge";
-import { STATUS_KEYS } from "@/lib/taskSettings";
-import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
+import { STAGES } from "@/lib/workflow";
+import type { Client, Staff, Task } from "@/lib/types";
 
 const sel =
   "rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 focus:outline-none";
@@ -15,7 +14,7 @@ export function BulkActionBar({
   clients,
   staff,
   onPatch,
-  onStatus,
+  onStage,
   onDelete,
   onClear,
 }: {
@@ -23,7 +22,7 @@ export function BulkActionBar({
   clients: Client[];
   staff: Staff[];
   onPatch: (patch: Partial<Omit<Task, "id">>) => void;
-  onStatus: (status: TaskStatus) => void;
+  onStage: (stage: string) => void;
   onDelete: () => void;
   onClear: () => void;
 }) {
@@ -52,11 +51,11 @@ export function BulkActionBar({
             </option>
           ))}
         </select>
-        <select className={sel} value="" onChange={(e) => e.target.value && onStatus(e.target.value as TaskStatus)}>
-          <option value="">เปลี่ยนสถานะ…</option>
-          {STATUS_KEYS.map((k) => (
-            <option key={k} value={k}>
-              {STATUS_LABEL[k]}
+        <select className={sel} value="" onChange={(e) => e.target.value && onStage(e.target.value)}>
+          <option value="">ย้ายไปขั้นตอน…</option>
+          {STAGES.map((st) => (
+            <option key={st.key} value={st.key}>
+              {st.label}
             </option>
           ))}
         </select>

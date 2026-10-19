@@ -1,11 +1,13 @@
 import { cn } from "@/lib/utils";
 import type { TaskStatus } from "@/lib/types";
+import { statusLabel } from "@/lib/workflow";
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  todo: "ต้องทำ",
+  todo: "ToDo",
   in_progress: "กำลังทำ",
-  review: "ตรวจสอบ",
-  done: "เสร็จแล้ว",
+  review: "In Review",
+  done: "Done",
+  waiting: "รอลูกค้า",
 };
 
 const STATUS_STYLE: Record<TaskStatus, string> = {
@@ -13,9 +15,12 @@ const STATUS_STYLE: Record<TaskStatus, string> = {
   in_progress: "bg-sky-100 text-sky-700",
   review: "bg-amber-100 text-amber-700",
   done: "bg-emerald-100 text-emerald-700",
+  waiting: "bg-violet-100 text-violet-700",
 };
 
-export function StatusBadge({ status }: { status: TaskStatus }) {
+// `stage` (tasks.type) gives the status its stage-specific wording, e.g.
+// "รอลูกค้าอนุมัติ" for Pending or "รอโพส" for an approved clip.
+export function StatusBadge({ status, stage }: { status: TaskStatus; stage?: string }) {
   return (
     <span
       className={cn(
@@ -23,7 +28,7 @@ export function StatusBadge({ status }: { status: TaskStatus }) {
         STATUS_STYLE[status],
       )}
     >
-      {STATUS_LABEL[status]}
+      {stage ? statusLabel(stage, status) : STATUS_LABEL[status]}
     </span>
   );
 }

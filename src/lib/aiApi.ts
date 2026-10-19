@@ -1,8 +1,11 @@
 // Validation for the token-protected /api/ai/* endpoints (used by the Claude
 // workspace tools that draft content and load tasks). Pure — see tests/aiApi.test.ts.
 
-export const TASK_TYPES = ["shoot", "edit", "review", "deliver", "other"];
-export const TASK_STATUSES = ["todo", "in_progress", "review", "done"];
+import { STAGES, defaultStatusFor, statusesFor } from "./workflow.ts";
+
+// type = pipeline stage (plan → shoot → edit → qc → pending → approved → posted)
+export const TASK_TYPES: string[] = STAGES.map((s) => s.key);
+export const TASK_STATUSES = ["todo", "in_progress", "review", "done", "waiting"];
 export const TASK_CATEGORIES = ["mass", "royalty", "sell"];
 
 const isDate = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
@@ -51,10 +54,11 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
     const t = (raw ?? {}) as Record<string, unknown>;
     const w = `งานที่ ${i + 1} (${typeof t.title === "string" ? t.title : "ไม่มีชื่อ"})`;
     if (typeof t.title !== "string" || !t.title.trim() || t.title.length > 300) errors.push(`${w}: title ไม่ถูกต้อง`);
-    const type = (t.type ?? "other") as string;
-    const status = (t.status ?? "todo") as string;
+    const type = (t.type ?? "plan") as string;
+    const status = (t.status ?? defaultStatusFor(type)) as string;
     if (!TASK_TYPES.includes(type)) errors.push(`${w}: type ไม่ถูกต้อง`);
-    if (!TASK_STATUSES.includes(status)) errors.push(`${w}: status ไม่ถูกต้อง`);
+    if (!TASK_STATUSES.includes(status) || (TASK_TYPES.includes(type) && !statusesFor(type).includes(status as never)))
+      errors.push(`${w}: status ไม่ถูกต้องสำหรับ type ${type}`);
     if (t.category != null && !TASK_CATEGORIES.includes(t.category as string)) errors.push(`${w}: category ต้องเป็น mass|royalty|sell`);
     if (!isDate(t.scheduledDate) || !isDate(t.dueDate)) errors.push(`${w}: scheduledDate/dueDate ต้องเป็น YYYY-MM-DD`);
     if (t.postDate != null && !isDate(t.postDate)) errors.push(`${w}: postDate ต้องเป็น YYYY-MM-DD`);

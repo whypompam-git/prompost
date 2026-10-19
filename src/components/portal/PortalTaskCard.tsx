@@ -6,15 +6,9 @@ import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
+import { stageInfo } from "@/lib/workflow";
 import { cn } from "@/lib/utils";
 
-const TYPE_LABEL: Record<string, string> = {
-  shoot: "ถ่ายทำ",
-  edit: "ตัดต่อ",
-  review: "ตรวจสอบ",
-  deliver: "ส่งมอบ",
-  other: "อื่นๆ",
-};
 
 export function PortalTaskCard({
   taskId,
@@ -29,6 +23,8 @@ export function PortalTaskCard({
   coverUrl,
   equipment,
   shots,
+  revisionCount,
+  revisionBrief,
 }: {
   taskId: string;
   clientKey: string;
@@ -42,7 +38,16 @@ export function PortalTaskCard({
   coverUrl: string | null;
   equipment: string[];
   shots: string[];
+  revisionCount: number;
+  revisionBrief: string | null;
 }) {
+  const [stage, setStage] = useState<string>(type);
+  const [stageStatus, setStageStatus] = useState<TaskStatus>(status);
+  const [rounds, setRounds] = useState(revisionCount);
+  const [reviseOpen, setReviseOpen] = useState(false);
+  const [briefDraft, setBriefDraft] = useState("");
+  const [acting, setActing] = useState(false);
+  const [notice, setNotice] = useState("");
   const [open, setOpen] = useState(false);
   const [script, setScript] = useState(scriptText ?? "");
   const [editingScript, setEditingScript] = useState(false);
@@ -67,6 +72,45 @@ export function PortalTaskCard({
       setSaving(false);
     }
   }
+
+  async function choose(action: "use" | "revise" | "reject" | "pass") {
+    if (action === "revise" && !briefDraft.trim()) return;
+    if (action === "reject" && !window.confirm("ยืนยัน: ไม่ใช้คลิปนี้?")) return;
+    if (action === "pass" && !window.confirm("ยืนยัน: ผ่าน/อนุมัติคลิปนี้? (ยืนยันแล้วย้อนกลับไม่ได้)")) return;
+    setActing(true);
+    try {
+      const res = await fetch("/api/portal/task-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clientKey, taskId, action, brief: action === "revise" ? briefDraft.trim() : undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        window.alert(res.status === 409 ? "สถานะงานเปลี่ยนไปแล้ว กรุณารีเฟรชหน้านี้" : "ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");
+        return;
+      }
+      setStage(data.type);
+      setStageStatus(data.status);
+      setRounds(data.revisionCount);
+      setReviseOpen(false);
+      setBriefDraft("");
+      setNotice(
+        action === "revise"
+          ? "ส่งบรีฟแก้เรียบร้อย — กรุณาแคปหน้าจอส่งให้ทีมงานทางไลน์ด้วย"
+          : action === "pass"
+            ? "อนุมัติเรียบร้อย ขอบคุณค่ะ"
+            : action === "use"
+              ? "รับทราบ — ทีมงานจะนัดถ่ายทำต่อไป"
+              : "รับทราบ ไม่ใช้คลิปนี้",
+      );
+    } catch {
+      window.alert("ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setActing(false);
+    }
+  }
+
+  const waitingChoice = stageStatus === "waiting" && (stage === "plan" || stage === "pending");
   const expandable = true;
   const links = [
     { label: "Ref", url: refUrl },
@@ -86,7 +130,10 @@ export function PortalTaskCard({
       >
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-800">{title}</p>
-          <p className="text-xs text-gray-400">{TYPE_LABEL[type] ?? type}</p>
+          <p className="text-xs text-gray-400">
+            {stageInfo(stage)?.label ?? stage}
+            {rounds > 0 && ` · แก้รอบที่ ${rounds}`}
+          </p>
           {equipment.length > 0 && (
             <p className="mt-1 flex items-start gap-1 text-xs text-gray-500">
               <Camera size={12} className="mt-0.5 shrink-0" />
@@ -95,12 +142,67 @@ export function PortalTaskCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={status} />
+          <StatusBadge status={stageStatus} stage={stage} />
           {expandable && (
             <ChevronDown size={15} className={cn("text-gray-400 transition", open && "rotate-180")} />
           )}
         </div>
       </button>
+
+      {(waitingChoice || notice) && (
+        <div className="space-y-2 px-4 pb-3">
+          {notice && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{notice}</p>}
+          {waitingChoice && (
+            <>
+              {revisionBrief && rounds > 0 && (
+                <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">บรีฟแก้ล่าสุดของคุณ: {revisionBrief}</p>
+              )}
+              <p className="text-xs font-medium text-gray-600">
+                {stage === "plan" ? "แผนคลิปนี้ ใช้เลยไหม?" : "คลิปนี้ตัดต่อเสร็จแล้ว ตรวจสอบแล้วเป็นอย่างไร?"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {stage === "plan" ? (
+                  <>
+                    <button type="button" disabled={acting} onClick={() => choose("use")} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
+                      ใช้
+                    </button>
+                    <button type="button" disabled={acting} onClick={() => setReviseOpen((v) => !v)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50">
+                      แก้
+                    </button>
+                    <button type="button" disabled={acting} onClick={() => choose("reject")} className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50">
+                      ไม่ใช้
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" disabled={acting} onClick={() => choose("pass")} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
+                      ผ่าน
+                    </button>
+                    <button type="button" disabled={acting} onClick={() => setReviseOpen((v) => !v)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50">
+                      แก้ไข
+                    </button>
+                  </>
+                )}
+              </div>
+              {reviseOpen && (
+                <div className="space-y-2">
+                  <textarea
+                    value={briefDraft}
+                    onChange={(e) => setBriefDraft(e.target.value)}
+                    rows={3}
+                    placeholder="พิมพ์สิ่งที่ต้องการให้แก้ เช่น 0:12 ตัดช่วงนี้ออก"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                  />
+                  <p className="text-xs text-amber-700">หลังกดส่ง กรุณาแคปหน้าจอนี้ส่งให้ทีมงานทางไลน์ด้วยนะคะ</p>
+                  <button type="button" disabled={acting || !briefDraft.trim()} onClick={() => choose("revise")} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600 disabled:opacity-40">
+                    {acting ? "กำลังส่ง..." : "ส่งบรีฟแก้"}
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {(links.length > 0 || coverUrl) && (
         <div className="flex flex-wrap items-center gap-1.5 px-4 pb-3">

@@ -31,11 +31,13 @@ const TABLES = new Set([
   "doc_counters", // read-only: numbers are issued through the next_doc_no rpc
   "invoices",
   "leave_requests",
+  "notifications",
   "packages",
   "payroll_entries",
   "quotations",
   "receipts",
   "staff",
+  "task_revisions",
   "task_settings",
   "tasks",
   "teams",
@@ -136,6 +138,25 @@ export function authorizeProxyRequest(input: {
   }
 
   if ((table === "task_settings" || table === "teams") && write && !isOwner) return deny(403, "owner only");
+  // revision history is written by the server routes only
+  if (table === "task_revisions" && write) return deny(403, "written by the server only");
+
+  // everyone sees (and marks read) only their own inbox; rows are created server-side
+  if (table === "notifications") {
+    if (method === "GET" || method === "HEAD") {
+      params.set("recipient_id", `eq.${access.staffId}`);
+      search = `?${params.toString()}`;
+    } else if (method === "PATCH") {
+      params.set("recipient_id", `eq.${access.staffId}`);
+      search = `?${params.toString()}`;
+      for (const row of bodyRows(input.body)) {
+        for (const key of Object.keys(row)) if (key !== "read_at") return deny(403, `column "${key}" is not editable`);
+      }
+    } else {
+      return deny(403, "notifications are created by the server");
+    }
+  }
+
   if (table === "doc_counters" && write) return deny(403, "use the next_doc_no rpc");
 
   if (FINANCIAL_TABLES.has(table) && write && !canWriteFinance) {

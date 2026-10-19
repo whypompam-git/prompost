@@ -8,6 +8,7 @@ import { PortalTabs } from "@/components/portal/PortalTabs";
 import { StatTile } from "@/components/portal/StatTile";
 import { createAdminClient as createClient } from "@/lib/supabase/admin";
 import type { TaskStatus, TaskType } from "@/lib/types";
+import { summarizeStages } from "@/lib/workflow";
 
 // Public client portal — reached via an unguessable token, no login required.
 // Currently reads through the anon key with open RLS (no policies yet — see
@@ -24,7 +25,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
 
   const { data: tasks } = await supabase
     .from("tasks")
-    .select("id, title, type, status, script_text, ref_link, footage_url, final_url, cover_url, equipment, shots")
+    .select("id, title, type, status, script_text, ref_link, footage_url, final_url, cover_url, equipment, shots, revision_count, revision_brief")
     .eq("client_id", client.id)
     .order("scheduled_date", { ascending: false });
 
@@ -40,12 +41,19 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
     cover_url: string | null;
     equipment: string[] | null;
     shots: string[] | null;
+    revision_count: number | null;
+    revision_brief: string | null;
   }[];
 
-  const total = taskList.length;
-  const done = taskList.filter((t) => t.status === "done").length;
-  const inProgress = taskList.filter((t) => t.status === "in_progress" || t.status === "review").length;
-  const todo = taskList.filter((t) => t.status === "todo").length;
+  const { total, groups } = summarizeStages(taskList);
+  const TONES: Record<string, "gray" | "emerald" | "sky" | "amber" | "violet" | "rose"> = {
+    plan: "violet",
+    shoot: "sky",
+    edit: "amber",
+    pending: "rose",
+    approved: "emerald",
+    posted: "emerald",
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
@@ -54,11 +62,11 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
 
         <PortalTabs basePath={basePath} active="dashboard" />
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
           <StatTile label="คลิปทั้งหมด" value={total} tone="gray" />
-          <StatTile label="เสร็จแล้ว" value={done} tone="emerald" />
-          <StatTile label="กำลังทำ" value={inProgress} tone="sky" />
-          <StatTile label="ยังไม่ทำ" value={todo} tone="amber" />
+          {groups.map((g) => (
+            <StatTile key={g.key} label={g.label} value={g.count} tone={TONES[g.key] ?? "gray"} />
+          ))}
         </div>
 
         <section>

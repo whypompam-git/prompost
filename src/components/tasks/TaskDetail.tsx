@@ -9,18 +9,20 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { TagInput } from "@/components/ui/TagInput";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
-import { STATUS_LABEL } from "@/components/ui/StatusBadge";
+import { WorkflowPanel } from "@/components/tasks/WorkflowPanel";
+import { saveTaskWithFlow } from "@/lib/taskFlow";
+import { enterStage, statusLabel, statusesFor } from "@/lib/workflow";
 import {
   deleteTaskRow,
   getTask,
   listClients,
   listDistinctShotsAndEquipment,
   listStaff,
-  updateTaskRow,
+  listTeams,
   uploadTaskCover,
 } from "@/lib/supabase/queries";
 import { useTaskSettings } from "@/lib/useTaskSettings";
-import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType } from "@/lib/types";
+import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType, Team } from "@/lib/types";
 
 const CATEGORY_OPTIONS: { value: ContentCategory; label: string }[] = [
   { value: "mass", label: "Mass" },
@@ -40,6 +42,8 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
   const [task, setTask] = useState<Task | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [teams, setTeams] = useState<Team[]>([]);
+  const savedRef = useRef<Task | null>(null);
   const [shotSuggestions, setShotSuggestions] = useState<string[]>([]);
   const [equipmentSuggestions, setEquipmentSuggestions] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,13 +58,16 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
       listClients(),
       listStaff(),
       listDistinctShotsAndEquipment(),
+      listTeams().catch(() => [] as Team[]),
     ])
-      .then(([t, c, s, suggestions]) => {
+      .then(([t, c, s, suggestions, tm]) => {
+        setTeams(tm);
         if (!t) {
           setNotFound(true);
           return;
         }
         setTask(t);
+        savedRef.current = t;
         setClients(c);
         setStaff(s);
         setShotSuggestions(suggestions.shots);
@@ -92,12 +99,22 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
     if (!task) return;
     setSaving(true);
     try {
-      await updateTaskRow(task.id, task);
+      const saved = await saveTaskWithFlow(savedRef.current ?? task, task);
+      savedRef.current = saved;
+      setTask(saved);
     } catch (err) {
       console.error(err);
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function reloadTask() {
+    const fresh = await getTask(params.id);
+    if (fresh) {
+      savedRef.current = fresh;
+      setTask(fresh);
     }
   }
 
@@ -175,6 +192,8 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
           </div>
         </div>
 
+        <WorkflowPanel task={task} staff={staff} teams={teams} onPatch={patch} onReload={reloadTask} />
+
         {mode === "edit" ? (
         <Card className="space-y-4">
           <div>
@@ -232,7 +251,10 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
               <label className={labelClass}>ประเภทงาน</label>
               <select
                 value={task.type}
-                onChange={(e) => patch({ type: e.target.value as TaskType })}
+                onChange={(e) => {
+                  const next = enterStage(e.target.value, task);
+                  patch({ type: next.type as TaskType, status: next.status });
+                }}
                 className={inputClass}
               >
                 {types.map((opt) => (
@@ -249,9 +271,9 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 onChange={(e) => patch({ status: e.target.value as TaskStatus })}
                 className={inputClass}
               >
-                {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
+                {statusesFor(task.type).map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABEL[s]}
+                    {statusLabel(task.type, s)}
                   </option>
                 ))}
               </select>
