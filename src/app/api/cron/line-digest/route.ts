@@ -1,6 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { buildDigestText, lineConfigured, pushLine } from "@/lib/lineDigest";
+import { bangkokDay, bangkokHour, channelDue } from "@/lib/alerts";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { buildDigestText, lineConfigured, lineTokenSet, pushLine } from "@/lib/lineDigest";
 
 export const dynamic = "force-dynamic";
 
@@ -12,16 +14,48 @@ function authorized(request: Request) {
   return given.length === expected.length && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
 }
 
-// Called daily by Vercel Cron (vercel.json), which sends
-// "Authorization: Bearer $CRON_SECRET". ?dry=1 returns the text without sending.
+// Called by Vercel Cron daily (vercel.json) and hourly by the "LINE digest
+// hourly" GitHub workflow, both with "Authorization: Bearer $CRON_SECRET".
+// Sends every enabled line_channels row that is due this Bangkok hour; with no
+// channels configured it falls back to the single LINE_TO group.
+// ?dry=1 returns the texts without sending.
 export async function GET(request: Request) {
   if (!process.env.CRON_SECRET) return NextResponse.json({ error: "CRON_SECRET is not set" }, { status: 500 });
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   try {
+    const dry = new URL(request.url).searchParams.get("dry") === "1";
+    const now = new Date();
+    const db = createAdminClient();
+    const { data: channels, error: chErr } = await db.from("line_channels").select("id, name, group_id, send_hour, topics, team_id, enabled, last_sent_on");
+    if (!chErr && channels && channels.length > 0) {
+      if (!lineTokenSet()) return NextResponse.json({ sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN not set" });
+      const today = bangkokDay(now);
+      const hour = bangkokHour(now);
+      const results: { channel: string; sent: boolean; reason?: string; text?: string | null }[] = [];
+      for (const c of channels.filter((c) => channelDue(c, hour, today))) {
+        try {
+          const text = await buildDigestText(now, { topics: c.topics, teamId: c.team_id });
+          if (!text) {
+            results.push({ channel: c.name, sent: false, reason: "nothing to report" });
+          } else if (dry) {
+            results.push({ channel: c.name, sent: false, reason: "dry run", text });
+          } else {
+            await pushLine(text, c.group_id);
+            results.push({ channel: c.name, sent: true });
+          }
+          if (!dry) await db.from("line_channels").update({ last_sent_on: today }).eq("id", c.id);
+        } catch (err) {
+          console.error(c.name, err);
+          results.push({ channel: c.name, sent: false, reason: err instanceof Error ? err.message : "failed" });
+        }
+      }
+      return NextResponse.json({ channels: results });
+    }
+
     const text = await buildDigestText();
     if (!text) return NextResponse.json({ sent: false, reason: "nothing to report" });
-    if (new URL(request.url).searchParams.get("dry") === "1") return NextResponse.json({ sent: false, reason: "dry run", text });
+    if (dry) return NextResponse.json({ sent: false, reason: "dry run", text });
     if (!lineConfigured()) return NextResponse.json({ sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN / LINE_TO not set", text });
     await pushLine(text);
     return NextResponse.json({ sent: true });

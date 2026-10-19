@@ -1883,3 +1883,53 @@ export async function markNotificationsRead(ids: string[] | "all"): Promise<void
   const { error } = await q;
   if (error) throw error;
 }
+
+// ── LINE digest channels (owner only; the proxy enforces it) ────────────
+export type LineChannel = {
+  id: string;
+  name: string;
+  groupId: string;
+  sendHour: number;
+  topics: string[];
+  teamId: string | null;
+  enabled: boolean;
+};
+type LineChannelRow = { id: string; name: string; group_id: string; send_hour: number; topics: string[]; team_id: string | null; enabled: boolean };
+const LINE_CHANNEL_COLUMNS = "id, name, group_id, send_hour, topics, team_id, enabled";
+const fromLineChannelRow = (r: LineChannelRow): LineChannel => ({
+  id: r.id,
+  name: r.name,
+  groupId: r.group_id,
+  sendHour: r.send_hour,
+  topics: r.topics,
+  teamId: r.team_id,
+  enabled: r.enabled,
+});
+
+export async function listLineChannels(): Promise<LineChannel[]> {
+  const { data, error } = await supabase().from("line_channels").select(LINE_CHANNEL_COLUMNS).order("created_at");
+  if (error) throw error;
+  return (data as LineChannelRow[]).map(fromLineChannelRow);
+}
+
+export async function saveLineChannel(values: Omit<LineChannel, "id"> & { id?: string }): Promise<LineChannel> {
+  const row = {
+    name: values.name.trim(),
+    group_id: values.groupId.trim(),
+    send_hour: values.sendHour,
+    topics: values.topics,
+    team_id: values.teamId,
+    enabled: values.enabled,
+  };
+  const q = values.id
+    ? supabase().from("line_channels").update(row).eq("id", values.id)
+    : supabase().from("line_channels").insert(row);
+  const { data, error } = await q.select(LINE_CHANNEL_COLUMNS).single();
+  if (error) throw error;
+  return fromLineChannelRow(data as LineChannelRow);
+}
+
+export async function deleteLineChannel(id: string): Promise<void> {
+  const { error } = await supabase().from("line_channels").delete().eq("id", id);
+  if (error) throw error;
+}

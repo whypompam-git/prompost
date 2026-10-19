@@ -95,3 +95,34 @@ export function digestToText(d: Digest, dateLabel: string): string | null {
   if (lines.length === 0) return null;
   return [`📋 สรุปประจำวัน ${dateLabel}`, "", ...lines].join("\n").trimEnd().slice(0, 4900);
 }
+
+export const DIGEST_TOPICS = [
+  { key: "payments", label: "ค้างชำระ" },
+  { key: "tasks", label: "งานเลยกำหนด/ส่งวันนี้-พรุ่งนี้" },
+  { key: "leave", label: "คำขอลา" },
+] as const;
+
+// A channel only gets the sections it subscribed to.
+export function filterDigest(d: Digest, topics: string[]): Digest {
+  const has = (t: string) => topics.includes(t);
+  return {
+    overduePayments: has("payments") ? d.overduePayments : [],
+    tasksOverdue: has("tasks") ? d.tasksOverdue : [],
+    tasksToday: has("tasks") ? d.tasksToday : [],
+    tasksTomorrow: has("tasks") ? d.tasksTomorrow : [],
+    pendingLeave: has("leave") ? d.pendingLeave : [],
+  };
+}
+
+export type ChannelSchedule = { send_hour: number; enabled: boolean; last_sent_on: string | null };
+
+// Due when it's the channel's hour (or up to 2 hours later, in case the
+// scheduler ran late) and it hasn't gone out today.
+export function channelDue(c: ChannelSchedule, hour: number, today: string): boolean {
+  if (!c.enabled || c.last_sent_on === today) return false;
+  const late = (hour - c.send_hour + 24) % 24;
+  return late <= 2;
+}
+
+export const bangkokHour = (d: Date) =>
+  Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Bangkok", hour: "2-digit", hour12: false }).format(d)) % 24;

@@ -111,3 +111,9 @@ test("task_revisions are read-only from the browser", () => {
   assert.equal(run(staff, "GET", "rest/v1/task_revisions", "?task_id=eq.1").ok, true);
   assert.equal(run(owner, "POST", "rest/v1/task_revisions", "", [{ brief: "x" }]).ok, false);
 });
+
+test("line_channels (group IDs) are owner-only, even to read", () => {
+  assert.equal(run(staff, "GET", "rest/v1/line_channels", "?select=*").ok, false);
+  assert.equal(run(owner, "GET", "rest/v1/line_channels", "?select=*").ok, true);
+  assert.equal(run(owner, "POST", "rest/v1/line_channels", "", [{ name: "x" }]).ok, true);
+});

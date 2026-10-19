@@ -31,6 +31,7 @@ const TABLES = new Set([
   "doc_counters", // read-only: numbers are issued through the next_doc_no rpc
   "invoices",
   "leave_requests",
+  "line_channels",
   "notifications",
   "packages",
   "payroll_entries",
@@ -157,6 +158,7 @@ export function authorizeProxyRequest(input: {
     }
   }
 
+  if (table === "line_channels" && !isOwner) return deny(403, "owner only");
   if (table === "doc_counters" && write) return deny(403, "use the next_doc_no rpc");
 
   if (FINANCIAL_TABLES.has(table) && write && !canWriteFinance) {

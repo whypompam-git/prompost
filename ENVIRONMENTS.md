@@ -85,6 +85,16 @@ Variables** (they're read at runtime — not build-time, not GitHub):
 Settings → ระบบ has a preview and a "send now" button (owner only). Nothing is sent when
 there is nothing to report.
 
+### Channels (separate groups / times / topics)
+
+Settings → ระบบ → "ช่องทางส่ง LINE" lets the owner add one row per LINE group with its own
+send hour (Bangkok time), topics (payments / tasks / leave) and optional team. The table is
+`line_channels` (migration 0033). With no rows the old single-group setup keeps working.
+
+Vercel's free cron fires once a day (08:00), so other hours are poked by the
+`LINE digest hourly` GitHub workflow, which needs the repo secret `CRON_SECRET` (same value as the
+one in Vercel). A channel is sent when it is its hour (or up to 2 hours late) and hasn't gone out today.
+
 ## Region
 
 `vercel.json` pins serverless functions to `sin1` (Singapore) because the Supabase project

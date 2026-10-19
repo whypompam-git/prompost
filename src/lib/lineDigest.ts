@@ -1,4 +1,4 @@
-import { addDays, buildDigest, bangkokDay, digestToText } from "@/lib/alerts";
+import { addDays, buildDigest, bangkokDay, digestToText, filterDigest } from "@/lib/alerts";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { QuotationItem } from "@/lib/types";
@@ -9,7 +9,10 @@ const THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.
 const dateLabel = (iso: string) => `${Number(iso.slice(8))} ${THAI_MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(0, 4)) + 543}`;
 
 // Server-only: loads what's needed with the service key and builds the text.
-export async function buildDigestText(now = new Date()): Promise<string | null> {
+export async function buildDigestText(
+  now = new Date(),
+  opts: { topics?: string[]; teamId?: string | null } = {},
+): Promise<string | null> {
   const db = createAdminClient();
   const today = bangkokDay(now);
   const [clients, staff, tasks, invoices, rounds, receipts, leave] = await Promise.all([
@@ -23,12 +26,20 @@ export async function buildDigestText(now = new Date()): Promise<string | null> 
   ]);
   for (const r of [clients, staff, tasks, invoices, rounds, receipts, leave]) if (r.error) throw r.error;
 
+  // a team channel only reports its own people's work and leave
+  let teamMembers: Set<string> | null = null;
+  if (opts.teamId) {
+    const { data, error } = await db.from("staff").select("id").eq("team_id", opts.teamId);
+    if (error) throw error;
+    teamMembers = new Set((data ?? []).map((s) => s.id as string));
+  }
+
   const digest = buildDigest({
     today,
     graceDays: GRACE_DAYS,
     clients: clients.data!.map((c) => ({ id: c.id, name: c.name })),
     staff: staff.data!.map((s) => ({ id: s.id, name: s.name })),
-    tasks: tasks.data!.map((t) => ({ id: t.id, title: t.title, clientId: t.client_id, assigneeId: t.assignee_id, status: t.status, dueDate: t.due_date })),
+    tasks: tasks.data!.filter((t) => !teamMembers || (t.assignee_id && teamMembers.has(t.assignee_id))).map((t) => ({ id: t.id, title: t.title, clientId: t.client_id, assigneeId: t.assignee_id, status: t.status, dueDate: t.due_date })),
     invoices: invoices.data!.map((i) => ({
       id: i.id,
       invoiceNo: i.invoice_no,
@@ -49,20 +60,22 @@ export async function buildDigestText(now = new Date()): Promise<string | null> 
       };
     }),
     receipts: receipts.data!.map((r) => ({ clientPackageId: r.client_package_id ?? undefined, amount: Number(r.amount) })),
-    leave: leave.data!.map((l) => ({ staffId: l.staff_id, dateFrom: l.date_from, dateTo: l.date_to, status: l.status })),
+    leave: leave.data!.filter((l) => !teamMembers || teamMembers.has(l.staff_id)).map((l) => ({ staffId: l.staff_id, dateFrom: l.date_from, dateTo: l.date_to, status: l.status })),
   });
-  return digestToText(digest, dateLabel(today));
+  return digestToText(opts.topics ? filterDigest(digest, opts.topics) : digest, dateLabel(today));
 }
 
 export function lineConfigured() {
   return Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN && process.env.LINE_TO);
 }
 
-export async function pushLine(text: string): Promise<void> {
+export const lineTokenSet = () => Boolean(process.env.LINE_CHANNEL_ACCESS_TOKEN);
+
+export async function pushLine(text: string, to = process.env.LINE_TO): Promise<void> {
   const res = await fetch("https://api.line.me/v2/bot/message/push", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}` },
-    body: JSON.stringify({ to: process.env.LINE_TO, messages: [{ type: "text", text }] }),
+    body: JSON.stringify({ to, messages: [{ type: "text", text }] }),
   });
   if (!res.ok) throw new Error(`LINE ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }

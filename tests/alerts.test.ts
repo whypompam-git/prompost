@@ -86,3 +86,29 @@ test("long lists are truncated", () => {
   assert.match(text, /งานส่งวันนี้ \(12\)/);
   assert.match(text, /และอีก 4 รายการ/);
 });
+
+test("channel filtering keeps only subscribed sections", async () => {
+  const { filterDigest } = await import("../src/lib/alerts.ts");
+  const d = {
+    overduePayments: [{ label: "a", client: "c", amount: 1, days: 9 }],
+    tasksOverdue: [{ title: "t", client: "c", assignee: "x", days: 1 }],
+    tasksToday: [],
+    tasksTomorrow: [],
+    pendingLeave: [{ staff: "s", from: "2026-01-01", to: "2026-01-01" }],
+  };
+  const r = filterDigest(d, ["tasks"]);
+  assert.equal(r.overduePayments.length, 0);
+  assert.equal(r.tasksOverdue.length, 1);
+  assert.equal(r.pendingLeave.length, 0);
+});
+
+test("a channel is due at its hour (or up to 2h late) once a day", async () => {
+  const { channelDue } = await import("../src/lib/alerts.ts");
+  const c = { send_hour: 18, enabled: true, last_sent_on: null };
+  assert.equal(channelDue(c, 18, "2026-10-20"), true);
+  assert.equal(channelDue(c, 20, "2026-10-20"), true);
+  assert.equal(channelDue(c, 21, "2026-10-20"), false);
+  assert.equal(channelDue(c, 17, "2026-10-20"), false);
+  assert.equal(channelDue({ ...c, last_sent_on: "2026-10-20" }, 18, "2026-10-20"), false);
+  assert.equal(channelDue({ ...c, enabled: false }, 18, "2026-10-20"), false);
+});
