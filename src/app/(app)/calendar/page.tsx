@@ -17,7 +17,7 @@ import {
 import { th } from "date-fns/locale";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
-import { CalendarMatrix } from "@/components/calendar/CalendarMatrix";
+import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { DayView } from "@/components/calendar/DayView";
 import { YearView } from "@/components/calendar/YearView";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
@@ -66,8 +66,13 @@ export default function CalendarPage() {
 
   const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff }), [tasks, queues, clients, staff]);
 
+  // full Monday-first weeks so the month reads like a normal calendar
   const monthDays = useMemo(
-    () => eachDayOfInterval({ start: startOfMonth(anchor), end: endOfMonth(anchor) }),
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 }),
+      }),
     [anchor],
   );
   const weekDays = useMemo(
@@ -162,20 +167,10 @@ export default function CalendarPage() {
         </div>
 
         {view === "month" && (
-          <CalendarMatrix
-            days={monthDays}
-            chips={chips}
-            clients={clients}
-            onAddTask={(clientId, date) => setModalState({ create: { clientId, date } })}
-          />
+          <CalendarGrid days={monthDays} chips={chips} month={anchor} onAddTask={(date) => setModalState({ create: { date } })} />
         )}
         {view === "week" && (
-          <CalendarMatrix
-            days={weekDays}
-            chips={chips}
-            clients={clients}
-            onAddTask={(clientId, date) => setModalState({ create: { clientId, date } })}
-          />
+          <CalendarGrid days={weekDays} chips={chips} detailed onAddTask={(date) => setModalState({ create: { date } })} />
         )}
         {view === "day" && (
           <DayView
