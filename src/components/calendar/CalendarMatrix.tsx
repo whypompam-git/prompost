@@ -5,6 +5,8 @@ import { format, isSameDay, isToday } from "date-fns";
 import { th } from "date-fns/locale";
 import { Plus } from "lucide-react";
 import type { Client, Task } from "@/lib/types";
+import { PALETTE, isStem, pillClass, type ColorStem } from "@/lib/colors";
+import { useTaskSettings } from "@/lib/useTaskSettings";
 import { cn } from "@/lib/utils";
 
 // Tailwind can't see dynamically-built class names at build time, so client
@@ -18,13 +20,6 @@ const CLIENT_DOT: Record<string, string> = {
   amber: "bg-amber-500",
 };
 
-const TYPE_STYLE: Record<Task["type"], { label: string; dot: string; chip: string }> = {
-  shoot: { label: "ถ่ายทำ", dot: "bg-orange-500", chip: "bg-orange-50 text-orange-700" },
-  edit: { label: "ตัดต่อ", dot: "bg-sky-500", chip: "bg-sky-50 text-sky-700" },
-  review: { label: "ตรวจสอบ", dot: "bg-amber-500", chip: "bg-amber-50 text-amber-700" },
-  deliver: { label: "ส่งมอบ", dot: "bg-emerald-500", chip: "bg-emerald-50 text-emerald-700" },
-  other: { label: "อื่นๆ", dot: "bg-gray-400", chip: "bg-gray-50 text-gray-600" },
-};
 
 // A pure date x client grid — used for both the Month and Week views, which
 // only differ in how many `days` the parent hands it.
@@ -39,6 +34,7 @@ export function CalendarMatrix({
   clients: Client[];
   onAddTask?: (clientId: string, date: string) => void;
 }) {
+  const { types, typeColor } = useTaskSettings();
   const tasksFor = (clientId: string, day: Date) =>
     tasks.filter((t) => t.clientId === clientId && isSameDay(new Date(t.scheduledDate), day));
 
@@ -98,10 +94,10 @@ export function CalendarMatrix({
                             href={`/tasks/${task.id}`}
                             className={cn(
                               "flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-xs font-medium transition hover:brightness-95",
-                              TYPE_STYLE[task.type].chip,
+                              pillClass(typeColor(task.type)),
                             )}
                           >
-                            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", TYPE_STYLE[task.type].dot)} />
+                            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PALETTE[isStem(typeColor(task.type)) ? (typeColor(task.type) as ColorStem) : "gray"].solid)} />
                             {task.startTime && <span className="shrink-0 tabular-nums">{task.startTime}</span>}
                             <span className="truncate">{task.title}</span>
                           </Link>
@@ -126,10 +122,10 @@ export function CalendarMatrix({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-        {Object.entries(TYPE_STYLE).map(([key, style]) => (
-          <div key={key} className="flex items-center gap-1.5">
-            <span className={cn("h-2 w-2 rounded-full", style.dot)} />
-            {style.label}
+        {types.map((t) => (
+          <div key={t.key} className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", PALETTE[isStem(t.color) ? (t.color as ColorStem) : "gray"].solid)} />
+            {t.label}
           </div>
         ))}
       </div>
