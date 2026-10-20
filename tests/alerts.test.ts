@@ -112,3 +112,8 @@ test("a channel is due at its hour (or up to 2h late) once a day", async () => {
   assert.equal(channelDue({ ...c, last_sent_on: "2026-10-20" }, 18, "2026-10-20"), false);
   assert.equal(channelDue({ ...c, enabled: false }, 18, "2026-10-20"), false);
 });
+
+test("tasks waiting on the client (Plan/Pending) are not overdue work", () => {
+  const d = buildDigest({ ...base, tasks: [{ id: "w", title: "รอลูกค้า", clientId: "c1", assigneeId: "s1", status: "waiting", dueDate: "2026-10-01" }] });
+  assert.equal(d.tasksOverdue.length, 0);
+});

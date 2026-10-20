@@ -146,7 +146,7 @@ export function NotificationBell() {
     const soon = new Date(Date.now() + 2 * DAY).toISOString().slice(0, 10);
     const today = new Date().toISOString().slice(0, 10);
     for (const t of tasks) {
-      if (t.status === "done") continue;
+      if (t.status === "done" || t.status === "waiting") continue; // waiting = with the client
       if (!isOwner && t.assigneeId !== auth.staffId) continue;
       if (t.dueDate <= soon) {
         out.push({

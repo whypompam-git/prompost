@@ -62,7 +62,8 @@ export function buildDigest(i: AlertInput): Digest {
   }
   overduePayments.sort((a, b) => b.days - a.days);
 
-  const open = i.tasks.filter((t) => t.status !== "done");
+  // "waiting" = Plan / Pending, in the client's hands — not overdue work for the team
+  const open = i.tasks.filter((t) => t.status !== "done" && t.status !== "waiting");
   const row = (t: AlertInput["tasks"][number]) => ({ title: t.title, client: client(t.clientId), assignee: staff(t.assigneeId) });
   return {
     overduePayments,

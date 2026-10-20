@@ -249,7 +249,7 @@ export default function MyStaffPage() {
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
               {team.map((s) => {
                 const assigned = tasks.filter((t) => t.assigneeId === s.id);
-                const open = assigned.filter((t) => t.status !== "done");
+                const open = assigned.filter((t) => t.status !== "done" && t.status !== "waiting");
                 return (
                   <Card key={s.id} className="flex items-center gap-3 !p-3">
                     <StaffAvatar staff={s} />
