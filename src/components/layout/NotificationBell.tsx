@@ -239,7 +239,7 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="pp-pop-menu absolute right-0 top-11 z-40 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-xl">
+        <div className="pp-pop-menu fixed inset-x-3 top-16 z-40 overflow-hidden sm:absolute sm:inset-x-auto sm:right-0 sm:top-11 sm:w-80 rounded-2xl border border-gray-100 bg-white shadow-xl">
           <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
             <span className="text-sm font-semibold text-gray-800">การแจ้งเตือน</span>
             {unreadInbox > 0 && (
@@ -259,7 +259,7 @@ export function NotificationBell() {
               </button>
             ))}
           </div>
-          <div className="max-h-96 overflow-y-auto">
+          <div className="max-h-[70vh] overflow-y-auto sm:max-h-96">
             {shownInbox.map((n) => (
               <button
                 key={n.id}
