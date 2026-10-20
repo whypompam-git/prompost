@@ -108,19 +108,14 @@ function DashboardPageInner() {
     }
   }, [searchParams, router]);
 
-  // what the stage chips count: everything in view, before the stage chip itself filters
-  const scopeTasks = useMemo(
-    () => (view === "mine" ? tasks.filter((t) => t.assigneeId === auth.staffId || t.shotById === auth.staffId) : tasks),
-    [tasks, view, auth.staffId],
-  );
-
-  const STATUS_ORDER: Record<TaskStatus, number> = { waiting: 0, todo: 1, in_progress: 2, review: 3, done: 4 };
-  const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
-
-  const visibleTasks = useMemo(() => {
+  // everything the filters (client / person / team / my-tasks) let through,
+  // before the stage chip — so the chip numbers always match the table below
+  const scopeTasks = useMemo(() => {
     let filtered = clientFilter.length ? tasks.filter((t) => clientFilter.includes(t.clientId)) : tasks;
     if (view === "mine") {
-      filtered = filtered.filter((t) => t.assigneeId === auth.staffId || t.shotById === auth.staffId);
+      // mine = assigned to me, shot by me, or a client I look after (ผู้ดูแลลูกค้า)
+      const myClients = new Set(clients.filter((c) => c.managerId === auth.staffId).map((c) => c.id));
+      filtered = filtered.filter((t) => t.assigneeId === auth.staffId || t.shotById === auth.staffId || myClients.has(t.clientId));
     } else {
       if (staffFilter) filtered = filtered.filter((t) => t.assigneeId === staffFilter);
       if (teamFilter) {
@@ -128,6 +123,14 @@ function DashboardPageInner() {
         filtered = filtered.filter((t) => t.shotTeamId === teamFilter || (t.assigneeId && inTeam.has(t.assigneeId)));
       }
     }
+    return filtered;
+  }, [tasks, clients, clientFilter, view, staffFilter, teamFilter, staff, auth.staffId]);
+
+  const STATUS_ORDER: Record<TaskStatus, number> = { waiting: 0, todo: 1, in_progress: 2, review: 3, done: 4 };
+  const staffName = (id: string | null) => staff.find((s) => s.id === id)?.name ?? "";
+
+  const visibleTasks = useMemo(() => {
+    let filtered = scopeTasks;
     if (stageFilter) filtered = filtered.filter((t) => t.type === stageFilter);
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const sorted = [...filtered].sort((a, b) => {
@@ -154,7 +157,7 @@ function DashboardPageInner() {
       }
     });
     return sortDir === "desc" ? sorted.reverse() : sorted;
-  }, [tasks, clients, clientFilter, staffFilter, sortBy, sortDir, staff, view, teamFilter, stageFilter, auth.staffId]);
+  }, [scopeTasks, clients, sortBy, sortDir, staff, stageFilter]);
 
   function handleSort(key: TaskSortKey) {
     if (key === sortBy) {
@@ -308,6 +311,22 @@ function DashboardPageInner() {
             </select>
           )}
         </div>
+
+        {(clientFilter.length > 0 || staffFilter || teamFilter) && (
+          <button
+            onClick={() => {
+              setClientFilter([]);
+              setStaffFilter("");
+              setTeamFilter("");
+            }}
+            className="rounded-full bg-gray-800 px-3 py-1 text-xs font-medium text-white"
+          >
+            กำลังกรอง
+            {clientFilter.length > 0 && ` · ลูกค้า ${clientFilter.length === 1 ? clients.find((c) => c.id === clientFilter[0])?.name ?? "" : `${clientFilter.length} ราย`}`}
+            {staffFilter && ` · ${staff.find((x) => x.id === staffFilter)?.name ?? ""}`}
+            {teamFilter && ` · ${teams.find((t) => t.id === teamFilter)?.name ?? ""}`} ✕ ล้างตัวกรอง
+          </button>
+        )}
 
         <div className="flex flex-wrap gap-2">
           <button
