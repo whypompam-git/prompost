@@ -35,6 +35,7 @@ const TABLES = new Set([
   "notifications",
   "packages",
   "payroll_entries",
+  "queues",
   "quotations",
   "receipts",
   "staff",

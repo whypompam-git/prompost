@@ -22,5 +22,7 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "notifications", columns: "id, recipient_id, kind, title, count, read_at", migration: "0032" },
   { table: "client_notes", columns: "talked_by", migration: "0032" },
   { table: "line_channels", columns: "id, group_id, send_hour, topics, team_id, enabled, last_sent_on", migration: "0033" },
+  { table: "queues", columns: "id, client_id, name, shoot_date, crew", migration: "0034" },
+  { table: "tasks", columns: "queue_id, shoot_order", migration: "0034" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
 ];

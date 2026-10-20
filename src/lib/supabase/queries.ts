@@ -6,6 +6,7 @@ import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { DEFAULT_CONTRACT_TEMPLATE, fillVariables } from "@/lib/contractTemplate";
 import type {
+  Queue,
   Client,
   ClientNote,
   ClientPackage,
@@ -418,10 +419,12 @@ type TaskRow = {
   shot_team_id: string | null;
   revision_count: number | null;
   revision_brief: string | null;
+  queue_id: string | null;
+  shoot_order: number | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -448,6 +451,8 @@ const fromTaskRow = (r: TaskRow): Task => ({
   shotTeamId: r.shot_team_id,
   revisionCount: r.revision_count ?? 0,
   revisionBrief: r.revision_brief ?? undefined,
+  queueId: r.queue_id,
+  shootOrder: r.shoot_order,
 });
 
 export async function listTasks(): Promise<Task[]> {
@@ -556,6 +561,8 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.coverUrl !== undefined) patch.cover_url = values.coverUrl || null;
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
   if (values.endTime !== undefined) patch.end_time = values.endTime || null;
+  if (values.queueId !== undefined) patch.queue_id = values.queueId;
+  if (values.shootOrder !== undefined) patch.shoot_order = values.shootOrder;
   if (values.shotById !== undefined) patch.shot_by = values.shotById;
   if (values.shotTeamId !== undefined) patch.shot_team_id = values.shotTeamId;
   patch.updated_at = new Date().toISOString();
@@ -1931,5 +1938,45 @@ export async function saveLineChannel(values: Omit<LineChannel, "id"> & { id?: s
 
 export async function deleteLineChannel(id: string): Promise<void> {
   const { error } = await supabase().from("line_channels").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Queues (shoot batches) ───────────────────────────────────────────────
+type QueueRow = { id: string; client_id: string; name: string; shoot_date: string | null; crew: string[] | null; note: string | null };
+const QUEUE_COLUMNS = "id, client_id, name, shoot_date, crew, note";
+const fromQueueRow = (r: QueueRow): Queue => ({
+  id: r.id,
+  clientId: r.client_id,
+  name: r.name,
+  shootDate: r.shoot_date ?? undefined,
+  crew: r.crew ?? [],
+  note: r.note ?? undefined,
+});
+
+export async function listQueues(clientId?: string): Promise<Queue[]> {
+  let q = supabase().from("queues").select(QUEUE_COLUMNS).order("shoot_date", { ascending: true, nullsFirst: false }).order("created_at");
+  if (clientId) q = q.eq("client_id", clientId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as QueueRow[]).map(fromQueueRow);
+}
+
+export async function saveQueue(values: Omit<Queue, "id"> & { id?: string }): Promise<Queue> {
+  const row = {
+    client_id: values.clientId,
+    name: values.name.trim(),
+    shoot_date: values.shootDate || null,
+    crew: values.crew,
+    note: values.note?.trim() || null,
+  };
+  const q = values.id ? supabase().from("queues").update(row).eq("id", values.id) : supabase().from("queues").insert(row);
+  const { data, error } = await q.select(QUEUE_COLUMNS).single();
+  if (error) throw error;
+  return fromQueueRow(data as QueueRow);
+}
+
+// Clips in the queue go back to "waiting for a queue" (queue_id set null by the FK).
+export async function deleteQueue(id: string): Promise<void> {
+  const { error } = await supabase().from("queues").delete().eq("id", id);
   if (error) throw error;
 }

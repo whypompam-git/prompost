@@ -22,8 +22,9 @@ import { DayView } from "@/components/calendar/DayView";
 import { YearView } from "@/components/calendar/YearView";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { LoadingView } from "@/components/ui/LoadingView";
-import { createTaskRow, listClients, listStaff, listTasks } from "@/lib/supabase/queries";
-import type { Client, Staff, Task } from "@/lib/types";
+import { buildCalendarChips } from "@/lib/calendarChips";
+import { createTaskRow, listClients, listQueues, listStaff, listTasks } from "@/lib/supabase/queries";
+import type { Client, Queue, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 type ModalState = "closed" | { create: { clientId?: string; date?: string } };
@@ -40,14 +41,16 @@ export default function CalendarPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
+  const [queues, setQueues] = useState<Queue[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<ModalState>("closed");
   const [view, setView] = useState<ViewKind>("month");
   const [anchor, setAnchor] = useState(() => new Date());
 
   useEffect(() => {
-    Promise.all([listTasks(), listClients(), listStaff()])
-      .then(([t, c, s]) => {
+    Promise.all([listTasks(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[])])
+      .then(([t, c, s, q]) => {
+        setQueues(q);
         setTasks(t);
         setClients(c);
         setStaff(s);
@@ -60,6 +63,8 @@ export default function CalendarPage() {
     setTasks((prev) => [created, ...prev]);
     setModalState("closed");
   }
+
+  const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff }), [tasks, queues, clients, staff]);
 
   const monthDays = useMemo(
     () => eachDayOfInterval({ start: startOfMonth(anchor), end: endOfMonth(anchor) }),
@@ -97,7 +102,7 @@ export default function CalendarPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="ปฏิทินงาน" subtitle="คิวงานของแต่ละลูกค้าตลอดทั้งเดือน" />
+        <Topbar title="ปฏิทินงาน" subtitle="สรุปคิวถ่าย ตัดต่อ และส่งงานของแต่ละลูกค้า" />
         <LoadingView />
       </>
     );
@@ -105,7 +110,7 @@ export default function CalendarPage() {
 
   return (
     <>
-      <Topbar title="ปฏิทินงาน" subtitle="คิวงานของแต่ละลูกค้าตลอดทั้งเดือน" />
+      <Topbar title="ปฏิทินงาน" subtitle="สรุปคิวถ่าย ตัดต่อ และส่งงานของแต่ละลูกค้า" />
       <div className="flex-1 space-y-4 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
@@ -159,7 +164,7 @@ export default function CalendarPage() {
         {view === "month" && (
           <CalendarMatrix
             days={monthDays}
-            tasks={tasks}
+            chips={chips}
             clients={clients}
             onAddTask={(clientId, date) => setModalState({ create: { clientId, date } })}
           />
@@ -167,7 +172,7 @@ export default function CalendarPage() {
         {view === "week" && (
           <CalendarMatrix
             days={weekDays}
-            tasks={tasks}
+            chips={chips}
             clients={clients}
             onAddTask={(clientId, date) => setModalState({ create: { clientId, date } })}
           />
@@ -175,7 +180,7 @@ export default function CalendarPage() {
         {view === "day" && (
           <DayView
             date={anchor}
-            tasks={tasks.filter((t) => t.scheduledDate === format(anchor, "yyyy-MM-dd"))}
+            chips={chips.filter((c) => c.date === format(anchor, "yyyy-MM-dd"))}
             clients={clients}
             onAddTask={(date) => setModalState({ create: { date } })}
           />
@@ -183,7 +188,7 @@ export default function CalendarPage() {
         {view === "year" && (
           <YearView
             year={startOfYear(anchor)}
-            tasks={tasks}
+            chips={chips}
             onSelectDay={(day) => {
               setAnchor(day);
               setView("day");

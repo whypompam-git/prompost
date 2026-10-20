@@ -5,12 +5,20 @@ import { format, isSameDay, isToday } from "date-fns";
 import { th } from "date-fns/locale";
 import { Plus } from "lucide-react";
 import type { Client, Task } from "@/lib/types";
-import { PALETTE, isStem, pillClass, type ColorStem } from "@/lib/colors";
-import { useTaskSettings } from "@/lib/useTaskSettings";
+import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
+import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";
 import { cn } from "@/lib/utils";
 
 // Tailwind can't see dynamically-built class names at build time, so client
 // accent colors are looked up from this static map rather than interpolated.
+const GROUP_COLOR: Record<ChipGroup, ColorStem> = { shoot: "sky", edit: "orange", send: "rose", other: "gray" };
+const GROUP_LEGEND: { group: ChipGroup; label: string }[] = [
+  { group: "shoot", label: "ถ่าย (ตามคิว)" },
+  { group: "edit", label: "ตัดต่อ/QC" },
+  { group: "send", label: "ส่งงานให้ลูกค้า" },
+  { group: "other", label: "งานอื่นๆ" },
+];
+
 const CLIENT_DOT: Record<string, string> = {
   orange: "bg-orange-500",
   sky: "bg-sky-500",
@@ -25,18 +33,17 @@ const CLIENT_DOT: Record<string, string> = {
 // only differ in how many `days` the parent hands it.
 export function CalendarMatrix({
   days,
-  tasks,
+  chips,
   clients,
   onAddTask,
 }: {
   days: Date[];
-  tasks: Task[];
+  chips: CalendarChip[];
   clients: Client[];
   onAddTask?: (clientId: string, date: string) => void;
 }) {
-  const { types, typeColor } = useTaskSettings();
-  const tasksFor = (clientId: string, day: Date) =>
-    tasks.filter((t) => t.clientId === clientId && isSameDay(new Date(t.scheduledDate), day));
+  const chipsFor = (clientId: string, day: Date) =>
+    chips.filter((c) => c.clientId === clientId && isSameDay(new Date(c.date), day));
 
   return (
     <div>
@@ -78,7 +85,7 @@ export function CalendarMatrix({
                   </div>
                 </td>
                 {clients.map((client) => {
-                  const dayTasks = tasksFor(client.id, day);
+                  const dayChips = chipsFor(client.id, day);
                   return (
                     <td
                       key={client.id}
@@ -88,18 +95,25 @@ export function CalendarMatrix({
                       )}
                     >
                       <div className="flex flex-col gap-1">
-                        {dayTasks.map((task) => (
+                        {dayChips.map((chip) => (
                           <Link
-                            key={task.id}
-                            href={`/tasks/${task.id}`}
+                            key={chip.key}
+                            href={chip.href}
+                            title={chip.crew.length ? `ผู้ดูแล: ${chip.crew.join(", ")}` : undefined}
                             className={cn(
-                              "flex items-center gap-1.5 rounded-lg px-2 py-1 text-left text-xs font-medium transition hover:brightness-95",
-                              pillClass(typeColor(task.type)),
+                              "flex flex-col rounded-lg px-2 py-1 text-left text-xs font-medium transition hover:brightness-95",
+                              pillClass(GROUP_COLOR[chip.group]),
                             )}
                           >
-                            <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PALETTE[isStem(typeColor(task.type)) ? (typeColor(task.type) as ColorStem) : "gray"].solid)} />
-                            {task.startTime && <span className="shrink-0 tabular-nums">{task.startTime}</span>}
-                            <span className="truncate">{task.title}</span>
+                            <span className="flex items-center gap-1.5">
+                              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PALETTE[GROUP_COLOR[chip.group]].solid)} />
+                              <span className="truncate">{chip.label}</span>
+                            </span>
+                            {chip.group !== "other" && (
+                              <span className="pl-3 text-[11px] font-normal opacity-80">
+                                {chip.count} คลิป{chip.crew.length > 0 && ` · ${chip.crew.join(", ")}`}
+                              </span>
+                            )}
                           </Link>
                         ))}
                         {onAddTask && (
@@ -122,10 +136,11 @@ export function CalendarMatrix({
       </div>
 
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-        {types.map((t) => (
-          <div key={t.key} className="flex items-center gap-1.5">
-            <span className={cn("h-2 w-2 rounded-full", PALETTE[isStem(t.color) ? (t.color as ColorStem) : "gray"].solid)} />
-            {t.label}
+        <span className="text-gray-400">งาน Plan ไม่แสดงในปฏิทิน · งานถ่ายจะขึ้นเมื่อจัดเข้าคิวและใส่วันถ่ายแล้ว</span>
+        {GROUP_LEGEND.map((l) => (
+          <div key={l.group} className="flex items-center gap-1.5">
+            <span className={cn("h-2 w-2 rounded-full", PALETTE[GROUP_COLOR[l.group]].solid)} />
+            {l.label}
           </div>
         ))}
       </div>

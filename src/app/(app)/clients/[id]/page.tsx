@@ -22,11 +22,13 @@ import {
   getClient,
   listContentSets,
   listStaff,
+  listQueues,
   listTasks,
   type ContentSet,
 } from "@/lib/supabase/queries";
+import { ClientTaskBoard } from "@/components/clients/ClientTaskBoard";
 import { SUMMARY_GROUPS } from "@/lib/workflow";
-import type { Client, Staff, Task } from "@/lib/types";
+import type { Client, Queue, Staff, Task } from "@/lib/types";
 
 export default function ClientContentDashboardPage() {
   const { typeLabel } = useTaskSettings();
@@ -34,6 +36,8 @@ export default function ClientContentDashboardPage() {
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [queues, setQueues] = useState<Queue[]>([]);
+  const [queueFilter, setQueueFilter] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -43,8 +47,9 @@ export default function ClientContentDashboardPage() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    Promise.all([getClient(params.id), listTasks()])
-      .then(([c, allTasks]) => {
+    Promise.all([getClient(params.id), listTasks(), listQueues(params.id).catch(() => [] as Queue[])])
+      .then(([c, allTasks, qs]) => {
+        setQueues(qs);
         if (!c) {
           setNotFound(true);
           return;
@@ -58,6 +63,14 @@ export default function ClientContentDashboardPage() {
       })
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  // deep links from the calendar chips: ?stage=shoot|edit|send&queue=<id>
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const st = sp.get("stage");
+    setStagePick(st === "send" ? "pending" : st);
+    setQueueFilter(sp.get("queue"));
+  }, []);
 
   useEffect(() => {
     listStaff().then(setStaff).catch(console.error);
@@ -91,9 +104,11 @@ export default function ClientContentDashboardPage() {
   }
 
   const [stagePick, setStagePick] = useState<string | null>(null);
-  const shownTasks = stagePick
-    ? tasks.filter((t) => (SUMMARY_GROUPS.find((g) => g.key === stagePick)?.stages as string[] | undefined)?.includes(t.type))
-    : tasks;
+  const shownTasks = tasks.filter(
+    (t) =>
+      (!stagePick || (SUMMARY_GROUPS.find((g) => g.key === stagePick)?.stages as string[] | undefined)?.includes(t.type)) &&
+      (!queueFilter || t.queueId === queueFilter),
+  );
 
   if (loading) {
     return (
@@ -144,43 +159,31 @@ export default function ClientContentDashboardPage() {
               </button>
             </div>
           </div>
-          <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-            <table className="w-full min-w-[520px] text-left text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                  <th className="px-5 py-3 font-medium">งาน</th>
-                  <th className="px-5 py-3 font-medium">ประเภท</th>
-                  <th className="px-5 py-3 font-medium">กำหนดส่ง</th>
-                  <th className="px-5 py-3 font-medium">สถานะ</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {shownTasks.map((task) => (
-                  <tr
-                    key={task.id}
-                    className="cursor-pointer hover:bg-gray-50/60"
-                    onClick={() => router.push(`/tasks/${task.id}`)}
-                  >
-                    <td className="px-5 py-3 font-medium text-gray-900">{task.title}</td>
-                    <td className="px-5 py-3 text-gray-600">{typeLabel(task.type)}</td>
-                    <td className="px-5 py-3 text-gray-600">
-                      {format(new Date(task.dueDate), "d MMM yyyy", { locale: th })}
-                    </td>
-                    <td className="px-5 py-3">
-                      <StatusBadge status={task.status} stage={task.type} />
-                    </td>
-                  </tr>
-                ))}
-                {shownTasks.length === 0 && (
-                  <tr>
-                    <td colSpan={4} className="px-5 py-6 text-center text-sm text-gray-400">
-                      ยังไม่มีงานสำหรับลูกค้ารายนี้
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {(stagePick || queueFilter) && (
+            <button
+              onClick={() => {
+                setStagePick(null);
+                setQueueFilter(null);
+              }}
+              className="mb-3 rounded-full bg-gray-800 px-3 py-1 text-xs font-medium text-white"
+            >
+              กำลังกรอง{queueFilter ? ` · ${queues.find((q) => q.id === queueFilter)?.name ?? "คิว"}` : ""}{stagePick ? ` · ${SUMMARY_GROUPS.find((g) => g.key === stagePick)?.label ?? ""}` : ""} ✕ ล้างตัวกรอง
+            </button>
+          )}
+          <ClientTaskBoard
+            client={client}
+            tasks={shownTasks}
+            queues={queueFilter ? queues.filter((q) => q.id === queueFilter) : queues}
+            staff={staff}
+            onTasksChange={(updater) => setTasks((prev) => {
+              // the board works on the filtered list; merge its edits back by id
+              const edited = updater(prev.filter((t) => shownTasks.some((s) => s.id === t.id)));
+              const byId = new Map(edited.map((t) => [t.id, t]));
+              return prev.map((t) => byId.get(t.id) ?? t);
+            })}
+            onQueuesChange={setQueues}
+            onToast={setToast}
+          />
         </div>
 
         <Card className="text-xs text-gray-400">

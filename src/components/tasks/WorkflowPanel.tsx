@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { listTaskRevisions, type TaskRevision } from "@/lib/supabase/queries";
 import { notifyTaskEvent } from "@/lib/taskFlow";
-import type { Staff, Task, Team } from "@/lib/types";
+import type { Queue, Staff, Task, Team } from "@/lib/types";
 import { stageInfo } from "@/lib/workflow";
 
 const SHOT_STAGES = new Set(["shoot", "edit", "qc", "pending", "approved", "posted"]);
@@ -21,12 +21,14 @@ export function WorkflowPanel({
   task,
   staff,
   teams,
+  queues,
   onPatch,
   onReload,
 }: {
   task: Task;
   staff: Staff[];
   teams: Team[];
+  queues: Queue[];
   onPatch: (fields: Partial<Task>) => void;
   onReload: () => Promise<void>;
 }) {
@@ -73,6 +75,37 @@ export function WorkflowPanel({
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
           ถ่ายเสร็จแล้ว — ใส่ลิงก์ Footage (Drive) ด้านล่าง แล้วงานจะเลื่อนไปขั้นตัดต่ออัตโนมัติ
         </p>
+      )}
+
+      {SHOT_STAGES.has(task.type) && queues.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div>
+            <label className={labelClass}>คิว</label>
+            <select
+              value={task.queueId ?? ""}
+              onChange={(e) => onPatch({ queueId: e.target.value || null })}
+              className={inputClass}
+            >
+              <option value="">ยังไม่จัดคิว</option>
+              {queues.map((q) => (
+                <option key={q.id} value={q.id}>
+                  {q.name}
+                  {q.shootDate ? ` · ${q.shootDate}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={labelClass}>ลำดับการถ่ายในวัน</label>
+            <input
+              type="number"
+              min={1}
+              value={task.shootOrder ?? ""}
+              onChange={(e) => onPatch({ shootOrder: e.target.value === "" ? null : Number(e.target.value) })}
+              className={inputClass}
+            />
+          </div>
+        </div>
       )}
 
       {showShooter && (

@@ -18,11 +18,12 @@ import {
   listClients,
   listDistinctShotsAndEquipment,
   listStaff,
+  listQueues,
   listTeams,
   uploadTaskCover,
 } from "@/lib/supabase/queries";
 import { useTaskSettings } from "@/lib/useTaskSettings";
-import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType, Team } from "@/lib/types";
+import type { Client, ContentCategory, Staff, Task, TaskStatus, TaskType, Team, Queue } from "@/lib/types";
 
 const CATEGORY_OPTIONS: { value: ContentCategory; label: string }[] = [
   { value: "mass", label: "Mass" },
@@ -43,6 +44,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [queues, setQueues] = useState<Queue[]>([]);
   const savedRef = useRef<Task | null>(null);
   const [shotSuggestions, setShotSuggestions] = useState<string[]>([]);
   const [equipmentSuggestions, setEquipmentSuggestions] = useState<string[]>([]);
@@ -67,6 +69,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
           return;
         }
         setTask(t);
+        listQueues(t.clientId).then(setQueues).catch(() => {});
         savedRef.current = t;
         setClients(c);
         setStaff(s);
@@ -192,7 +195,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
           </div>
         </div>
 
-        <WorkflowPanel task={task} staff={staff} teams={teams} onPatch={patch} onReload={reloadTask} />
+        <WorkflowPanel task={task} staff={staff} teams={teams} queues={queues} onPatch={patch} onReload={reloadTask} />
 
         {mode === "edit" ? (
         <Card className="space-y-4">

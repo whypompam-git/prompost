@@ -84,6 +84,8 @@ export interface Task {
   postDate?: string; // ISO date — "วันที่โพส"
   finalUrl?: string; // Google Drive link — final delivered video
   coverUrl?: string; // uploaded clip cover image — shown next to Final on the client link
+  queueId?: string | null; // shoot batch (คิว) this clip belongs to
+  shootOrder?: number | null; // order of shooting within the day
   shotById?: string | null; // who shot it
   shotTeamId?: string | null; // which team shot it
   revisionCount?: number; // how many times it was sent back (client or QC)
@@ -273,4 +275,14 @@ export interface Contract {
   clientSignIp?: string;
   contentHash?: string;
   createdAt: string;
+}
+
+// A shoot batch for one client ("คิว1") — shared date and crew.
+export interface Queue {
+  id: string;
+  clientId: string;
+  name: string;
+  shootDate?: string; // ISO date
+  crew: string[]; // staff ids
+  note?: string;
 }

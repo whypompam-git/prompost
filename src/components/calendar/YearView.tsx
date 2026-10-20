@@ -14,24 +14,24 @@ import {
   startOfYear,
 } from "date-fns";
 import { th } from "date-fns/locale";
-import type { Task } from "@/lib/types";
+import type { CalendarChip } from "@/lib/calendarChips";
 import { cn } from "@/lib/utils";
 
 const WEEKDAY_LABELS = ["จ", "อ", "พ", "พฤ", "ศ", "ส", "อา"];
 
 export function YearView({
   year,
-  tasks,
+  chips,
   onSelectDay,
 }: {
   year: Date;
-  tasks: Task[];
+  chips: CalendarChip[];
   onSelectDay: (date: Date) => void;
 }) {
   const months = eachMonthOfInterval({ start: startOfYear(year), end: endOfYear(year) });
 
   const countFor = (day: Date) =>
-    tasks.filter((t) => isSameDay(new Date(t.scheduledDate), day)).length;
+    chips.filter((c) => isSameDay(new Date(c.date), day)).length;
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
