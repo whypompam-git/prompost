@@ -1259,16 +1259,16 @@ async function uploadViaSignedUrl(bucket: "slips" | "client-brand" | "footage", 
 }
 
 // Uploads a transaction slip to the public "slips" bucket and returns its URL.
-export async function uploadSlip(file: File): Promise<string> {
-  return uploadViaSignedUrl("slips", file);
-}
-
-export async function uploadTaskCover(file: File): Promise<string> {
 // Raw footage straight into storage (the file never passes through the server).
 export async function uploadFootage(file: File): Promise<string> {
   return uploadViaSignedUrl("footage", file);
 }
 
+export async function uploadSlip(file: File): Promise<string> {
+  return uploadViaSignedUrl("slips", file);
+}
+
+export async function uploadTaskCover(file: File): Promise<string> {
   return uploadClientBrandImage(file);
 }
 
