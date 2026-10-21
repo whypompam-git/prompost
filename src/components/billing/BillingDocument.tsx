@@ -46,6 +46,8 @@ export function BillingDocument({
   const wht = (subtotal * whtPercent) / 100;
   const total = subtotal + vat - wht;
   const title = DOC_TITLE[docType];
+  // a note typed on this document wins; otherwise the bank/payment details set in Accounting settings
+  const payment = (paymentNote?.trim() || seller.bankInfo?.trim() || "").trim();
 
   return (
     <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
@@ -138,12 +140,12 @@ export function BillingDocument({
         </div>
       </div>
 
-      {(paymentNote || notes) && (
+      {(payment || notes) && (
         <div className="mt-8 space-y-3 text-sm">
-          {paymentNote && (
+          {payment && (
             <div>
               <p className="font-semibold">ช่องทางการชำระเงิน</p>
-              <p className="whitespace-pre-wrap text-gray-700">{paymentNote}</p>
+              <p className="whitespace-pre-wrap text-gray-700">{payment}</p>
             </div>
           )}
           {notes && (
@@ -155,8 +157,8 @@ export function BillingDocument({
         </div>
       )}
 
-      <div className={`mt-16 grid gap-8 text-center text-sm ${docType === "receipt" ? "grid-cols-1 justify-items-end" : "grid-cols-2"}`}>
-        <div className={docType === "receipt" ? "w-64" : undefined}>
+      <div className={`mt-16 grid gap-8 text-center text-sm ${docType === "quotation" ? "grid-cols-2" : "grid-cols-1 justify-items-end"}`}>
+        <div className={docType !== "quotation" ? "w-64" : undefined}>
           <div className="mb-1 flex h-32 items-end justify-center">
             {seller.signatureUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -168,7 +170,7 @@ export function BillingDocument({
             <p className="font-medium">{seller.name || "—"}</p>
           </div>
         </div>
-        {docType !== "receipt" && (
+        {docType === "quotation" && (
           <div>
             <div className="mb-1 h-32" />
             <div className="border-t border-gray-400 pt-2">
