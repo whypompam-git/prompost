@@ -1,7 +1,7 @@
 // Validation for the token-protected /api/ai/* endpoints (used by the Claude
 // workspace tools that draft content and load tasks). Pure — see tests/aiApi.test.ts.
 
-import { STAGES, defaultStatusFor, statusesFor } from "./workflow.ts";
+import { STAGES, defaultStatusFor, enterStage, settle, statusesFor } from "./workflow.ts";
 
 // type = pipeline stage (plan → shoot → edit → qc → pending → approved → posted)
 export const TASK_TYPES: string[] = STAGES.map((s) => s.key);
@@ -90,19 +90,22 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
   return errors.length ? { ok: false, errors } : { ok: true, rows };
 }
 
-// Only these task columns can be changed through the AI API. status, assignee,
-// client and deletion are deliberately not on the list.
-const PATCH_TEXT = new Set(["title", "script_text", "notes", "ref_link"]);
+// Task columns the AI API may change: content fields, plus pipeline stage /
+// status, people, queue and links. The client, revision counters and deletion
+// are deliberately not on the list. Stage/status changes go through the same
+// hand-off rules as the web app (see resolveFlow).
+const PATCH_TEXT = new Set(["title", "script_text", "notes", "ref_link", "footage_url", "final_url"]);
+const PATCH_UUID = new Set(["assignee_id", "shot_by", "shot_team_id", "queue_id"]);
 const PATCH_DATE = new Set(["scheduled_date", "due_date", "post_date"]);
 const PATCH_ARRAY = new Set(["shots", "equipment"]);
-export const EXPECT_KEYS = new Set(["title", "script_text", "notes", "ref_link", "scheduled_date", "due_date"]);
+export const EXPECT_KEYS = new Set(["title", "script_text", "notes", "ref_link", "scheduled_date", "due_date", "type", "status"]);
 
 export function sanitizePatch(patch: unknown): { ok: true; patch: Record<string, unknown> } | { ok: false; error: string } {
   if (!patch || typeof patch !== "object" || Array.isArray(patch)) return { ok: false, error: "patch ต้องเป็น object" };
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(patch as Record<string, unknown>)) {
     if (PATCH_TEXT.has(k)) {
-      const limit = k === "script_text" ? 50_000 : k === "title" ? 300 : 5_000;
+      const limit = k === "script_text" ? 50_000 : k === "title" ? 300 : k.endsWith("_url") ? 1_000 : 5_000;
       if (v !== null && (typeof v !== "string" || v.length > limit)) return { ok: false, error: `${k} ไม่ถูกต้อง` };
       if (k === "title" && (typeof v !== "string" || !v.trim())) return { ok: false, error: "title ห้ามว่าง" };
       out[k] = v;
@@ -111,6 +114,18 @@ export function sanitizePatch(patch: unknown): { ok: true; patch: Record<string,
       out[k] = v;
     } else if (PATCH_ARRAY.has(k)) {
       if (!isStringArray(v)) return { ok: false, error: `${k} ต้องเป็น array ของข้อความ` };
+      out[k] = v;
+    } else if (PATCH_UUID.has(k)) {
+      if (v !== null && !isUuid(v)) return { ok: false, error: `${k} ต้องเป็น uuid หรือ null` };
+      out[k] = v;
+    } else if (k === "type") {
+      if (typeof v !== "string" || !TASK_TYPES.includes(v)) return { ok: false, error: `type ต้องเป็นหนึ่งใน ${TASK_TYPES.join(", ")}` };
+      out[k] = v;
+    } else if (k === "status") {
+      if (typeof v !== "string" || !TASK_STATUSES.includes(v)) return { ok: false, error: `status ต้องเป็นหนึ่งใน ${TASK_STATUSES.join(", ")}` };
+      out[k] = v;
+    } else if (k === "shoot_order") {
+      if (v !== null && !(Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 9999)) return { ok: false, error: "shoot_order ต้องเป็นจำนวนเต็ม 1–9999 หรือ null" };
       out[k] = v;
     } else if (k === "content_category") {
       if (v !== null && !TASK_CATEGORIES.includes(v as string)) return { ok: false, error: "content_category ไม่ถูกต้อง" };
@@ -133,4 +148,31 @@ export function sanitizeExpect(expect: unknown): { ok: true; expect: Record<stri
     out[k] = v;
   }
   return { ok: true, expect: out };
+}
+
+export type CurrentFlow = { type: string; status: string; footage_url: string | null; revision_count: number | null };
+
+// Applies the web app's pipeline rules to an API patch: choosing a stage starts
+// it at its default status, a stage/status pair must be valid, and the
+// automatic hand-offs run (e.g. shoot Done + footage link → edit ToDo).
+export function resolveFlow(
+  current: CurrentFlow,
+  patch: Record<string, unknown>,
+): { ok: true; patch: Record<string, unknown> } | { ok: false; error: string } {
+  if (!("type" in patch) && !("status" in patch) && !("footage_url" in patch)) return { ok: true, patch };
+  const nextType = (patch.type as string | undefined) ?? current.type;
+  const typeChanged = nextType !== current.type;
+  const footage = "footage_url" in patch ? (patch.footage_url as string | null) : current.footage_url;
+  if ("status" in patch && !statusesFor(nextType).includes(patch.status as never)) {
+    return { ok: false, error: `status "${patch.status}" ไม่มีในขั้นตอน ${nextType} (ใช้ได้: ${statusesFor(nextType).join(", ")})` };
+  }
+  const flowIn = { footageUrl: footage, revisionCount: current.revision_count ?? 0 };
+  const settled =
+    typeChanged && !("status" in patch)
+      ? enterStage(nextType, flowIn)
+      : settle({ type: nextType, status: ((patch.status as string | undefined) ?? current.status) as never, ...flowIn });
+  const out = { ...patch };
+  if (settled.type !== current.type) out.type = settled.type;
+  if (settled.status !== current.status || "status" in patch || out.type !== undefined) out.status = settled.status;
+  return { ok: true, patch: out };
 }

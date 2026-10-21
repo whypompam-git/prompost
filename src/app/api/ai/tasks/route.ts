@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
-import { isUuid, sanitizeExpect, sanitizePatch, validateNewTasks } from "@/lib/aiApi";
+import { isUuid, resolveFlow, sanitizeExpect, sanitizePatch, validateNewTasks } from "@/lib/aiApi";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const READ_COLUMNS = "id, client_id, title, script_text, notes, shots, equipment, scheduled_date, due_date, status, ref_link, content_category, post_date";
+const READ_COLUMNS = "id, client_id, title, script_text, notes, shots, equipment, scheduled_date, due_date, type, status, assignee_id, shot_by, shot_team_id, queue_id, shoot_order, footage_url, final_url, ref_link, content_category, post_date";
 
 // Read specific tasks: ?ids=a,b,c (max 200)
 export async function GET(request: Request) {
@@ -66,8 +66,9 @@ export async function POST(request: Request) {
 
 // Compare-and-set edits. Each update = { id, expect?: {…current values…}, patch: {…} }.
 // The row is only changed when every `expect` value still matches the database
-// (so nothing a person edited in the app is overwritten); status, assignee,
-// client and deletion cannot be changed here.
+// (so nothing a person edited in the app is overwritten). Stage/status follow
+// the web app's pipeline rules; client, revision counters and deletion cannot
+// be changed here.
 export async function PATCH(request: Request) {
   const denied = requireAiToken(request);
   if (denied) return denied;
@@ -91,7 +92,39 @@ export async function PATCH(request: Request) {
   const db = createAdminClient();
   const results: { id: string; updated: boolean; error?: string }[] = [];
   for (const u of prepared) {
-    let q = db.from("tasks").update({ ...u.patch, updated_at: new Date().toISOString() }).eq("id", u.id);
+    let patch = u.patch;
+    const guard: Record<string, string> = {};
+    const touchesFlow = "type" in patch || "status" in patch || "footage_url" in patch;
+    if (touchesFlow || ("queue_id" in patch && patch.queue_id)) {
+      const { data: cur, error: curErr } = await db
+        .from("tasks")
+        .select("client_id, type, status, footage_url, revision_count")
+        .eq("id", u.id)
+        .maybeSingle();
+      if (curErr || !cur) {
+        results.push({ id: u.id, updated: false, error: curErr?.message ?? "ไม่พบงาน" });
+        continue;
+      }
+      if (patch.queue_id) {
+        const { data: qrow } = await db.from("queues").select("id").eq("id", patch.queue_id as string).eq("client_id", cur.client_id).maybeSingle();
+        if (!qrow) {
+          results.push({ id: u.id, updated: false, error: "queue_id ไม่ใช่คิวของลูกค้ารายเดียวกับงานนี้" });
+          continue;
+        }
+      }
+      if (touchesFlow) {
+        const flow = resolveFlow(cur, patch);
+        if (!flow.ok) {
+          results.push({ id: u.id, updated: false, error: flow.error });
+          continue;
+        }
+        patch = flow.patch;
+        guard.type = cur.type; // don't clobber a change someone made in the app meanwhile
+        guard.status = cur.status;
+      }
+    }
+    let q = db.from("tasks").update({ ...patch, updated_at: new Date().toISOString() }).eq("id", u.id);
+    for (const [col, val] of Object.entries(guard)) q = q.eq(col, val);
     for (const [col, val] of Object.entries(u.expect)) q = val === null ? q.is(col, null) : q.eq(col, val);
     const { data, error } = await q.select("id");
     if (error) results.push({ id: u.id, updated: false, error: error.message });

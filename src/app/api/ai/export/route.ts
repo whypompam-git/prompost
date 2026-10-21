@@ -37,12 +37,15 @@ export async function GET(request: Request) {
     const ids = new Set(clients.map((c) => c.id as string));
     const forClients = (rows: Record<string, unknown>[]) => (slug ? rows.filter((r) => ids.has(r.client_id as string)) : rows);
 
-    const [client_notes, tasks, packages, client_packages, content_sets] = await Promise.all([
+    const [client_notes, tasks, packages, client_packages, content_sets, queues, teams, staff] = await Promise.all([
       all("client_notes", [{ column: "note_date", ascending: false }, { column: "created_at", ascending: false }], (q) => q.is("deleted_at", null)),
       all("tasks", [{ column: "scheduled_date", ascending: false }]),
       all("packages", [{ column: "created_at", ascending: false }]),
       all("client_packages", [{ column: "assigned_at", ascending: false }]),
       all("content_sets", [{ column: "created_at", ascending: false }]),
+      all("queues", [{ column: "created_at", ascending: true }]),
+      all("teams", [{ column: "sort_order", ascending: true }]),
+      all("staff", [{ column: "created_at", ascending: true }], (q) => q.eq("is_active", true)),
     ]);
     return NextResponse.json({
       clients,
@@ -51,6 +54,10 @@ export async function GET(request: Request) {
       packages,
       client_packages: forClients(client_packages),
       content_sets,
+      queues: forClients(queues),
+      teams,
+      // id + name + team only (no pay, bank or pin data)
+      staff: staff.map((s) => ({ id: s.id, name: s.name, position: s.position, team_id: s.team_id })),
     });
   } catch (err) {
     console.error(err);
