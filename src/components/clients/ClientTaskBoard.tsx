@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { CalendarDays, CheckCheck, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCheck, ChevronDown, ChevronRight, Loader2, Pencil, Trash2, Upload, Users } from "lucide-react";
 import { QueueModal, type QueueDraft } from "@/components/clients/QueueModal";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
-import { updateTaskRow, saveQueue, deleteQueue } from "@/lib/supabase/queries";
+import { updateTaskRow, saveQueue, deleteQueue, uploadFootage } from "@/lib/supabase/queries";
 import { patchTaskWithFlow } from "@/lib/taskFlow";
 import { STAGES, statusLabel, statusesFor } from "@/lib/workflow";
 import type { Client, Queue, Staff, Task, TaskStatus } from "@/lib/types";
@@ -43,6 +43,25 @@ export function ClientTaskBoard({
   const [assignFor, setAssignFor] = useState<string[] | null>(null);
   const [editQueue, setEditQueue] = useState<Queue | null>(null);
   const [scriptDraft, setScriptDraft] = useState("");
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  async function uploadFile(t: Task, file: File) {
+    setUploading(t.id);
+    try {
+      const url = await uploadFootage(file);
+      await change(t, { footageUrl: url }); // a finished shoot with a file moves on to editing
+      onToast(`อัปโหลดฟุตเทจของ "${t.title}" แล้ว`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      window.alert(
+        /size|exceed|large|413|payload/i.test(msg)
+          ? "ไฟล์ใหญ่เกินที่ระบบรับได้ — ใช้ลิงก์ Drive แทน (กดปุ่ม \"สคริปต์\" แล้ววางลิงก์ในช่อง Footage)"
+          : `อัปโหลดไม่สำเร็จ${msg ? `: ${msg}` : ""}`,
+      );
+    } finally {
+      setUploading(null);
+    }
+  }
 
   const staffName = (id?: string | null) => staff.find((s) => s.id === id)?.name;
 
@@ -206,7 +225,7 @@ export function ClientTaskBoard({
 
             {isOpen(g) && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[760px] text-left text-sm">
+                <table className="w-full min-w-[860px] text-left text-sm">
                   <tbody className="divide-y divide-gray-50">
                     {g.tasks.map((t) => (
                       <tr key={t.id} className="align-top">
@@ -267,8 +286,36 @@ export function ClientTaskBoard({
                           </select>
                         </td>
                         <td className="px-2 py-2 text-xs text-gray-500">{format(new Date(t.dueDate), "d MMM", { locale: th })}</td>
-                        <td className="w-24 px-2 py-2 text-right">
-                          <button onClick={() => expand(t)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                        <td className="w-44 px-2 py-2 text-right">
+                          <span className="inline-flex items-center gap-1.5">
+                            <label
+                              className={cn(
+                                "flex cursor-pointer items-center gap-1 rounded-lg border px-2 py-1 text-xs",
+                                t.footageUrl ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-gray-200 text-gray-600 hover:bg-gray-50",
+                              )}
+                              title={t.footageUrl ? "มีไฟล์/ลิงก์ฟุตเทจแล้ว — กดเพื่ออัปโหลดไฟล์ใหม่" : "อัปโหลดไฟล์ฟุตเทจ"}
+                            >
+                              {uploading === t.id ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} />}
+                              {uploading === t.id ? "กำลังอัป…" : t.footageUrl ? "มีฟุตเทจ" : "ฟุตเทจ"}
+                              <input
+                                type="file"
+                                accept="video/*,image/*,.zip"
+                                className="hidden"
+                                disabled={uploading !== null}
+                                onChange={(e) => {
+                                  const f = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (f) uploadFile(t, f);
+                                }}
+                              />
+                            </label>
+                            {t.footageUrl && (
+                              <a href={t.footageUrl.startsWith("http") ? t.footageUrl : `https://${t.footageUrl}`} target="_blank" rel="noreferrer" className="text-xs text-brand-600 hover:underline">
+                                เปิด
+                              </a>
+                            )}
+                          </span>
+                          <button onClick={() => expand(t)} className="ml-1.5 rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
                             {expanded === t.id ? "ปิด" : "สคริปต์"}
                           </button>
                         </td>

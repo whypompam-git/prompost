@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const BUCKETS = new Set(["slips", "client-brand"]);
+const BUCKETS = new Set(["slips", "client-brand", "footage"]);
 
 // Logged-in staff ask for a one-shot signed upload URL, then upload the file
 // straight to Supabase Storage — large files never pass through (and can't be
@@ -21,10 +21,16 @@ export async function POST(request: NextRequest) {
   if (typeof bucket !== "string" || !BUCKETS.has(bucket)) {
     return NextResponse.json({ message: "bucket not allowed" }, { status: 403 });
   }
+  const admin = createAdminClient();
+  if (bucket === "footage") {
+    // created on first use (public bucket, random object names — same model as the other buckets)
+    const { data: existing } = await admin.storage.getBucket("footage");
+    if (!existing) await admin.storage.createBucket("footage", { public: true });
+  }
   const safeExt = typeof ext === "string" && /^[a-z0-9]{1,8}$/i.test(ext) ? ext.toLowerCase() : "bin";
   const path = `${crypto.randomUUID()}.${safeExt}`;
 
-  const { data, error } = await createAdminClient().storage.from(bucket).createSignedUploadUrl(path);
+  const { data, error } = await admin.storage.from(bucket).createSignedUploadUrl(path);
   if (error || !data) return NextResponse.json({ message: error?.message ?? "failed" }, { status: 500 });
   return NextResponse.json({ path: data.path, token: data.token });
 }

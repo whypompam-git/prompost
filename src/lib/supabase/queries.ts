@@ -1242,7 +1242,7 @@ export async function updateTransactionRow(
 // Uploads go straight to Supabase Storage with a one-shot signed URL issued
 // by /api/storage/sign (login-checked). Object names are random, so the
 // public URL is unguessable.
-async function uploadViaSignedUrl(bucket: "slips" | "client-brand", file: File): Promise<string> {
+async function uploadViaSignedUrl(bucket: "slips" | "client-brand" | "footage", file: File): Promise<string> {
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "bin";
   const res = await fetch("/api/storage/sign", {
     method: "POST",
@@ -1264,6 +1264,11 @@ export async function uploadSlip(file: File): Promise<string> {
 }
 
 export async function uploadTaskCover(file: File): Promise<string> {
+// Raw footage straight into storage (the file never passes through the server).
+export async function uploadFootage(file: File): Promise<string> {
+  return uploadViaSignedUrl("footage", file);
+}
+
   return uploadClientBrandImage(file);
 }
 
