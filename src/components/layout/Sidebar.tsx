@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
+  ClipboardList,
   Users,
   UserCog,
   Wallet,
@@ -25,6 +26,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
   { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
+  { href: "/workload", label: "สรุปงาน", icon: ClipboardList },
   { href: "/clients", label: "ลูกค้า", icon: Users },
   { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },

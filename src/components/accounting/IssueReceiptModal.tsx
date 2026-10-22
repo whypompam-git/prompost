@@ -33,6 +33,7 @@ export function IssueReceiptModal({
 }) {
   const guessedClient = useMemo(
     () =>
+      (transaction.clientId && clients.some((c) => c.id === transaction.clientId) ? transaction.clientId : undefined) ??
       clients.find((c) => `${transaction.description ?? ""} ${transaction.category}`.includes(c.name))?.id ??
       clients[0]?.id ??
       "",

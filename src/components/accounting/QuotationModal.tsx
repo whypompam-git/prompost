@@ -23,19 +23,27 @@ const emptyItem = (): QuotationItem => ({ description: "", qty: 1, unitPrice: 0 
 
 export function QuotationModal({
   initial,
+  prefill,
   clients,
   onClose,
   onSave,
 }: {
   initial?: Quotation;
+  prefill?: { clientId?: string; description?: string; amount?: number }; // e.g. from a ledger row
   clients: Client[];
   onClose: () => void;
   onSave: (values: QuotationFormValues) => void;
 }) {
   const [quoteNo, setQuoteNo] = useState(initial?.quoteNo ?? "");
   const [issuedAt, setIssuedAt] = useState(toInputDate(initial?.createdAt ?? new Date().toISOString()));
-  const [clientId, setClientId] = useState(initial?.clientId ?? clients[0]?.id ?? "");
-  const [items, setItems] = useState<QuotationItem[]>(initial?.items.length ? initial.items : [emptyItem()]);
+  const [clientId, setClientId] = useState(initial?.clientId ?? prefill?.clientId ?? clients[0]?.id ?? "");
+  const [items, setItems] = useState<QuotationItem[]>(
+    initial?.items.length
+      ? initial.items
+      : prefill?.description || prefill?.amount
+        ? [{ description: prefill.description ?? "", qty: 1, unitPrice: prefill.amount ?? 0 }]
+        : [emptyItem()],
+  );
   const [vatPercent, setVatPercent] = useState(initial?.vatPercent ?? 7);
   const [whtPercent, setWhtPercent] = useState(initial?.whtPercent ?? 0);
   const [validUntil, setValidUntil] = useState(initial?.validUntil?.slice(0, 10) ?? "");

@@ -94,8 +94,10 @@ export function ClientTaskBoard({
     const mine = tasks.filter((t) => idSet.has(t.id));
     // numbering continues after the clips already in that queue
     let next = Math.max(0, ...tasks.filter((t) => t.queueId === qid).map((t) => t.shootOrder ?? 0)) + 1;
+    const queueEditDate = (queueId ? queues.find((q) => q.id === queueId)?.editDate : undefined) ?? draft?.editDate;
     for (const t of mine) {
       const fields: Partial<Task> = { queueId: qid, shootOrder: t.shootOrder ?? next++ };
+      if (queueEditDate && !t.editDate) fields.editDate = queueEditDate;
       if (t.type === "plan") fields.type = "shoot";
       await change(t, fields);
     }
@@ -104,8 +106,15 @@ export function ClientTaskBoard({
   }
 
   async function saveQueueEdit(draft: QueueDraft) {
+    const before = queues.find((q) => q.id === draft.id);
     const saved = await saveQueue(draft);
     onQueuesChange((p) => p.map((q) => (q.id === saved.id ? saved : q)));
+    // a new default วันตัดต่อ goes to every clip in the queue that hasn't passed editing
+    if (saved.editDate && saved.editDate !== before?.editDate) {
+      for (const t of tasks.filter((x) => x.queueId === saved.id && ["plan", "shoot", "edit", "qc"].includes(x.type))) {
+        if (t.editDate !== saved.editDate) await change(t, { editDate: saved.editDate });
+      }
+    }
     onToast("บันทึกคิวแล้ว");
   }
 
@@ -267,7 +276,30 @@ export function ClientTaskBoard({
                             ))}
                           </select>
                         </td>
-                        <td className="px-2 py-2 text-xs text-gray-500">{format(new Date(t.dueDate), "d MMM", { locale: th })}</td>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-col gap-1 text-[10px] text-gray-400">
+                            <label className="flex items-center gap-1">
+                              ตัด
+                              <input
+                                type="date"
+                                value={t.editDate ?? ""}
+                                onChange={(e) => change(t, { editDate: e.target.value || null })}
+                                title="วันตัดต่อ"
+                                className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
+                              />
+                            </label>
+                            <label className="flex items-center gap-1">
+                              ส่ง
+                              <input
+                                type="date"
+                                value={t.dueDate}
+                                onChange={(e) => e.target.value && change(t, { dueDate: e.target.value })}
+                                title="วันส่ง"
+                                className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
+                              />
+                            </label>
+                          </div>
+                        </td>
                         <td className="w-40 px-2 py-2 text-right">
                           <span className="mr-1.5 inline-flex items-center">
                             <TaskLinkButton label="File" url={t.footageUrl} onSave={(url) => change(t, { footageUrl: url ?? "" })} />

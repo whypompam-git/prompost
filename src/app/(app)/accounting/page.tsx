@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { ChevronDown, Download, FilePlus2, FileText, Paperclip, Pencil, Plus, ReceiptText, Trash2, TrendingDown, TrendingUp, Upload, Wallet } from "lucide-react";
@@ -43,6 +44,8 @@ export default function AccountingPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [issuingFor, setIssuingFor] = useState<Transaction | null>(null);
   const [quoting, setQuoting] = useState(false);
+  const [quotePrefill, setQuotePrefill] = useState<{ clientId?: string; description?: string; amount?: number } | undefined>();
+  const [clientFilter, setClientFilter] = useState("");
   const [createdQuote, setCreatedQuote] = useState<{ id: string; no: string } | null>(null);
 
   useEffect(() => {
@@ -63,9 +66,12 @@ export default function AccountingPage() {
             const m = t.occurredAt.slice(0, 7);
             return (!monthFrom || m >= monthFrom) && (!monthTo || m <= monthTo);
           });
+    const byClient = clientFilter ? filtered.filter((t) => t.clientId === clientFilter) : filtered;
     const key = (t: Transaction) => `${t.occurredAt}T${t.occurredTime ?? "00:00"}`;
-    return [...filtered].sort((a, b) => (dateSort === "desc" ? key(b).localeCompare(key(a)) : key(a).localeCompare(key(b))));
-  }, [transactions, monthFrom, monthTo, dateSort]);
+    return [...byClient].sort((a, b) => (dateSort === "desc" ? key(b).localeCompare(key(a)) : key(a).localeCompare(key(b))));
+  }, [transactions, monthFrom, monthTo, dateSort, clientFilter]);
+
+  const clientName = (id?: string) => clients.find((c) => c.id === id)?.name;
 
   const totalIncome = visible.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = visible.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
@@ -87,11 +93,12 @@ export default function AccountingPage() {
   function exportVisible() {
     downloadCsv(
       `บัญชี ${monthFrom || "ทั้งหมด"}${monthTo && monthTo !== monthFrom ? `-${monthTo}` : ""}`,
-      ["วันที่", "เวลา", "ประเภท", "หมวดหมู่", "รายละเอียด", "จำนวนเงิน", "สลิป"],
+      ["วันที่", "เวลา", "ประเภท", "ลูกค้า", "หมวดหมู่", "รายละเอียด", "จำนวนเงิน", "สลิป"],
       visible.map((t) => [
         t.occurredAt,
         t.occurredTime ?? "",
         t.type === "income" ? "รายรับ" : "รายจ่าย",
+        clientName(t.clientId) ?? "",
         t.category,
         t.description ?? "",
         t.type === "income" ? t.amount : -t.amount,
@@ -207,6 +214,18 @@ export default function AccountingPage() {
             </h2>
             <div className="flex flex-wrap items-center gap-2">
               <MonthRangeFilter from={monthFrom} to={monthTo} onChange={(f, t) => { setMonthFrom(f); setMonthTo(t); }} />
+              <select
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+                className="max-w-[180px] rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none"
+              >
+                <option value="">ทุกลูกค้า</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
               <button
                 onClick={exportVisible}
                 className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -216,7 +235,10 @@ export default function AccountingPage() {
                 Export
               </button>
               <button
-                onClick={() => setQuoting(true)}
+                onClick={() => {
+                  setQuotePrefill(undefined);
+                  setQuoting(true);
+                }}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
               >
                 <FileText size={16} />
@@ -262,6 +284,7 @@ export default function AccountingPage() {
                       </div>
                     )}
                   </th>
+                  <th className="px-5 py-3 font-medium">ลูกค้า</th>
                   <th className="px-5 py-3 font-medium">หมวดหมู่</th>
                   <th className="px-5 py-3 font-medium">รายละเอียด</th>
                   <th className="px-5 py-3 font-medium">สลิป</th>
@@ -275,6 +298,15 @@ export default function AccountingPage() {
                     <td className="px-5 py-3 text-gray-600">
                       {format(new Date(t.occurredAt), "d MMM yyyy", { locale: th })}
                       {t.occurredTime && <span className="ml-1.5 text-xs text-gray-400">{t.occurredTime} น.</span>}
+                    </td>
+                    <td className="px-5 py-3 text-gray-700">
+                      {t.clientId && clientName(t.clientId) ? (
+                        <Link href={`/clients/${t.clientId}`} className="font-medium text-brand-700 hover:underline">
+                          {clientName(t.clientId)}
+                        </Link>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-900">{t.category}</td>
                     <td className="px-5 py-3 text-gray-500">{t.description ?? "—"}</td>
@@ -303,6 +335,19 @@ export default function AccountingPage() {
                     </td>
                     <td className="px-5 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
+                        {t.type === "income" && (
+                          <button
+                            onClick={() => {
+                              setQuotePrefill({ clientId: t.clientId, description: t.description ?? t.category, amount: t.amount });
+                              setQuoting(true);
+                            }}
+                            className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50"
+                            title="ออกใบเสนอราคาจากรายการนี้"
+                          >
+                            <FileText size={13} />
+                            ออกใบเสนอราคา
+                          </button>
+                        )}
                         {t.receiptId ? (
                           <a
                             href={`/print/receipt/${t.receiptId}`}
@@ -346,7 +391,7 @@ export default function AccountingPage() {
                 ))}
                 {visible.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-6 text-center text-sm text-gray-400">
+                    <td colSpan={7} className="px-5 py-6 text-center text-sm text-gray-400">
                       ไม่มีรายการในช่วงที่เลือก
                     </td>
                   </tr>
@@ -357,7 +402,17 @@ export default function AccountingPage() {
         </section>
       </div>
 
-      {quoting && <QuotationModal clients={clients} onClose={() => setQuoting(false)} onSave={handleCreateQuotation} />}
+      {quoting && (
+        <QuotationModal
+          clients={clients}
+          prefill={quotePrefill}
+          onClose={() => {
+            setQuoting(false);
+            setQuotePrefill(undefined);
+          }}
+          onSave={handleCreateQuotation}
+        />
+      )}
       {issuingFor && (
         <IssueReceiptModal
           transaction={issuingFor}
@@ -370,6 +425,7 @@ export default function AccountingPage() {
       {modalMode !== "closed" && (
         <TransactionModal
           initial={modalMode === "create" ? undefined : modalMode.edit}
+          clients={clients}
           onClose={() => setModalMode("closed")}
           onSave={handleSaveTransaction}
         />

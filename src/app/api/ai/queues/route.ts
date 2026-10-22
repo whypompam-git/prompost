@@ -10,8 +10,8 @@ const crewOk = (v: unknown): v is string[] => Array.isArray(v) && v.length <= 30
 
 // Shoot queues ("คิว1") for the Claude workspace. Create and edit only — no
 // delete (clips would silently lose their queue). Look clients up by slug.
-//   POST  { clientSlug, name, shootDate?, crew?: [staffId], note? }
-//   PATCH { updates: [{ id, patch: { name?, shoot_date?, crew?, note? } }] }
+//   POST  { clientSlug, name, shootDate?, editDate?, crew?: [staffId], note? }
+//   PATCH { updates: [{ id, patch: { name?, shoot_date?, edit_date?, crew?, note? } }] }
 export async function POST(request: Request) {
   const denied = requireAiToken(request);
   if (denied) return denied;
@@ -20,6 +20,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ต้องมี clientSlug และ name" }, { status: 400 });
   }
   if (b.shootDate != null && !isDate(b.shootDate)) return NextResponse.json({ error: "shootDate ต้องเป็น YYYY-MM-DD" }, { status: 400 });
+  if (b.editDate != null && !isDate(b.editDate)) return NextResponse.json({ error: "editDate ต้องเป็น YYYY-MM-DD" }, { status: 400 });
   if (b.crew != null && !crewOk(b.crew)) return NextResponse.json({ error: "crew ต้องเป็น array ของ staff uuid" }, { status: 400 });
   if (b.note != null && (typeof b.note !== "string" || b.note.length > 1000)) return NextResponse.json({ error: "note ไม่ถูกต้อง" }, { status: 400 });
 
@@ -32,8 +33,8 @@ export async function POST(request: Request) {
 
   const { data, error } = await db
     .from("queues")
-    .insert({ client_id: clientId, name: b.name.trim(), shoot_date: b.shootDate ?? null, crew: b.crew ?? [], note: b.note ?? null })
-    .select("id, name, shoot_date, crew, note")
+    .insert({ client_id: clientId, name: b.name.trim(), shoot_date: b.shootDate ?? null, edit_date: b.editDate ?? null, crew: b.crew ?? [], note: b.note ?? null })
+    .select("id, name, shoot_date, edit_date, crew, note")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ created: data });
@@ -57,6 +58,7 @@ export async function PATCH(request: Request) {
     for (const [k, v] of Object.entries(p)) {
       if (k === "name" && typeof v === "string" && v.trim() && v.length <= 100) out.name = v.trim();
       else if (k === "shoot_date" && (v === null || isDate(v))) out.shoot_date = v;
+      else if (k === "edit_date" && (v === null || isDate(v))) out.edit_date = v;
       else if (k === "crew" && crewOk(v)) out.crew = v;
       else if (k === "note" && (v === null || (typeof v === "string" && v.length <= 1000))) out.note = v;
       else bad = `ไม่อนุญาต/ไม่ถูกต้อง: ${k}`;

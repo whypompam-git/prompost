@@ -73,7 +73,8 @@ export interface Task {
   status: TaskStatus;
   assigneeId: string | null;
   scheduledDate: string; // ISO date — "วันที่ถ่าย"
-  dueDate: string; // ISO date
+  dueDate: string; // ISO date — "วันส่ง" (delivery to the client)
+  editDate?: string | null; // ISO date — "วันตัดต่อ" (the day editors work on it)
   notes?: string;
   footageUrl?: string; // Google Drive link — raw footage from the shoot
   refLink?: string; // Ref Link Video
@@ -193,6 +194,7 @@ export interface Transaction {
   occurredAt: string; // ISO date
   occurredTime?: string; // "HH:mm" — optional time of the transfer
   receiptId?: string; // receipt issued for this entry (income)
+  clientId?: string; // client this entry belongs to
 }
 
 export interface Package {
@@ -283,6 +285,7 @@ export interface Queue {
   clientId: string;
   name: string;
   shootDate?: string; // ISO date
+  editDate?: string; // default วันตัดต่อ for the queue's clips
   crew: string[]; // staff ids
   note?: string;
 }

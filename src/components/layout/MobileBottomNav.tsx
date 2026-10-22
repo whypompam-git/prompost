@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarDays,
+  ClipboardList,
   PlusCircle,
   Users,
   Menu,
@@ -27,6 +28,7 @@ const MAIN_ITEMS = [
 ];
 
 const MORE_ITEMS = [
+  { href: "/workload", label: "สรุปงาน", icon: ClipboardList },
   { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
   { href: "/hr", label: "พนักงาน", icon: UserCog },

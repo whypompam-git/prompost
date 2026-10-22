@@ -19,21 +19,30 @@ export type CalendarChip = {
 
 const GROUP_LABEL: Record<Exclude<ChipGroup, "other">, string> = { shoot: "ถ่าย", edit: "ตัดต่อ", send: "ส่งงาน" };
 
-// shoot → the queue's shoot date; edit/QC and sent-to-client → each clip's due date
-function placement(t: Task, queues: Map<string, Queue>): { group: ChipGroup; date: string | undefined } | null {
+// A clip can show up in more than one chip:
+//   shoot            → the queue's shoot date
+//   edit / QC        → its วันตัดต่อ (edit_date), when the editors work on it
+//   delivery ("ส่งงาน") → its วันส่ง (due_date), for every clip not yet handed to the client
+function placements(t: Task, queues: Map<string, Queue>): { group: ChipGroup; date: string | undefined }[] {
+  const out: { group: ChipGroup; date: string | undefined }[] = [];
   switch (t.type) {
     case "shoot":
-      return { group: "shoot", date: t.queueId ? queues.get(t.queueId)?.shootDate : undefined };
+      out.push({ group: "shoot", date: t.queueId ? queues.get(t.queueId)?.shootDate : undefined });
+      out.push({ group: "send", date: t.dueDate });
+      break;
     case "edit":
     case "qc":
-      return { group: "edit", date: t.dueDate };
+      out.push({ group: "edit", date: t.editDate ?? undefined });
+      out.push({ group: "send", date: t.dueDate });
+      break;
     case "pending":
-      return { group: "send", date: t.dueDate };
+      out.push({ group: "send", date: t.dueDate });
+      break;
     case "other":
-      return t.status === "done" ? null : { group: "other", date: t.scheduledDate };
-    default:
-      return null; // plan, approved, posted, rejected
+      if (t.status !== "done") out.push({ group: "other", date: t.scheduledDate });
+      break;
   }
+  return out;
 }
 
 export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clients: Client[]; staff: Staff[] }): CalendarChip[] {
@@ -43,8 +52,8 @@ export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clie
   const chips = new Map<string, CalendarChip & { names: Set<string> }>();
 
   for (const t of input.tasks) {
-    const p = placement(t, queues);
-    if (!p || !p.date) continue;
+    for (const p of placements(t, queues)) {
+    if (!p.date) continue;
     if (p.group === "other") {
       chips.set(`task:${t.id}`, { key: `task:${t.id}`, date: p.date, clientId: t.clientId, queueId: null, group: "other", count: 1, label: t.title, crew: [], names: new Set(), href: `/tasks/${t.id}` });
       continue;
@@ -69,10 +78,15 @@ export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clie
         href: `/clients/${t.clientId}?${qs.toString()}`,
       };
       if (p.group === "shoot" && q) for (const id of q.crew) staffName(id) && chip.names.add(staffName(id)!);
+      if (p.group === "send") {
+        const mgr = input.clients.find((c) => c.id === t.clientId)?.managerId;
+        if (mgr && staffName(mgr)) chip.names.add(staffName(mgr)!);
+      }
       chips.set(key, chip);
     }
     chip.count += 1;
-    if (p.group !== "shoot" && t.assigneeId && staffName(t.assigneeId)) chip.names.add(staffName(t.assigneeId)!);
+    if (p.group === "edit" && t.assigneeId && staffName(t.assigneeId)) chip.names.add(staffName(t.assigneeId)!);
+    }
   }
 
   return [...chips.values()]

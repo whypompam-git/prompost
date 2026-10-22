@@ -96,7 +96,7 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
 // hand-off rules as the web app (see resolveFlow).
 const PATCH_TEXT = new Set(["title", "script_text", "notes", "ref_link", "footage_url", "final_url"]);
 const PATCH_UUID = new Set(["assignee_id", "shot_by", "shot_team_id", "queue_id"]);
-const PATCH_DATE = new Set(["scheduled_date", "due_date", "post_date"]);
+const PATCH_DATE = new Set(["scheduled_date", "due_date", "post_date", "edit_date"]);
 const PATCH_ARRAY = new Set(["shots", "equipment"]);
 export const EXPECT_KEYS = new Set(["title", "script_text", "notes", "ref_link", "scheduled_date", "due_date", "type", "status"]);
 
@@ -110,7 +110,7 @@ export function sanitizePatch(patch: unknown): { ok: true; patch: Record<string,
       if (k === "title" && (typeof v !== "string" || !v.trim())) return { ok: false, error: "title ห้ามว่าง" };
       out[k] = v;
     } else if (PATCH_DATE.has(k)) {
-      if (k === "post_date" ? v !== null && !isDate(v) : !isDate(v)) return { ok: false, error: `${k} ต้องเป็น YYYY-MM-DD` };
+      if (k === "post_date" || k === "edit_date" ? v !== null && !isDate(v) : !isDate(v)) return { ok: false, error: `${k} ต้องเป็น YYYY-MM-DD` };
       out[k] = v;
     } else if (PATCH_ARRAY.has(k)) {
       if (!isStringArray(v)) return { ok: false, error: `${k} ต้องเป็น array ของข้อความ` };

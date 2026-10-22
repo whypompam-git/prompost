@@ -301,7 +301,16 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div>
+              <label className={labelClass}>วันตัดต่อ (วันที่ทีมลงมือตัด)</label>
+              <input
+                type="date"
+                value={task.editDate ?? ""}
+                onChange={(e) => patch({ editDate: e.target.value || null })}
+                className={inputClass}
+              />
+            </div>
             <div>
               <label className={labelClass}>วันที่ถ่าย</label>
               <input
@@ -312,7 +321,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
               />
             </div>
             <div>
-              <label className={labelClass}>กำหนดส่ง</label>
+              <label className={labelClass}>วันส่ง (ส่งลูกค้า)</label>
               <input
                 type="date"
                 value={task.dueDate}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Paperclip, X } from "lucide-react";
-import type { Transaction, TransactionType } from "@/lib/types";
+import type { Client, Transaction, TransactionType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export type TransactionFormValues = {
@@ -14,16 +14,19 @@ export type TransactionFormValues = {
   keepSlip?: boolean;
   occurredAt: string;
   occurredTime?: string;
+  clientId?: string;
 };
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export function TransactionModal({
   initial,
+  clients,
   onClose,
   onSave,
 }: {
   initial?: Transaction;
+  clients: Client[];
   onClose: () => void;
   onSave: (values: TransactionFormValues) => void;
 }) {
@@ -31,6 +34,7 @@ export function TransactionModal({
   const [category, setCategory] = useState(initial?.category ?? "");
   const [amount, setAmount] = useState(initial?.amount ?? 0);
   const [description, setDescription] = useState(initial?.description ?? "");
+  const [clientId, setClientId] = useState(initial?.clientId ?? "");
   const [occurredAt, setOccurredAt] = useState(initial?.occurredAt ?? todayIso());
   const [occurredTime, setOccurredTime] = useState(initial?.occurredTime ?? "");
   const [slipFile, setSlipFile] = useState<File | undefined>();
@@ -56,6 +60,7 @@ export function TransactionModal({
       keepSlip: !slipFile && !removeSlip,
       occurredAt,
       occurredTime: occurredTime || undefined,
+      clientId: clientId || undefined,
     });
   }
 
@@ -93,6 +98,24 @@ export function TransactionModal({
               placeholder="เช่น อุปกรณ์ถ่ายทำ, รับชำระค่างาน"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
+          </label>
+
+          <label className="block">
+            <span className="mb-1 block text-xs font-medium text-gray-500">
+              ลูกค้า{type === "income" ? " (เชื่อมกับใบเสนอราคา/ใบเสร็จ)" : " (ถ้ามี)"}
+            </span>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+            >
+              <option value="">ไม่ระบุ</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
           </label>
 
           <div className="grid grid-cols-2 gap-3">

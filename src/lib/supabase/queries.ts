@@ -421,10 +421,11 @@ type TaskRow = {
   revision_brief: string | null;
   queue_id: string | null;
   shoot_order: number | null;
+  edit_date: string | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order, edit_date";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -453,6 +454,7 @@ const fromTaskRow = (r: TaskRow): Task => ({
   revisionBrief: r.revision_brief ?? undefined,
   queueId: r.queue_id,
   shootOrder: r.shoot_order,
+  editDate: r.edit_date,
 });
 
 export async function listTasks(): Promise<Task[]> {
@@ -561,6 +563,7 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.coverUrl !== undefined) patch.cover_url = values.coverUrl || null;
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
   if (values.endTime !== undefined) patch.end_time = values.endTime || null;
+  if (values.editDate !== undefined) patch.edit_date = values.editDate || null;
   if (values.queueId !== undefined) patch.queue_id = values.queueId;
   if (values.shootOrder !== undefined) patch.shoot_order = values.shootOrder;
   if (values.shotById !== undefined) patch.shot_by = values.shotById;
@@ -962,7 +965,7 @@ export async function createReceiptRow(values: {
   if (values.transactionId) {
     const { error: linkError } = await supabase()
       .from("transactions")
-      .update({ receipt_id: receipt.id, description: txDescription })
+      .update({ receipt_id: receipt.id, description: txDescription, client_id: values.clientId })
       .eq("id", values.transactionId);
     if (linkError) throw linkError;
   } else {
@@ -973,6 +976,7 @@ export async function createReceiptRow(values: {
       description: txDescription,
       occurred_at: (values.issuedAt ?? new Date().toISOString()).slice(0, 10),
       receipt_id: receipt.id,
+      client_id: values.clientId,
     });
     if (txError) throw txError;
   }
@@ -1177,6 +1181,7 @@ type TransactionRow = {
   occurred_at: string;
   occurred_time: string | null;
   receipt_id: string | null;
+  client_id: string | null;
 };
 
 const fromTransactionRow = (r: TransactionRow): Transaction => ({
@@ -1189,12 +1194,13 @@ const fromTransactionRow = (r: TransactionRow): Transaction => ({
   occurredAt: r.occurred_at,
   occurredTime: r.occurred_time?.slice(0, 5) ?? undefined,
   receiptId: r.receipt_id ?? undefined,
+  clientId: r.client_id ?? undefined,
 });
 
 export async function listTransactions(): Promise<Transaction[]> {
   const { data, error } = await supabase()
     .from("transactions")
-    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id, client_id")
     .order("occurred_at", { ascending: false });
   if (error) throw error;
   return (data as TransactionRow[]).map(fromTransactionRow);
@@ -1213,8 +1219,9 @@ export async function createTransactionRow(
       slip_url: values.slipUrl,
       occurred_at: values.occurredAt,
       occurred_time: values.occurredTime || null,
+      client_id: values.clientId ?? null,
     })
-    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id")
+    .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id, client_id")
     .single();
   if (error) throw error;
   return fromTransactionRow(data as TransactionRow);
@@ -1234,6 +1241,7 @@ export async function updateTransactionRow(
       slip_url: values.slipUrl,
       occurred_at: values.occurredAt,
       occurred_time: values.occurredTime || null,
+      client_id: values.clientId ?? null,
     })
     .eq("id", id);
   if (error) throw error;
@@ -1947,13 +1955,14 @@ export async function deleteLineChannel(id: string): Promise<void> {
 }
 
 // ── Queues (shoot batches) ───────────────────────────────────────────────
-type QueueRow = { id: string; client_id: string; name: string; shoot_date: string | null; crew: string[] | null; note: string | null };
-const QUEUE_COLUMNS = "id, client_id, name, shoot_date, crew, note";
+type QueueRow = { id: string; client_id: string; name: string; shoot_date: string | null; edit_date: string | null; crew: string[] | null; note: string | null };
+const QUEUE_COLUMNS = "id, client_id, name, shoot_date, edit_date, crew, note";
 const fromQueueRow = (r: QueueRow): Queue => ({
   id: r.id,
   clientId: r.client_id,
   name: r.name,
   shootDate: r.shoot_date ?? undefined,
+  editDate: r.edit_date ?? undefined,
   crew: r.crew ?? [],
   note: r.note ?? undefined,
 });
@@ -1971,6 +1980,7 @@ export async function saveQueue(values: Omit<Queue, "id"> & { id?: string }): Pr
     client_id: values.clientId,
     name: values.name.trim(),
     shoot_date: values.shootDate || null,
+    edit_date: values.editDate || null,
     crew: values.crew,
     note: values.note?.trim() || null,
   };

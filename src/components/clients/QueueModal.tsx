@@ -33,6 +33,7 @@ export function QueueModal({
   const [target, setTarget] = useState<string>(editing ? editing.id : queues.length > 0 ? queues[queues.length - 1].id : "new");
   const [name, setName] = useState(editing?.name ?? `คิว ${queues.length + 1}`);
   const [shootDate, setShootDate] = useState(editing?.shootDate ?? "");
+  const [editDate, setEditDate] = useState(editing?.editDate ?? "");
   const [crew, setCrew] = useState<string[]>(editing?.crew ?? []);
   const [note, setNote] = useState(editing?.note ?? "");
   const [busy, setBusy] = useState(false);
@@ -43,7 +44,7 @@ export function QueueModal({
   async function submit() {
     setBusy(true);
     try {
-      const draft: QueueDraft = { id: editing?.id, clientId: client.id, name: name.trim(), shootDate: shootDate || undefined, crew, note };
+      const draft: QueueDraft = { id: editing?.id, clientId: client.id, name: name.trim(), shootDate: shootDate || undefined, editDate: editDate || undefined, crew, note };
       if (editing) await onSave?.(draft);
       else if (creating) await onAssign?.(null, draft);
       else await onAssign?.(target, null);
@@ -92,6 +93,10 @@ export function QueueModal({
               <label className="block text-xs font-medium text-gray-500">
                 วันถ่าย (คิวนี้จะลงปฏิทินตามวันนี้)
                 <input type="date" value={shootDate} onChange={(e) => setShootDate(e.target.value)} className={cn(field, "mt-1")} />
+              </label>
+              <label className="block text-xs font-medium text-gray-500">
+                วันตัดต่อ (ใส่ให้ทุกคลิปในคิวนี้ — ปรับรายคลิปได้ภายหลัง)
+                <input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className={cn(field, "mt-1")} />
               </label>
               <div>
                 <p className="mb-1 text-xs font-medium text-gray-500">ผู้ดูแล</p>
