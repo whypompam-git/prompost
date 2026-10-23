@@ -20,6 +20,7 @@ export function QuickNoteButton() {
   const [by, setBy] = useState(auth.staffId);
   const [query, setQuery] = useState("");
   const [text, setText] = useState("");
+  const [date, setDate] = useState(today());
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState("");
 
@@ -48,9 +49,10 @@ export function QuickNoteButton() {
     if (!clientId || !text.trim() || saving) return;
     setSaving(true);
     try {
-      await createClientNoteRow(clientId, text.trim(), today(), by || null);
+      await createClientNoteRow(clientId, text.trim(), date || today(), by || null);
       setDone(`บันทึกการคุยกับ ${clients.find((c) => c.id === clientId)?.name ?? "ลูกค้า"} แล้ว`);
       setText("");
+      setDate(today());
       setClientId("");
       setQuery("");
       setOpen(false);
@@ -123,7 +125,10 @@ export function QuickNoteButton() {
                   </option>
                 ))}
               </select>
-              <span className="ml-auto text-gray-400">วันที่ {new Date().toLocaleDateString("th-TH", { day: "numeric", month: "short" })}</span>
+              <span className="ml-auto flex items-center gap-1.5">
+                วันที่คุย
+                <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700" />
+              </span>
             </div>
             <textarea
               value={text}

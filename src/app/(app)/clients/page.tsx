@@ -209,7 +209,7 @@ export default function ClientsPage() {
 
   function SortHeader({ label, sortKey, className }: { label: React.ReactNode; sortKey: SortKey; className?: string }) {
     return (
-      <th className={cn("px-4 py-3 font-medium", className)}>
+      <th className={cn("px-3 py-3 font-medium", className)}>
         <button onClick={() => handleSort(sortKey)} className="flex items-center gap-1 hover:text-gray-600">
           {label}
           {sortBy === sortKey ? (
@@ -461,7 +461,7 @@ export default function ClientsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-          <table className="w-full min-w-[1700px] text-left text-sm">
+          <table className="w-full min-w-[1450px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
                 {colOrder.map((id) => {
@@ -479,7 +479,7 @@ export default function ClientsPage() {
                         e.preventDefault();
                         moveColumn(e.dataTransfer.getData("text/plain"), id);
                       }}
-                      className={cn("group/th select-none px-4 py-3 font-medium", h.className)}
+                      className={cn("group/th select-none px-3 py-3 font-medium", h.className)}
                       title="ลากหัวตารางเพื่อสลับตำแหน่งคอลัมน์"
                     >
                       <span className="flex items-center gap-1">
@@ -517,7 +517,7 @@ export default function ClientsPage() {
                 const sums = stageSums[client.id] ?? { total: 0, groups: [] };
                 const cellNodes: Record<string, React.ReactNode> = {
                   priority: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <input
                         type="number"
                         value={client.priority || ""}
@@ -528,17 +528,17 @@ export default function ClientsPage() {
                     </td>
                   ),
                   name: (
-                    <td className="px-4 py-3 font-medium text-gray-900">
+                    <td className="px-3 py-3 font-medium text-gray-900">
                       <Link href={`/clients/${client.id}`} className="hover:text-brand-600 hover:underline">
                         {client.name}
                       </Link>
                     </td>
                   ),
                   contact: (
-                    <td className="px-4 py-3 text-gray-600">{client.contactName || "—"}</td>
+                    <td className="px-3 py-3 text-gray-600">{client.contactName || "—"}</td>
                   ),
                   phone: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <input
                         value={client.phone ?? ""}
                         onChange={(e) => setClients((prev) => prev.map((c) => (c.id === client.id ? { ...c, phone: e.target.value } : c)))}
@@ -549,7 +549,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   manager: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <select
                         value={client.managerId ?? ""}
                         onChange={(e) => handleManagerChange(client, e.target.value)}
@@ -569,7 +569,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   brief: (
-                    <td className="max-w-[220px] px-4 py-3">
+                    <td className="max-w-[220px] px-3 py-3">
                       <Link
                         href={`/clients/${client.id}/brand`}
                         className="line-clamp-2 text-xs text-gray-500 hover:text-brand-600"
@@ -579,7 +579,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   history: (
-                    <td className="max-w-[260px] px-4 py-3">
+                    <td className="max-w-[260px] px-3 py-3">
                       <button
                         onClick={() => setHistoryFor(client)}
                         className="flex w-full items-start gap-1.5 text-left text-xs text-gray-500 hover:text-brand-600"
@@ -590,7 +590,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   payment: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <span className={cn("relative inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", PAYMENT_STYLE[client.paymentStatus])}>
                         {PAYMENT_LABEL[client.paymentStatus]}
                         <select
@@ -609,7 +609,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   package: (
-                    <td className="max-w-[180px] px-4 py-3 text-xs">
+                    <td className="max-w-[180px] px-3 py-3 text-xs">
                       <button
                         onClick={() => setPickPackageFor(client)}
                         className="flex items-center gap-1 text-gray-600 hover:text-brand-600"
@@ -620,7 +620,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   paid: (
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-3 py-3 text-right">
                       <button
                         onClick={() => setPayFor(client)}
                         disabled={!round}
@@ -631,12 +631,12 @@ export default function ClientsPage() {
                     </td>
                   ),
                   outstanding: (
-                    <td className={cn("px-4 py-3 text-right font-medium", outstanding > 0 ? "text-rose-600" : "text-gray-400")}>
+                    <td className={cn("px-3 py-3 text-right font-medium", outstanding > 0 ? "text-rose-600" : "text-gray-400")}>
                       {round ? `฿${currency(outstanding)}` : "—"}
                     </td>
                   ),
                   docs: (
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-3 py-3 text-center">
                       <Link
                         href={`/clients/${client.id}/info`}
                         className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-200"
@@ -647,7 +647,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   link: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       {client.portalEnabled ? (
                         <div className="flex flex-col items-start gap-1">
                           <CopyLinkButton path={clientLinkPath(client)} label="คัดลอกลิงก์" />
@@ -666,7 +666,7 @@ export default function ClientsPage() {
                     </td>
                   ),
                   actions: (
-                    <td className="px-4 py-3">
+                    <td className="px-3 py-3">
                       <div className="flex justify-end gap-1">
                         <Link
                           href={`/clients/${client.id}/info`}

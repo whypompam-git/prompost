@@ -14,7 +14,7 @@ import { STAGES, statusLabel, statusesFor } from "@/lib/workflow";
 import type { Client, Queue, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const sel = "rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand-300";
+const sel = "w-full max-w-full truncate rounded-lg border border-gray-200 bg-white px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-brand-300";
 
 type Group = { key: string; title: string; queue?: Queue; tasks: Task[]; defaultOpen: boolean; hint?: string };
 
@@ -215,7 +215,7 @@ export function ClientTaskBoard({
 
             {isOpen(g) && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[860px] text-left text-sm">
+                <table className="w-full min-w-[780px] text-left text-sm">
                   <tbody className="divide-y divide-gray-50">
                     {g.tasks.map((t) => (
                       <tr key={t.id} className="align-top">
@@ -247,7 +247,7 @@ export function ClientTaskBoard({
                           </Link>
                           {(t.revisionCount ?? 0) > 0 && <span className="ml-2 rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-medium text-rose-700">แก้รอบ {t.revisionCount}</span>}
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="w-[88px] px-1.5 py-2">
                           <select value={t.type} onChange={(e) => changeStage(t, e.target.value)} className={sel}>
                             {STAGES.map((s) => (
                               <option key={s.key} value={s.key}>
@@ -256,7 +256,7 @@ export function ClientTaskBoard({
                             ))}
                           </select>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="w-[104px] px-1.5 py-2">
                           <select value={t.status} onChange={(e) => change(t, { status: e.target.value as TaskStatus })} className={sel}>
                             {statusesFor(t.type).map((s) => (
                               <option key={s} value={s}>
@@ -265,7 +265,7 @@ export function ClientTaskBoard({
                             ))}
                           </select>
                         </td>
-                        <td className="px-2 py-2">
+                        <td className="w-[112px] px-1.5 py-2">
                           <select value={t.assigneeId ?? ""} onChange={(e) => change(t, { assigneeId: e.target.value || null })} className={sel}>
                             <option value="">ยังไม่มอบหมาย</option>
                             {staff.map((s) => (
