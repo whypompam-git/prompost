@@ -2,7 +2,7 @@ import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { bangkokDay, bangkokHour, channelDue } from "@/lib/alerts";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { buildDigestText, lineConfigured, lineTokenSet, pushLine } from "@/lib/lineDigest";
+import { buildDigestText, lineTokenSet, pushLine } from "@/lib/lineDigest";
 
 export const dynamic = "force-dynamic";
 
@@ -65,12 +65,8 @@ export async function GET(request: Request) {
       return NextResponse.json({ channels: results });
     }
 
-    const text = await buildDigestText();
-    if (!text) return NextResponse.json({ sent: false, reason: "nothing to report" });
-    if (dry) return NextResponse.json({ sent: false, reason: "dry run", text });
-    if (!lineConfigured()) return NextResponse.json({ sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN / LINE_TO not set", text });
-    await pushLine(text);
-    return NextResponse.json({ sent: true });
+    // nothing to send to — channels are the only way messages go out now
+    return NextResponse.json({ sent: false, reason: "no line channels", linedTo: Boolean(process.env.LINE_TO), dry });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: err instanceof Error ? err.message : "failed" }, { status: 500 });
