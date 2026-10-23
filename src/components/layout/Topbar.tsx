@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { QuickNoteButton } from "@/components/layout/QuickNoteButton";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listStaff } from "@/lib/supabase/queries";
 
@@ -54,6 +55,7 @@ export function Topbar({
         </div>
       </div>
       <div className="flex items-center gap-3">
+        <QuickNoteButton />
         <NotificationBell />
         <Link
           href="/profile"

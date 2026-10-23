@@ -7,7 +7,6 @@ import { Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { StaffFilter } from "@/components/dashboard/StaffFilter";
-import { QuickNoteBar } from "@/components/dashboard/QuickNoteBar";
 import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
 import { TaskTable, type TaskSortKey } from "@/components/dashboard/TaskTable";
 import { BulkTaskModal, type BulkTaskValues } from "@/components/tasks/BulkTaskModal";
@@ -285,8 +284,6 @@ function DashboardPageInner() {
       <Topbar title="แดชบอร์ด" subtitle="ภาพรวมงานและลูกค้าทั้งหมด" />
 
       <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
-        <QuickNoteBar clients={clients} staff={staff} onSaved={setToast} />
-
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-sm font-medium">
             {([["team", "งานทีม"], ["mine", "งานของฉัน"]] as const).map(([key, label]) => (
