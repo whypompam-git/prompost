@@ -10,6 +10,7 @@ export const dynamic = "force-dynamic";
 // change the browser shouldn't do by itself). The recipients are worked out
 // here from the database — the browser only says what happened to which task.
 //   assigned      — the task's assignee was just set/changed
+//   editor_assigned — the task's editor was just set/changed
 //   stage_changed — the task moved to a new stage (hand-off)
 //   qc_revise     — QC sends the clip back to the editor with a brief
 export async function POST(request: NextRequest) {
@@ -20,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (!live || !live.active) return NextResponse.json({ error: "account disabled" }, { status: 401 });
 
   const { taskId, event, brief } = await request.json().catch(() => ({}));
-  if (typeof taskId !== "string" || !["assigned", "stage_changed", "qc_revise"].includes(event)) {
+  if (typeof taskId !== "string" || !["assigned", "editor_assigned", "stage_changed", "qc_revise"].includes(event)) {
     return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
   if (brief !== undefined && (typeof brief !== "string" || brief.length > 4000)) {
@@ -30,12 +31,12 @@ export async function POST(request: NextRequest) {
   const db = createAdminClient();
   const { data: task } = await db
     .from("tasks")
-    .select("id, title, type, status, client_id, assignee_id, revision_count, clients(name, manager_id)")
+    .select("id, title, type, status, client_id, assignee_id, editor_id, revision_count, clients(name, manager_id)")
     .eq("id", taskId)
     .maybeSingle();
   if (!task) return NextResponse.json({ error: "not found" }, { status: 404 });
   const client = (Array.isArray(task.clients) ? task.clients[0] : task.clients) as { name: string; manager_id: string | null } | null;
-  const ctx = { actorId: claims.staffId, assigneeId: task.assignee_id, managerId: client?.manager_id ?? null };
+  const ctx = { actorId: claims.staffId, assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client?.manager_id ?? null };
   const names = { taskTitle: task.title, clientName: client?.name ?? "" };
 
   if (event === "qc_revise") {
@@ -68,6 +69,8 @@ export async function POST(request: NextRequest) {
   const planned =
     event === "assigned"
       ? planNotifications({ kind: "assigned", ...names }, { ...ctx, newAssigneeId: task.assignee_id })
+      : event === "editor_assigned"
+      ? planNotifications({ kind: "editor_assigned", ...names }, { ...ctx, newAssigneeId: task.editor_id })
       : planNotifications({ kind: "handoff", ...names, toStage: task.type }, ctx);
   await pushNotifications(db, planned, { taskId: task.id, clientId: task.client_id });
   return NextResponse.json({ ok: true });

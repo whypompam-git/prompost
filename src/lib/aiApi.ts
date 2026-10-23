@@ -95,7 +95,7 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
 // are deliberately not on the list. Stage/status changes go through the same
 // hand-off rules as the web app (see resolveFlow).
 const PATCH_TEXT = new Set(["title", "script_text", "notes", "ref_link", "footage_url", "final_url"]);
-const PATCH_UUID = new Set(["assignee_id", "shot_by", "shot_team_id", "queue_id"]);
+const PATCH_UUID = new Set(["assignee_id", "editor_id", "shot_by", "shot_team_id", "queue_id"]);
 const PATCH_DATE = new Set(["scheduled_date", "due_date", "post_date", "edit_date"]);
 const PATCH_ARRAY = new Set(["shots", "equipment"]);
 export const EXPECT_KEYS = new Set(["title", "script_text", "notes", "ref_link", "scheduled_date", "due_date", "type", "status"]);
@@ -123,6 +123,9 @@ export function sanitizePatch(patch: unknown): { ok: true; patch: Record<string,
       out[k] = v;
     } else if (k === "status") {
       if (typeof v !== "string" || !TASK_STATUSES.includes(v)) return { ok: false, error: `status ต้องเป็นหนึ่งใน ${TASK_STATUSES.join(", ")}` };
+      out[k] = v;
+    } else if (k === "edit_difficulty") {
+      if (v !== null && !(Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 5)) return { ok: false, error: "edit_difficulty ต้องเป็นจำนวนเต็ม 1–5 หรือ null" };
       out[k] = v;
     } else if (k === "shoot_order") {
       if (v !== null && !(Number.isInteger(v) && (v as number) >= 1 && (v as number) <= 9999)) return { ok: false, error: "shoot_order ต้องเป็นจำนวนเต็ม 1–9999 หรือ null" };

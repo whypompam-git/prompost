@@ -10,11 +10,12 @@
 export type ProxyAccess = {
   staffId: string;
   role: "owner" | "staff";
+  hideInternal?: boolean; // position that must not see internal data (e.g. edit difficulty)
   permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean };
 };
 
 export type ProxyDecision =
-  | { ok: true; search: string }
+  | { ok: true; search: string; minimalReturn?: boolean }
   | { ok: false; status: number; reason: string };
 
 const deny = (status: number, reason: string): ProxyDecision => ({ ok: false, status, reason });
@@ -35,6 +36,7 @@ const TABLES = new Set([
   "notifications",
   "packages",
   "payroll_entries",
+  "positions",
   "queues",
   "quotations",
   "receipts",
@@ -139,6 +141,32 @@ export function authorizeProxyRequest(input: {
     }
   }
 
+  if ((table === "positions") && write && !isOwner) return deny(403, "owner only");
+
+  // Internal-only data: people in a "hide internal" position never get the
+  // edit_difficulty column — not in reads, not in what a write returns, not as a filter.
+  let minimalReturn = false;
+  if (access.hideInternal && table !== "tasks" && (/edit_difficulty/i.test(search) || /\btasks\s*(![\w]+)?\s*\(/i.test(params.get("select") ?? ""))) {
+    return deny(403, "embedding tasks is not available for this position");
+  }
+  if (table === "tasks" && access.hideInternal) {
+    if (/edit_difficulty/i.test(params.get("order") ?? "") || [...params.entries()].some(([k, v]) => k !== "select" && /edit_difficulty/i.test(`${k}=${v}`))) {
+      return deny(403, "edit_difficulty is not available");
+    }
+    if (write) {
+      for (const row of bodyRows(input.body)) if ("edit_difficulty" in row) return deny(403, "edit_difficulty is not editable for this position");
+    }
+    const select = params.get("select");
+    if (select === null || select.trim() === "" || select.includes("*")) {
+      if (!write) return deny(403, "list the columns you need (select=…)");
+    } else {
+      const cols = select.split(",").map((c) => c.trim()).filter((c) => c && !/^edit_difficulty$/i.test(c));
+      params.set("select", cols.join(","));
+      search = `?${params.toString()}`;
+    }
+    if (write && (select === null || select.includes("*"))) minimalReturn = true;
+  }
+
   if ((table === "task_settings" || table === "teams") && write && !isOwner) return deny(403, "owner only");
   // revision history is written by the server routes only
   if (table === "task_revisions" && write) return deny(403, "written by the server only");
@@ -166,5 +194,5 @@ export function authorizeProxyRequest(input: {
     return deny(403, "needs documents/accounting permission");
   }
 
-  return { ok: true, search };
+  return minimalReturn ? { ok: true, search, minimalReturn } : { ok: true, search };
 }

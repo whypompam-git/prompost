@@ -117,3 +117,30 @@ test("line_channels (group IDs) are owner-only, even to read", () => {
   assert.equal(run(owner, "GET", "rest/v1/line_channels", "?select=*").ok, true);
   assert.equal(run(owner, "POST", "rest/v1/line_channels", "", [{ name: "x" }]).ok, true);
 });
+
+const hidden: ProxyAccess = { ...staff, hideInternal: true };
+
+test("hide-internal positions never get edit_difficulty", () => {
+  const sel = (r: ReturnType<typeof run>) => (r.ok ? new URLSearchParams(r.search).get("select") : "DENIED");
+  assert.equal(sel(run(hidden, "GET", "rest/v1/tasks", "?select=id,title,edit_difficulty,editor_id")), "id,title,editor_id");
+  assert.equal(sel(run(hidden, "GET", "rest/v1/tasks", "?select=*")), "DENIED");
+  assert.equal(sel(run(hidden, "GET", "rest/v1/tasks", "")), "DENIED");
+  assert.equal(run(hidden, "GET", "rest/v1/tasks", "?select=id&edit_difficulty=gte.4").ok, false);
+  assert.equal(run(hidden, "GET", "rest/v1/tasks", "?select=id&order=edit_difficulty.desc").ok, false);
+  assert.equal(run(hidden, "PATCH", "rest/v1/tasks", "?id=eq.x", { edit_difficulty: 1 }).ok, false);
+  assert.equal(run(hidden, "GET", "rest/v1/clients", "?select=name,tasks(edit_difficulty)").ok, false);
+  assert.equal(run(hidden, "GET", "rest/v1/clients", "?select=id,tasks(id)").ok, false);
+  // ordinary use still works; a write with no select is forced to return nothing
+  assert.equal(run(hidden, "GET", "rest/v1/clients", "?select=id,name").ok, true);
+  const w = run(hidden, "PATCH", "rest/v1/tasks", "?id=eq.x", { title: "t" });
+  assert.equal(w.ok && w.minimalReturn, true);
+  // everyone else is unaffected
+  assert.equal(sel(run(staff, "GET", "rest/v1/tasks", "?select=id,edit_difficulty")), "id,edit_difficulty");
+  assert.equal(run(staff, "PATCH", "rest/v1/tasks", "?id=eq.x", { edit_difficulty: 3 }).ok, true);
+});
+
+test("positions: readable by all, editable by the owner only", () => {
+  assert.equal(run(staff, "GET", "rest/v1/positions", "?select=*").ok, true);
+  assert.equal(run(staff, "POST", "rest/v1/positions", "", [{ name: "x" }]).ok, false);
+  assert.equal(run(owner, "POST", "rest/v1/positions", "", [{ name: "x" }]).ok, true);
+});

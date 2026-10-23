@@ -9,6 +9,7 @@ export type AuthInfo = {
   name: string;
   role: StaffRole;
   permissions: Permissions;
+  hideInternal?: boolean;
 };
 
 const AuthContext = createContext<AuthInfo | null>(null);

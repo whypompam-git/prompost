@@ -81,3 +81,10 @@ test("resolveFlow applies the web app's rules to an AI patch", () => {
   // unrelated patches pass through untouched
   assert.deepEqual(resolveFlow(cur, { notes: "x" }), { ok: true, patch: { notes: "x" } });
 });
+
+test("AI patch: editor and edit difficulty", () => {
+  const uuid = "123e4567-e89b-12d3-a456-426614174000";
+  assert.equal(sanitizePatch({ editor_id: uuid, edit_difficulty: 4 }).ok, true);
+  assert.equal(sanitizePatch({ edit_difficulty: 9 }).ok, false);
+  assert.equal(sanitizePatch({ editor_id: "x" }).ok, false);
+});

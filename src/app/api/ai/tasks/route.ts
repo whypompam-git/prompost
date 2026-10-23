@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const READ_COLUMNS = "id, client_id, title, script_text, notes, shots, equipment, scheduled_date, due_date, type, status, assignee_id, shot_by, shot_team_id, queue_id, shoot_order, edit_date, footage_url, final_url, ref_link, content_category, post_date";
+const READ_COLUMNS = "id, client_id, title, script_text, notes, shots, equipment, scheduled_date, due_date, type, status, assignee_id, editor_id, edit_difficulty, shot_by, shot_team_id, queue_id, shoot_order, edit_date, footage_url, final_url, ref_link, content_category, post_date";
 
 // Read specific tasks: ?ids=a,b,c (max 200)
 export async function GET(request: Request) {

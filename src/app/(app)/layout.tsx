@@ -24,6 +24,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     name: live?.name ?? claims.name,
     role: live?.role ?? claims.role,
     permissions: live?.permissions ?? (claims.role === "owner" ? ALL_PERMISSIONS : NO_PERMISSIONS),
+    hideInternal: live?.hideInternal ?? false,
   };
 
   return (

@@ -85,7 +85,10 @@ export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clie
       chips.set(key, chip);
     }
     chip.count += 1;
-    if (p.group === "edit" && t.assigneeId && staffName(t.assigneeId)) chip.names.add(staffName(t.assigneeId)!);
+    if (p.group === "edit") {
+      const who = t.type === "edit" ? (t.editorId ?? t.assigneeId) : t.assigneeId;
+      if (who && staffName(who)) chip.names.add(staffName(who)!);
+    }
     }
   }
 

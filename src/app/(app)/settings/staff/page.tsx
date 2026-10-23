@@ -21,8 +21,11 @@ import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createStaffRow,
+  createPosition,
   createTeam,
+  deletePosition,
   deleteTeam,
+  listPositions,
   deleteStaffRow,
   ensurePayrollEntriesForMonth,
   listInactiveStaff,
@@ -33,12 +36,13 @@ import {
   permanentlyDeleteStaffRow,
   reactivateStaffRow,
   renameTeam,
+  updatePosition,
   togglePayrollPaid,
   updateLeaveStatus,
   updatePayrollEntry,
   updateStaffRow,
 } from "@/lib/supabase/queries";
-import type { LeaveRequest, LeaveStatus, PayrollEntry, Staff, Team } from "@/lib/types";
+import type { LeaveRequest, LeaveStatus, PayrollEntry, Position, Staff, Team } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const LEAVE_TYPE_LABEL: Record<LeaveRequest["leaveType"], string> = {
@@ -72,6 +76,7 @@ export default function StaffSettingsPage() {
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
   const [payroll, setPayroll] = useState<PayrollEntry[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
+  const [positions, setPositions] = useState<Position[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [staffModalMode, setStaffModalMode] = useState<"closed" | "create" | { edit: Staff }>(
@@ -84,13 +89,15 @@ export default function StaffSettingsPage() {
       return;
     }
     async function load() {
-      const [staffRows, inactiveRows, leaveRows, teamRows] = await Promise.all([
+      const [staffRows, inactiveRows, leaveRows, teamRows, positionRows] = await Promise.all([
         listStaff(),
         listInactiveStaff(),
         listLeaveRequests(),
         listTeams().catch(() => [] as Team[]), // table missing until migration 0031 runs
+        listPositions().catch(() => [] as Position[]),
       ]);
       setTeams(teamRows);
+      setPositions(positionRows);
       await ensurePayrollEntriesForMonth(currentPeriodMonth, staffRows);
       const payrollRows = await listPayrollEntries(currentPeriodMonth);
       const activeIds = new Set(staffRows.map((s) => s.id));
@@ -104,6 +111,34 @@ export default function StaffSettingsPage() {
   }, [auth.role, router]);
 
   const staffName = (id: string) => staff.find((s) => s.id === id)?.name ?? "—";
+
+  async function handleCreatePosition() {
+    const name = window.prompt("ชื่อตำแหน่งใหม่ เช่น Editor, Editor (Outsource), Videographer")?.trim();
+    if (!name) return;
+    const created = await createPosition(name, positions.reduce((m, p) => Math.max(m, p.sortOrder), 0) + 1);
+    setPositions((prev) => [...prev, created]);
+  }
+
+  async function handleRenamePosition(p: Position) {
+    const name = window.prompt("เปลี่ยนชื่อตำแหน่ง", p.name)?.trim();
+    if (!name || name === p.name) return;
+    await updatePosition(p.id, { name });
+    setPositions((prev) => prev.map((x) => (x.id === p.id ? { ...x, name } : x)));
+    setStaff((prev) => prev.map((s) => (s.positionId === p.id ? { ...s, position: name } : s)));
+  }
+
+  async function handleToggleHidden(p: Position) {
+    await updatePosition(p.id, { hideInternal: !p.hideInternal });
+    setPositions((prev) => prev.map((x) => (x.id === p.id ? { ...x, hideInternal: !p.hideInternal } : x)));
+  }
+
+  async function handleDeletePosition(p: Position) {
+    const n = staff.filter((s) => s.positionId === p.id).length;
+    if (!window.confirm(`ลบตำแหน่ง "${p.name}"?${n ? ` (พนักงาน ${n} คนจะไม่มีตำแหน่งในรายการ แต่ชื่อตำแหน่งเดิมยังแสดงอยู่)` : ""}`)) return;
+    await deletePosition(p.id);
+    setPositions((prev) => prev.filter((x) => x.id !== p.id));
+    setStaff((prev) => prev.map((s) => (s.positionId === p.id ? { ...s, positionId: undefined } : s)));
+  }
 
   async function handleCreateTeam(name: string) {
     const created = await createTeam(name, teams.reduce((m, t) => Math.max(m, t.sortOrder), 0) + 1);
@@ -247,6 +282,37 @@ export default function StaffSettingsPage() {
             >
               <Plus size={14} />
               เพิ่มทีม
+            </button>
+          </Card>
+        </section>
+
+        <section>
+          <h2 className="mb-1 text-sm font-semibold text-gray-700">ตำแหน่ง</h2>
+          <p className="mb-3 text-xs text-gray-400">
+            ตำแหน่งที่ติ๊ก "ซ่อนข้อมูลภายใน" (เช่น Editor Outsource) จะไม่เห็นความยากในการตัดของคลิป — ซ่อนจริงที่ระบบ ไม่ใช่แค่หน้าจอ
+          </p>
+          <Card className="space-y-2">
+            {positions.map((p) => (
+              <div key={p.id} className="flex flex-wrap items-center gap-3 rounded-xl bg-gray-50 px-3 py-2 text-sm">
+                <span className="font-medium text-gray-800">{p.name}</span>
+                <span className="text-xs text-gray-400">({staff.filter((s) => s.positionId === p.id).length} คน)</span>
+                <label className="ml-2 flex items-center gap-1.5 text-xs text-gray-600">
+                  <input type="checkbox" checked={p.hideInternal} onChange={() => handleToggleHidden(p)} />
+                  ซ่อนข้อมูลภายใน
+                </label>
+                <span className="ml-auto flex gap-1">
+                  <button onClick={() => handleRenamePosition(p)} className="rounded-full p-1.5 text-gray-400 hover:bg-white hover:text-gray-600" aria-label="เปลี่ยนชื่อตำแหน่ง">
+                    <Pencil size={13} />
+                  </button>
+                  <button onClick={() => handleDeletePosition(p)} className="rounded-full p-1.5 text-gray-400 hover:bg-white hover:text-rose-500" aria-label="ลบตำแหน่ง">
+                    <Trash2 size={13} />
+                  </button>
+                </span>
+              </div>
+            ))}
+            {positions.length === 0 && <p className="text-xs text-gray-400">ยังไม่มีตำแหน่งในรายการ — กดเพิ่มด้านล่าง</p>}
+            <button onClick={handleCreatePosition} className="flex items-center gap-1 rounded-full border border-dashed border-gray-300 px-3 py-1 text-sm text-gray-500 hover:bg-gray-50">
+              <Plus size={14} /> เพิ่มตำแหน่ง
             </button>
           </Card>
         </section>
@@ -462,6 +528,7 @@ export default function StaffSettingsPage() {
         <StaffModal
           initial={staffModalMode === "create" ? undefined : staffModalMode.edit}
           teams={teams}
+          positions={positions}
           onCreateTeam={handleCreateTeam}
           onClose={() => setStaffModalMode("closed")}
           onSave={handleSaveStaff}

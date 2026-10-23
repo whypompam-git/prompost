@@ -9,6 +9,8 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { TagInput } from "@/components/ui/TagInput";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
+import { DIFFICULTY } from "@/components/dashboard/TaskTable";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { WorkflowPanel } from "@/components/tasks/WorkflowPanel";
 import { saveTaskWithFlow } from "@/lib/taskFlow";
 import { enterStage, statusLabel, statusesFor } from "@/lib/workflow";
@@ -36,6 +38,7 @@ const inputClass =
 const labelClass = "mb-1 block text-xs font-medium text-gray-500";
 
 export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
+  const auth = useAuth();
   const { types } = useTaskSettings();
   const params = useParams<{ id: string }>();
   const router = useRouter();
@@ -285,7 +288,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <label className={labelClass}>ผู้รับผิดชอบ</label>
+              <label className={labelClass}>ผู้รับผิดชอบ (ถ่าย / ตรวจ QC / อนุมัติ / ส่งงาน)</label>
               <select
                 value={task.assigneeId ?? ""}
                 onChange={(e) => patch({ assigneeId: e.target.value || null })}
@@ -299,6 +302,38 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 ))}
               </select>
             </div>
+            <div>
+              <label className={labelClass}>Editor (คนตัดต่อ — ส่งงานแล้วไปให้ผู้รับผิดชอบตรวจ)</label>
+              <select
+                value={task.editorId ?? ""}
+                onChange={(e) => patch({ editorId: e.target.value || null })}
+                className={inputClass}
+              >
+                <option value="">ยังไม่มี Editor</option>
+                {staff.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {!auth.hideInternal && (
+              <div>
+                <label className={labelClass}>ความยากในการตัด (เฉพาะทีมใน — Editor ที่ถูกซ่อนจะไม่เห็น)</label>
+                <select
+                  value={task.editDifficulty ?? ""}
+                  onChange={(e) => patch({ editDifficulty: e.target.value ? Number(e.target.value) : null })}
+                  className={inputClass}
+                >
+                  <option value="">ยังไม่ระบุ</option>
+                  {DIFFICULTY.map((d) => (
+                    <option key={d.value} value={d.value}>
+                      {d.value} · {d.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">

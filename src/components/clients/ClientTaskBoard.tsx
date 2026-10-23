@@ -5,6 +5,8 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarDays, CheckCheck, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
+import { DIFFICULTY } from "@/components/dashboard/TaskTable";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { QueueModal, type QueueDraft } from "@/components/clients/QueueModal";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
@@ -38,6 +40,7 @@ export function ClientTaskBoard({
   onQueuesChange: (updater: (prev: Queue[]) => Queue[]) => void;
   onToast: (msg: string) => void;
 }) {
+  const hideDifficulty = useAuth().hideInternal === true;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -215,7 +218,7 @@ export function ClientTaskBoard({
 
             {isOpen(g) && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[780px] text-left text-sm">
+                <table className="w-full min-w-[980px] text-left text-sm">
                   <tbody className="divide-y divide-gray-50">
                     {g.tasks.map((t) => (
                       <tr key={t.id} className="align-top">
@@ -275,6 +278,38 @@ export function ClientTaskBoard({
                             ))}
                           </select>
                         </td>
+                        <td className="w-[104px] px-1.5 py-2">
+                          <select
+                            value={t.editorId ?? ""}
+                            onChange={(e) => change(t, { editorId: e.target.value || null })}
+                            className={sel}
+                            title="Editor (คนตัดต่อ)"
+                          >
+                            <option value="">Editor: —</option>
+                            {staff.map((s) => (
+                              <option key={s.id} value={s.id}>
+                                {s.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        {!hideDifficulty && (
+                          <td className="w-[68px] px-1.5 py-2">
+                            <select
+                              value={t.editDifficulty ?? ""}
+                              onChange={(e) => change(t, { editDifficulty: e.target.value ? Number(e.target.value) : null })}
+                              className={sel}
+                              title="ความยากในการตัด"
+                            >
+                              <option value="">ยาก: —</option>
+                              {DIFFICULTY.map((d) => (
+                                <option key={d.value} value={d.value}>
+                                  {d.value} {d.label}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        )}
                         <td className="px-2 py-2">
                           <div className="flex flex-col gap-1 text-[10px] text-gray-400">
                             <label className="flex items-center gap-1">
@@ -314,7 +349,7 @@ export function ClientTaskBoard({
                       return [
                         row,
                         <tr key={`${t.id}-x`} className="bg-gray-50/60">
-                          <td colSpan={8} className="space-y-3 px-5 py-3">
+                          <td colSpan={10} className="space-y-3 px-5 py-3">
                             <ScriptEditor value={scriptDraft} onChange={setScriptDraft} />
                             <div className="flex flex-wrap items-center gap-2">
                               <input

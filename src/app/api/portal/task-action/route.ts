@@ -41,7 +41,7 @@ export async function POST(request: Request) {
 
   const { data: task } = await db
     .from("tasks")
-    .select("id, title, type, status, footage_url, revision_count, assignee_id")
+    .select("id, title, type, status, footage_url, revision_count, assignee_id, editor_id")
     .eq("id", taskId)
     .eq("client_id", client.id)
     .maybeSingle();
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
     await pushNotifications(
       db,
       planNotifications(
-        { kind: KIND[action as ClientAction], taskTitle: task.title, clientName: client.name, brief: brief?.trim(), round: result.revisionCount },
-        { assigneeId: task.assignee_id, managerId: client.manager_id },
+        { kind: KIND[action as ClientAction], taskTitle: task.title, clientName: client.name, brief: brief?.trim(), round: result.revisionCount, toStage: result.type },
+        { assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client.manager_id },
       ),
       { taskId: task.id, clientId: client.id },
     );

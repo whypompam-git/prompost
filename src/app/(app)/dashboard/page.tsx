@@ -143,6 +143,17 @@ function DashboardPageInner() {
           return a.type.localeCompare(b.type);
         case "scheduledDate":
           return a.scheduledDate.localeCompare(b.scheduledDate);
+        case "editDate":
+          return (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999");
+        case "difficulty":
+          return (b.editDifficulty ?? 0) - (a.editDifficulty ?? 0);
+        case "editor": {
+          const an = staffName(a.editorId ?? null);
+          const bn = staffName(b.editorId ?? null);
+          if (!an && bn) return 1;
+          if (an && !bn) return -1;
+          return an.localeCompare(bn, "th");
+        }
         case "status":
           return STATUS_ORDER[a.status] - STATUS_ORDER[b.status];
         case "assignee": {

@@ -102,7 +102,11 @@ export function buildWorkBoard(input: {
       }
     } else if (t.type === "edit" || t.type === "qc") {
       if (!t.editDate) wait(t.clientId).noEditDate += 1;
-      else add(`${t.type}|${t.clientId}|${rowOf(t.assigneeId)}`, { kind: t.type, rowId: rowOf(t.assigneeId), date: t.editDate, clientId: t.clientId, title: t.title, href: `/tasks/${t.id}` }, t);
+      else {
+        // editing is the editor's work (falls back to the responsible person); QC is the responsible person's
+        const owner = rowOf(t.type === "edit" ? (t.editorId ?? t.assigneeId) : t.assigneeId);
+        add(`${t.type}|${t.clientId}|${owner}`, { kind: t.type, rowId: owner, date: t.editDate, clientId: t.clientId, title: t.title, href: `/tasks/${t.id}` }, t);
+      }
     } else if (t.type === "other" && t.status !== "done") {
       add(`other|${t.id}`, { kind: "other", rowId: rowOf(t.assigneeId), date: t.editDate ?? t.scheduledDate, clientId: t.clientId, title: t.title, href: `/tasks/${t.id}` }, t);
     }

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { X } from "lucide-react";
 import { COLOR_STEMS, PALETTE } from "@/lib/colors";
 import { ALL_PERMISSIONS, PERMISSION_KEYS, PERMISSION_LABELS, type Permissions } from "@/lib/permissions";
-import type { Staff, Team } from "@/lib/types";
+import type { Position, Staff, Team } from "@/lib/types";
 
 const AVATAR_COLORS = [
   "bg-orange-500",
@@ -20,18 +20,21 @@ export type StaffFormValues = Omit<Staff, "id" | "avatarColor">;
 export function StaffModal({
   initial,
   teams,
+  positions,
   onCreateTeam,
   onClose,
   onSave,
 }: {
   initial?: Staff;
   teams: Team[];
+  positions: Position[];
   onCreateTeam: (name: string) => Promise<Team>;
   onClose: () => void;
   onSave: (values: StaffFormValues, avatarColor: string, pin?: string) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
+  const [positionId, setPositionId] = useState(initial?.positionId ?? "");
   const [teamId, setTeamId] = useState(initial?.teamId ?? "");
   const [teamOptions, setTeamOptions] = useState(teams);
   const [newTeam, setNewTeam] = useState("");
@@ -51,7 +54,7 @@ export function StaffModal({
   const pinValid = pin === "" || /^\d{4}$/.test(pin);
   const canSave =
     name.trim().length > 0 &&
-    position.trim().length > 0 &&
+    (positions.length > 0 ? positionId.length > 0 || position.trim().length > 0 : position.trim().length > 0) &&
     pinValid &&
     (!isNew || /^\d{4}$/.test(pin));
 
@@ -74,7 +77,8 @@ export function StaffModal({
     onSave(
       {
         name: name.trim(),
-        position: position.trim(),
+        position: positions.find((p) => p.id === positionId)?.name ?? position.trim(),
+        positionId: positionId || undefined,
         teamId: teamId || undefined,
         phone,
         email,
@@ -114,12 +118,31 @@ export function StaffModal({
             />
           </Field>
           <Field label="ตำแหน่ง">
-            <input
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              placeholder="เช่น Video Editor"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            />
+            {positions.length > 0 ? (
+              <select
+                value={positionId}
+                onChange={(e) => {
+                  setPositionId(e.target.value);
+                  setPosition(positions.find((p) => p.id === e.target.value)?.name ?? "");
+                }}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              >
+                <option value="">{position ? `${position} (ยังไม่อยู่ในรายการตำแหน่ง)` : "เลือกตำแหน่ง…"}</option>
+                {positions.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                    {p.hideInternal ? " (ซ่อนข้อมูลภายใน)" : ""}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={position}
+                onChange={(e) => setPosition(e.target.value)}
+                placeholder="เช่น Video Editor (เพิ่มรายการตำแหน่งได้ที่ตั้งค่า → พนักงาน)"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            )}
           </Field>
           <Field label="ทีม">
             <select

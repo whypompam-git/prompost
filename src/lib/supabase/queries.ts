@@ -6,6 +6,7 @@ import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { DEFAULT_CONTRACT_TEMPLATE, fillVariables } from "@/lib/contractTemplate";
 import type {
+  Position,
   Queue,
   Client,
   ClientNote,
@@ -201,10 +202,11 @@ type StaffRow = {
   bank_account_no: string | null;
   bank_account_name: string | null;
   team_id: string | null;
+  position_id: string | null;
 };
 
 const STAFF_COLUMNS =
-  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url, bank_name, bank_account_no, bank_account_name, team_id";
+  "id, name, position, phone, email, hire_date, base_salary, avatar_color, role, can_view_accounting, permissions, photo_url, bank_name, bank_account_no, bank_account_name, team_id, position_id";
 
 const fromStaffRow = (r: StaffRow): Staff => ({
   id: r.id,
@@ -222,6 +224,7 @@ const fromStaffRow = (r: StaffRow): Staff => ({
   bankAccountNo: r.bank_account_no ?? undefined,
   bankAccountName: r.bank_account_name ?? undefined,
   teamId: r.team_id ?? undefined,
+  positionId: r.position_id ?? undefined,
 });
 
 export async function listStaff(): Promise<Staff[]> {
@@ -259,6 +262,7 @@ export async function createStaffRow(
       can_view_accounting: values.permissions.accounting,
       permissions: values.permissions,
       team_id: values.teamId ?? null,
+      position_id: values.positionId ?? null,
       pin_hash: pin ? bcrypt.hashSync(pin, 10) : null,
     })
     .select(STAFF_COLUMNS)
@@ -284,6 +288,7 @@ export async function updateStaffRow(
     can_view_accounting: values.permissions.accounting,
     permissions: values.permissions,
     team_id: values.teamId ?? null,
+    position_id: values.positionId ?? null,
   };
   if (pin) {
     const bcrypt = await import("bcryptjs");
@@ -422,10 +427,12 @@ type TaskRow = {
   queue_id: string | null;
   shoot_order: number | null;
   edit_date: string | null;
+  editor_id: string | null;
+  edit_difficulty?: number | null;
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order, edit_date";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order, edit_date, editor_id, edit_difficulty";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -455,6 +462,8 @@ const fromTaskRow = (r: TaskRow): Task => ({
   queueId: r.queue_id,
   shootOrder: r.shoot_order,
   editDate: r.edit_date,
+  editorId: r.editor_id,
+  editDifficulty: r.edit_difficulty, // not returned at all for positions that must not see it
 });
 
 export async function listTasks(): Promise<Task[]> {
@@ -564,6 +573,8 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
   if (values.endTime !== undefined) patch.end_time = values.endTime || null;
   if (values.editDate !== undefined) patch.edit_date = values.editDate || null;
+  if (values.editorId !== undefined) patch.editor_id = values.editorId;
+  if (values.editDifficulty !== undefined) patch.edit_difficulty = values.editDifficulty;
   if (values.queueId !== undefined) patch.queue_id = values.queueId;
   if (values.shootOrder !== undefined) patch.shoot_order = values.shootOrder;
   if (values.shotById !== undefined) patch.shot_by = values.shotById;
@@ -2000,5 +2011,36 @@ export async function saveQueue(values: Omit<Queue, "id"> & { id?: string }): Pr
 // Clips in the queue go back to "waiting for a queue" (queue_id set null by the FK).
 export async function deleteQueue(id: string): Promise<void> {
   const { error } = await supabase().from("queues").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// ── Positions ────────────────────────────────────────────────────────────
+type PositionRow = { id: string; name: string; sort_order: number; hide_internal: boolean };
+const fromPositionRow = (r: PositionRow): Position => ({ id: r.id, name: r.name, sortOrder: r.sort_order, hideInternal: r.hide_internal });
+
+export async function listPositions(): Promise<Position[]> {
+  const { data, error } = await supabase().from("positions").select("id, name, sort_order, hide_internal").order("sort_order").order("created_at");
+  if (error) throw error;
+  return (data as PositionRow[]).map(fromPositionRow);
+}
+
+export async function createPosition(name: string, sortOrder: number): Promise<Position> {
+  const { data, error } = await supabase().from("positions").insert({ name: name.trim(), sort_order: sortOrder }).select("id, name, sort_order, hide_internal").single();
+  if (error) throw error;
+  return fromPositionRow(data as PositionRow);
+}
+
+// Renaming also renames the free-text staff.position copy, so every screen that prints it stays right.
+export async function updatePosition(id: string, values: { name?: string; hideInternal?: boolean }): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (values.name !== undefined) patch.name = values.name.trim();
+  if (values.hideInternal !== undefined) patch.hide_internal = values.hideInternal;
+  const { error } = await supabase().from("positions").update(patch).eq("id", id);
+  if (error) throw error;
+  if (values.name !== undefined) await supabase().from("staff").update({ position: values.name.trim() }).eq("position_id", id);
+}
+
+export async function deletePosition(id: string): Promise<void> {
+  const { error } = await supabase().from("positions").delete().eq("id", id);
   if (error) throw error;
 }

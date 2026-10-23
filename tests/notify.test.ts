@@ -35,3 +35,17 @@ test("handoff names the new stage", () => {
   const [n] = planNotifications({ ...base, kind: "handoff", toStage: "edit" }, { assigneeId: "a" });
   assert.match(n.title, /ตัดต่อ/);
 });
+
+test("hand-offs follow the Editor/ผู้รับผิดชอบ split", () => {
+  const ctx = { actorId: "boss", assigneeId: "owner1", editorId: "ed1", managerId: "m" };
+  // into editing → the editor
+  assert.deepEqual(planNotifications({ ...base, kind: "handoff", toStage: "edit" }, ctx).map((n) => n.recipientId), ["ed1"]);
+  // editor sends it → the responsible person reviews it
+  assert.deepEqual(planNotifications({ ...base, kind: "handoff", toStage: "qc" }, { ...ctx, actorId: "ed1" }).map((n) => n.recipientId), ["owner1"]);
+  // QC sends it back → editor + responsible person + manager
+  assert.deepEqual(planNotifications({ ...base, kind: "qc_revise" }, { ...ctx, actorId: "x" }).map((n) => n.recipientId).sort(), ["ed1", "m", "owner1"]);
+  // no separate editor → the responsible person gets the editing work
+  assert.deepEqual(planNotifications({ ...base, kind: "handoff", toStage: "edit" }, { ...ctx, editorId: null }).map((n) => n.recipientId), ["owner1"]);
+  // same person editing and approving gets it once, unless they caused it
+  assert.equal(planNotifications({ ...base, kind: "handoff", toStage: "qc" }, { assigneeId: "a", editorId: "a" }).length, 1);
+});

@@ -44,6 +44,7 @@ export interface Staff {
   role: StaffRole;
   permissions: Permissions;
   teamId?: string; // team the staff member belongs to
+  positionId?: string; // picked from the positions list
   photoUrl?: string; // data URL, self-uploaded via /profile
   bankName?: string; // self-entered from /profile — for the owner's one-tap payout
   bankAccountNo?: string;
@@ -75,6 +76,8 @@ export interface Task {
   scheduledDate: string; // ISO date — "วันที่ถ่าย"
   dueDate: string; // ISO date — "วันส่ง" (delivery to the client)
   editDate?: string | null; // ISO date — "วันตัดต่อ" (the day editors work on it)
+  editorId?: string | null; // who edits it (assigneeId = responsible person who does QC / approves)
+  editDifficulty?: number | null; // 1–5; undefined = hidden from this viewer
   notes?: string;
   footageUrl?: string; // Google Drive link — raw footage from the shoot
   refLink?: string; // Ref Link Video
@@ -289,4 +292,13 @@ export interface Queue {
   editDate?: string; // default วันตัดต่อ for the queue's clips
   crew: string[]; // staff ids
   note?: string;
+}
+
+// A job title staff are assigned from; hideInternal hides internal-only data
+// (e.g. how hard a clip is to edit) from people in it, such as outsourced editors.
+export interface Position {
+  id: string;
+  name: string;
+  sortOrder: number;
+  hideInternal: boolean;
 }

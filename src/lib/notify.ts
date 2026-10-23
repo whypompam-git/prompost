@@ -12,6 +12,7 @@ export type NotifyKind =
   | "qc_revise"
   | "handoff"
   | "assigned"
+  | "editor_assigned"
   | "overdue";
 
 export type NotifyEvent = {
@@ -25,9 +26,10 @@ export type NotifyEvent = {
 
 export type NotifyContext = {
   actorId?: string; // person who caused it (never notified about their own action)
-  assigneeId?: string | null;
+  assigneeId?: string | null; // responsible person: shoots, does QC, approves, delivers
+  editorId?: string | null; // edits the clip
   managerId?: string | null;
-  newAssigneeId?: string | null; // for "assigned"
+  newAssigneeId?: string | null; // for "assigned" / "editor_assigned"
 };
 
 export type PlannedNotification = { recipientId: string; kind: NotifyKind; title: string; body?: string };
@@ -51,6 +53,8 @@ export function describeEvent(e: NotifyEvent): { title: string; body?: string } 
       return { title: `ส่งต่อไป ${stageInfo(e.toStage ?? "")?.label ?? e.toStage}: ${who}` };
     case "assigned":
       return { title: `คุณได้รับงานใหม่: ${who}` };
+    case "editor_assigned":
+      return { title: `คุณได้รับงานตัดต่อ: ${who}` };
     case "overdue":
       return { title: `งานเลยกำหนด: ${who}` };
   }
@@ -58,8 +62,18 @@ export function describeEvent(e: NotifyEvent): { title: string; body?: string } 
 
 export function planNotifications(e: NotifyEvent, c: NotifyContext): PlannedNotification[] {
   const recipients = new Set<string>();
-  if (e.kind === "assigned") {
+  const editor = c.editorId ?? c.assigneeId; // clips without a separate editor go to the responsible person
+  if (e.kind === "assigned" || e.kind === "editor_assigned") {
     if (c.newAssigneeId) recipients.add(c.newAssigneeId);
+  } else if (e.kind === "handoff" && e.toStage === "edit") {
+    if (editor) recipients.add(editor);
+  } else if (e.kind === "handoff" && e.toStage === "qc") {
+    // the editor sent it: the responsible person reviews and approves
+    if (c.assigneeId) recipients.add(c.assigneeId);
+  } else if (e.kind === "qc_revise" || (e.kind === "client_revise" && e.toStage === "edit")) {
+    if (editor) recipients.add(editor);
+    if (c.assigneeId) recipients.add(c.assigneeId);
+    if (c.managerId) recipients.add(c.managerId);
   } else {
     if (c.assigneeId) recipients.add(c.assigneeId);
     if (c.managerId) recipients.add(c.managerId);

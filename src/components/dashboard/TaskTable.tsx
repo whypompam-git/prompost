@@ -9,6 +9,7 @@ import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { statusLabel, statusesFor } from "@/lib/workflow";
 import { isStem, pillClass, stemFromBg } from "@/lib/colors";
 import { useTaskSettings } from "@/lib/useTaskSettings";
+import { useAuth } from "@/lib/auth/AuthContext";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -17,18 +18,24 @@ export type TaskSortKey =
   | "client"
   | "type"
   | "scheduledDate"
+  | "editDate"
   | "dueDate"
   | "status"
-  | "assignee";
+  | "assignee"
+  | "editor"
+  | "difficulty";
 
 const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "title", label: "งาน" },
   { key: "client", label: "ลูกค้า" },
   { key: "scheduledDate", label: "วันถ่าย" },
-  { key: "dueDate", label: "กำหนดส่ง" },
+  { key: "editDate", label: "วันตัดต่อ" },
+  { key: "dueDate", label: "วันส่ง" },
   { key: "type", label: "ประเภท" },
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
+  { key: "editor", label: "Editor" },
+  { key: "difficulty", label: "ความยาก" },
 ];
 
 // Tiny "has a script" marker: an icon after the title, zero extra width when absent.
@@ -40,6 +47,14 @@ function ScriptMark({ task }: { task: Task }) {
     </span>
   );
 }
+
+export const DIFFICULTY: { value: number; label: string; color: string }[] = [
+  { value: 1, label: "ง่ายมาก", color: "emerald" },
+  { value: 2, label: "ง่าย", color: "teal" },
+  { value: 3, label: "กลาง", color: "amber" },
+  { value: 4, label: "ยาก", color: "orange" },
+  { value: 5, label: "ยากมาก", color: "rose" },
+];
 
 const dayMonth = (iso: string) => format(new Date(iso), "d MMM", { locale: th });
 
@@ -91,16 +106,16 @@ function PillDate({
   onChange,
 }: {
   prefix: string;
-  value: string;
+  value: string | null | undefined;
   onChange: (v: string) => void;
 }) {
   return (
-    <span className="relative inline-flex items-center whitespace-nowrap rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-700">
+    <span className={cn("relative inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-medium", value ? "bg-gray-100 text-gray-700" : "bg-amber-50 text-amber-600")}>
       <span className="mr-1 opacity-60">{prefix}</span>
-      {dayMonth(value)}
+      {value ? dayMonth(value) : "ใส่วัน"}
       <input
         type="date"
-        value={value}
+        value={value ?? ""}
         onChange={(e) => e.target.value && onChange(e.target.value)}
         onClick={(e) => (e.currentTarget as HTMLInputElement).showPicker?.()}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
@@ -164,6 +179,10 @@ export function TaskTable({
     { value: "", label: "ยังไม่มอบหมาย" },
     ...staff.map((s) => ({ value: s.id, label: s.name })),
   ];
+  const hideDifficulty = useAuth().hideInternal === true; // outsourced positions never see it
+  const editorOptions = [{ value: "", label: "ยังไม่มี Editor" }, ...staff.map((s) => ({ value: s.id, label: s.name }))];
+  const difficultyOptions = [{ value: "", label: "ยังไม่ระบุ" }, ...DIFFICULTY.map((d) => ({ value: String(d.value), label: `${d.value} · ${d.label}` }))];
+  const cols = SORT_COLUMNS.filter((c) => !(hideDifficulty && c.key === "difficulty"));
   const sortLabel = SORT_COLUMNS.find((c) => c.key === sortBy)?.label;
 
   return (
@@ -283,6 +302,15 @@ export function TaskTable({
                   options={assigneeOptions}
                   onChange={(v) => onUpdateAssignee(task.id, v)}
                 />
+                <PillDate prefix="ตัด" value={task.editDate} onChange={(v) => onUpdateTask(task.id, { editDate: v })} />
+                <PillSelect
+                  label={staff.find((x) => x.id === task.editorId)?.name ?? "ไม่มี Editor"}
+                  color={task.editorId ? stemFromBg(staff.find((x) => x.id === task.editorId)?.avatarColor) : "gray"}
+                  value={task.editorId ?? ""}
+                  options={editorOptions}
+                  prefix="Editor"
+                  onChange={(v) => onUpdateTask(task.id, { editorId: v || null })}
+                />
                 <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
                 <TaskLinkButton label="File" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
                 <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
@@ -297,7 +325,7 @@ export function TaskTable({
 
       {/* ── Desktop table */}
       <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card md:block">
-        <table className="w-full min-w-[1120px] text-left text-sm">
+        <table className="w-full min-w-[1400px] text-left text-sm">
           <thead>
             <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
               <th className="w-10 pl-5 py-3">
@@ -308,7 +336,7 @@ export function TaskTable({
                   aria-label="เลือกทั้งหมด"
                 />
               </th>
-              {SORT_COLUMNS.map((col) => (
+              {cols.map((col) => (
                 <th key={col.key} className="px-5 py-3 font-medium">
                   <button onClick={() => onSort(col.key)} className="flex items-center gap-1 hover:text-gray-600">
                     {col.label}
@@ -356,6 +384,9 @@ export function TaskTable({
                     <PillDate prefix="" value={task.scheduledDate} onChange={(v) => onUpdateTask(task.id, { scheduledDate: v })} />
                   </td>
                   <td className="px-5 py-3">
+                    <PillDate prefix="" value={task.editDate} onChange={(v) => onUpdateTask(task.id, { editDate: v })} />
+                  </td>
+                  <td className="px-5 py-3">
                     <PillDate prefix="" value={task.dueDate} onChange={(v) => onUpdateTask(task.id, { dueDate: v })} />
                   </td>
                   <td className="px-5 py-3">
@@ -385,6 +416,26 @@ export function TaskTable({
                       onChange={(v) => onUpdateAssignee(task.id, v)}
                     />
                   </td>
+                  <td className="px-5 py-3">
+                    <PillSelect
+                      label={staff.find((x) => x.id === task.editorId)?.name ?? "ยังไม่มี"}
+                      color={task.editorId ? stemFromBg(staff.find((x) => x.id === task.editorId)?.avatarColor) : "gray"}
+                      value={task.editorId ?? ""}
+                      options={editorOptions}
+                      onChange={(v) => onUpdateTask(task.id, { editorId: v || null })}
+                    />
+                  </td>
+                  {!hideDifficulty && (
+                    <td className="px-5 py-3">
+                      <PillSelect
+                        label={task.editDifficulty ? `${task.editDifficulty} · ${DIFFICULTY[task.editDifficulty - 1].label}` : "—"}
+                        color={task.editDifficulty ? DIFFICULTY[task.editDifficulty - 1].color : "gray"}
+                        value={task.editDifficulty ? String(task.editDifficulty) : ""}
+                        options={difficultyOptions}
+                        onChange={(v) => onUpdateTask(task.id, { editDifficulty: v ? Number(v) : null })}
+                      />
+                    </td>
+                  )}
                   <td className="px-5 py-3">
                     <div className="flex gap-1.5">
                       <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />

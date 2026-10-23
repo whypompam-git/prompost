@@ -76,6 +76,7 @@ async function handle(request: NextRequest, { params }: { params: { path: string
     access: {
       staffId: claims.staffId,
       role: live.role,
+      hideInternal: live.hideInternal,
       permissions: {
         documents: live.permissions.documents,
         accounting: live.permissions.accounting,
@@ -90,6 +91,8 @@ async function handle(request: NextRequest, { params }: { params: { path: string
     const value = request.headers.get(name);
     if (value) headers[name] = value;
   }
+  // for restricted people a write may only come back with the columns the rules allowed
+  if (decision.minimalReturn) headers["prefer"] = "return=minimal";
 
   const upstream = await fetch(`${url}/${path}${decision.search}`, {
     method,

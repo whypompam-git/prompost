@@ -66,3 +66,14 @@ test("shoot clips without a queue/date are counted as waiting for a queue", () =
   assert.equal(b.cards.filter((c) => c.kind === "shoot").length, 0);
   assert.equal(b.waiting[0].unqueued, 1);
 });
+
+test("editing cards go to the editor, QC cards to the responsible person", () => {
+  const b = board([
+    task({ title: "E1", editorId: "guy", assigneeId: "nun" }),
+    task({ type: "qc", status: "review", title: "Q1", editorId: "guy", assigneeId: "nun" }),
+    task({ title: "E2", editorId: null, assigneeId: "nun", clientId: "c2" }), // no editor → responsible person
+  ]);
+  assert.equal(b.cards.find((c) => c.kind === "edit" && c.clientId === "c1")!.rowId, "guy");
+  assert.equal(b.cards.find((c) => c.kind === "qc")!.rowId, "nun");
+  assert.equal(b.cards.find((c) => c.kind === "edit" && c.clientId === "c2")!.rowId, "nun");
+});

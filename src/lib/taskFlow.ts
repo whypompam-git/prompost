@@ -7,7 +7,7 @@ import { updateTaskRow } from "@/lib/supabase/queries";
 import type { Task } from "@/lib/types";
 import { enterStage, settle } from "@/lib/workflow";
 
-export type TaskEventName = "assigned" | "stage_changed" | "qc_revise";
+export type TaskEventName = "assigned" | "editor_assigned" | "stage_changed" | "qc_revise";
 
 export async function notifyTaskEvent(
   taskId: string,
@@ -63,5 +63,6 @@ export function flowPatch(prev: Task, fields: Partial<Task>): Partial<Task> {
 
 export function announceChanges(prev: Task | null, next: Task) {
   if (next.assigneeId && next.assigneeId !== prev?.assigneeId) void notifyTaskEvent(next.id, "assigned");
+  if (next.editorId && next.editorId !== prev?.editorId) void notifyTaskEvent(next.id, "editor_assigned");
   if (prev && next.type !== prev.type) void notifyTaskEvent(next.id, "stage_changed");
 }
