@@ -156,6 +156,8 @@ export function TaskTable({
   const { types, typeLabel, typeColor, statusColor } = useTaskSettings();
   const clientOf = (id: string) => clients.find((c) => c.id === id);
   const clientName = (id: string) => clientOf(id)?.name ?? "—";
+  // changing a task's client also drops its queue (queues belong to one client)
+  const clientOptions = clients.map((c) => ({ value: c.id, label: c.name }));
   const typeOptions = types.map((t) => ({ value: t.key, label: t.label }));
   const statusOptionsFor = (stage: string) => statusesFor(stage).map((k) => ({ value: k, label: statusLabel(stage, k) }));
   const assigneeOptions = [
@@ -244,14 +246,13 @@ export function TaskTable({
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
-                <span
-                  className={cn(
-                    "inline-block max-w-[46%] truncate rounded-full px-2.5 py-1 text-[11px] font-medium",
-                    pillClass(isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)?.colorTag : "orange"),
-                  )}
-                >
-                  {clientName(task.clientId)}
-                </span>
+                    <PillSelect
+                      label={clientName(task.clientId)}
+                      color={isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)!.colorTag : "orange"}
+                      value={task.clientId}
+                      options={clientOptions}
+                      onChange={(v) => onUpdateTask(task.id, { clientId: v, queueId: null })}
+                    />
                 <PillDate
                   prefix="ถ่าย"
                   value={task.scheduledDate}
@@ -343,14 +344,13 @@ export function TaskTable({
                     <ScriptMark task={task} />
                   </td>
                   <td className="px-5 py-3">
-                    <span
-                      className={cn(
-                        "inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium",
-                        pillClass(isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)?.colorTag : "orange"),
-                      )}
-                    >
-                      {clientName(task.clientId)}
-                    </span>
+                    <PillSelect
+                      label={clientName(task.clientId)}
+                      color={isStem(clientOf(task.clientId)?.colorTag) ? clientOf(task.clientId)!.colorTag : "orange"}
+                      value={task.clientId}
+                      options={clientOptions}
+                      onChange={(v) => onUpdateTask(task.id, { clientId: v, queueId: null })}
+                    />
                   </td>
                   <td className="px-5 py-3">
                     <PillDate prefix="" value={task.scheduledDate} onChange={(v) => onUpdateTask(task.id, { scheduledDate: v })} />
