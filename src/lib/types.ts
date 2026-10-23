@@ -223,6 +223,7 @@ export interface ClientNote {
   createdAt: string; // ISO datetime — immutable, when the row was made
   deletedAt: string | null; // soft-delete — kept in a recoverable trash
   talkedBy?: string | null; // staff member who talked with the client
+  images?: string[]; // attached pictures (public URLs)
 }
 
 export type ContractStatus = "draft" | "sent" | "signed";

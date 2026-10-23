@@ -11,6 +11,8 @@ import {
   trashClientNoteRow,
   updateClientNoteRow,
 } from "@/lib/supabase/queries";
+import { NoteEditor } from "@/components/clients/NoteEditor";
+import { NoteView } from "@/components/clients/NoteView";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { Client, ClientNote, Staff } from "@/lib/types";
 
@@ -26,9 +28,10 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
   const [notes, setNotes] = useState<ClientNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
+  const [draftImages, setDraftImages] = useState<string[]>([]);
   const [draftDate, setDraftDate] = useState(todayIso());
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; note: string; noteDate: string; talkedBy: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; note: string; noteDate: string; talkedBy: string; images: string[] } | null>(null);
 
   useEffect(() => {
     listStaff().then(setStaff).catch(() => {});
@@ -44,12 +47,13 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
   }, [client.id]);
 
   async function handleAdd() {
-    if (!draft.trim()) return;
+    if (!draft.trim() && draftImages.length === 0) return;
     setSaving(true);
     try {
-      const created = await createClientNoteRow(client.id, draft.trim(), draftDate, draftBy || null);
+      const created = await createClientNoteRow(client.id, draft.trim(), draftDate, draftBy || null, draftImages);
       setNotes((prev) => [created, ...prev].sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
       setDraft("");
+      setDraftImages([]);
       setDraftDate(todayIso());
     } catch (err) {
       console.error(err);
@@ -61,12 +65,12 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
   }
 
   async function handleSaveEdit() {
-    if (!editing || !editing.note.trim()) return;
-    const { id, note, noteDate, talkedBy } = editing;
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, note: note.trim(), noteDate, talkedBy: talkedBy || null } : n)).sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
+    if (!editing || (!editing.note.trim() && editing.images.length === 0)) return;
+    const { id, note, noteDate, talkedBy, images } = editing;
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, note: note.trim(), noteDate, talkedBy: talkedBy || null, images } : n)).sort((a, b) => b.noteDate.localeCompare(a.noteDate)));
     setEditing(null);
     try {
-      await updateClientNoteRow(id, { note: note.trim(), noteDate, talkedBy: talkedBy || null });
+      await updateClientNoteRow(id, { note: note.trim(), noteDate, talkedBy: talkedBy || null, images });
     } catch (err) {
       console.error(err);
       window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
@@ -115,16 +119,19 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
             </select>
           </div>
           <div className="flex gap-2">
-            <textarea
+            <NoteEditor
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="จดว่าคุยอะไรไปรอบนี้..."
+              onChange={setDraft}
+              images={draftImages}
+              onImagesChange={setDraftImages}
+              onSubmit={handleAdd}
               rows={2}
-              className={`flex-1 ${field}`}
+              placeholder="จดว่าคุยอะไรไปรอบนี้..."
+              className="flex-1"
             />
             <button
               onClick={handleAdd}
-              disabled={saving || !draft.trim()}
+              disabled={saving || (!draft.trim() && draftImages.length === 0)}
               className="flex shrink-0 items-center gap-1 self-end rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
             >
               <Send size={14} />
@@ -153,11 +160,12 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                     </option>
                   ))}
                 </select>
-                <textarea
+                <NoteEditor
                   value={editing.note}
-                  onChange={(e) => setEditing({ ...editing, note: e.target.value })}
-                  rows={2}
-                  className={`w-full ${field}`}
+                  onChange={(v) => setEditing({ ...editing, note: v })}
+                  images={editing.images}
+                  onImagesChange={(imgs) => setEditing({ ...editing, images: imgs })}
+                  rows={3}
                 />
                 <div className="flex justify-end gap-2">
                   <button onClick={() => setEditing(null)} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-white">
@@ -177,7 +185,7 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                   </p>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100">
                     <button
-                      onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate, talkedBy: n.talkedBy ?? "" })}
+                      onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate, talkedBy: n.talkedBy ?? "", images: n.images ?? [] })}
                       className="rounded-full p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
                       aria-label="แก้ไข"
                     >
@@ -192,7 +200,7 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                     </button>
                   </div>
                 </div>
-                <p className="whitespace-pre-wrap text-sm text-gray-700">{n.note}</p>
+                <NoteView text={n.note} images={n.images} />
               </div>
             ),
           )}

@@ -26,5 +26,6 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "tasks", columns: "queue_id, shoot_order", migration: "0034" },
   { table: "tasks", columns: "edit_date", migration: "0036" },
   { table: "queues", columns: "edit_date", migration: "0036" },
+  { table: "client_notes", columns: "images", migration: "0037" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
 ];

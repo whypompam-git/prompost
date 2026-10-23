@@ -1272,6 +1272,11 @@ export async function uploadFootage(file: File): Promise<string> {
   return uploadViaSignedUrl("footage", file);
 }
 
+// Pictures attached to conversation notes
+export async function uploadNoteImage(file: File): Promise<string> {
+  return uploadViaSignedUrl("client-brand", file);
+}
+
 export async function uploadSlip(file: File): Promise<string> {
   return uploadViaSignedUrl("slips", file);
 }
@@ -1455,9 +1460,10 @@ type ClientNoteRow = {
   created_at: string;
   deleted_at: string | null;
   talked_by: string | null;
+  images: string[] | null;
 };
 
-const CLIENT_NOTE_COLUMNS = "id, client_id, note, note_date, created_at, deleted_at, talked_by";
+const CLIENT_NOTE_COLUMNS = "id, client_id, note, note_date, created_at, deleted_at, talked_by, images";
 
 const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
   id: r.id,
@@ -1467,6 +1473,7 @@ const fromClientNoteRow = (r: ClientNoteRow): ClientNote => ({
   createdAt: r.created_at,
   deletedAt: r.deleted_at,
   talkedBy: r.talked_by,
+  images: r.images ?? [],
 });
 
 export async function listClientNotes(clientId: string): Promise<ClientNote[]> {
@@ -1498,20 +1505,20 @@ export async function listLatestClientNotes(): Promise<Record<string, ClientNote
   return out;
 }
 
-export async function createClientNoteRow(clientId: string, note: string, noteDate: string, talkedBy?: string | null): Promise<ClientNote> {
+export async function createClientNoteRow(clientId: string, note: string, noteDate: string, talkedBy?: string | null, images: string[] = []): Promise<ClientNote> {
   const { data, error } = await supabase()
     .from("client_notes")
-    .insert({ client_id: clientId, note, note_date: noteDate, talked_by: talkedBy ?? null })
+    .insert({ client_id: clientId, note, note_date: noteDate, talked_by: talkedBy ?? null, images })
     .select(CLIENT_NOTE_COLUMNS)
     .single();
   if (error) throw error;
   return fromClientNoteRow(data as ClientNoteRow);
 }
 
-export async function updateClientNoteRow(id: string, values: { note: string; noteDate: string; talkedBy?: string | null }): Promise<void> {
+export async function updateClientNoteRow(id: string, values: { note: string; noteDate: string; talkedBy?: string | null; images?: string[] }): Promise<void> {
   const { error } = await supabase()
     .from("client_notes")
-    .update({ note: values.note, note_date: values.noteDate, ...(values.talkedBy !== undefined ? { talked_by: values.talkedBy } : {}) })
+    .update({ note: values.note, note_date: values.noteDate, ...(values.talkedBy !== undefined ? { talked_by: values.talkedBy } : {}), ...(values.images !== undefined ? { images: values.images } : {}) })
     .eq("id", id);
   if (error) throw error;
 }

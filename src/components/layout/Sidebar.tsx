@@ -71,15 +71,15 @@ export function Sidebar() {
     <aside
       className={cn(
         "hidden shrink-0 flex-col border-r border-gray-100 bg-white md:flex",
-        collapsed ? "w-16" : "w-16 lg:w-60",
+        collapsed ? "w-16" : "w-16 lg:w-44",
       )}
     >
-      <div className={cn("flex h-16 items-center gap-2 px-2", expanded ? "lg:justify-start lg:px-5 justify-center" : "justify-center")}>
+      <div className={cn("flex h-16 items-center gap-2 px-2", expanded ? "lg:justify-start lg:px-3.5 justify-center" : "justify-center")}>
         <Image src={APP_LOGO_SRC} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
         <span className={cn("text-lg font-semibold tracking-tight", expanded ? "hidden lg:inline" : "hidden")}>{APP_NAME}</span>
       </div>
 
-      <nav className={cn("flex-1 space-y-1 px-2 py-4", expanded && "lg:px-3")}>
+      <nav className={cn("flex-1 space-y-0.5 px-2 py-3", expanded && "lg:px-2")}>
         {items.map((item) => {
           const active = pathname?.startsWith(item.href);
           const Icon = item.icon;
@@ -89,7 +89,7 @@ export function Sidebar() {
               href={item.href}
               title={item.label}
               className={cn(
-                "flex items-center justify-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors",
+                "flex items-center justify-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium transition-colors",
                 expanded && "lg:justify-start",
                 active ? "bg-brand-50 text-brand-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
               )}

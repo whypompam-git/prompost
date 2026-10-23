@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Check, MessageSquarePlus, Search, X } from "lucide-react";
+import { NoteEditor } from "@/components/clients/NoteEditor";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createClientNoteRow, listClients, listStaff } from "@/lib/supabase/queries";
 import type { Client, Staff } from "@/lib/types";
@@ -21,6 +22,7 @@ export function QuickNoteButton() {
   const [query, setQuery] = useState("");
   const [text, setText] = useState("");
   const [date, setDate] = useState(today());
+  const [images, setImages] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState("");
 
@@ -46,12 +48,13 @@ export function QuickNoteButton() {
   }, [done]);
 
   async function save() {
-    if (!clientId || !text.trim() || saving) return;
+    if (!clientId || (!text.trim() && images.length === 0) || saving) return;
     setSaving(true);
     try {
-      await createClientNoteRow(clientId, text.trim(), date || today(), by || null);
+      await createClientNoteRow(clientId, text.trim(), date || today(), by || null, images);
       setDone(`บันทึกการคุยกับ ${clients.find((c) => c.id === clientId)?.name ?? "ลูกค้า"} แล้ว`);
       setText("");
+      setImages([]);
       setDate(today());
       setClientId("");
       setQuery("");
@@ -130,20 +133,20 @@ export function QuickNoteButton() {
                 <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm text-gray-700" />
               </span>
             </div>
-            <textarea
+            <NoteEditor
               value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => (e.metaKey || e.ctrlKey) && e.key === "Enter" && save()}
-              rows={4}
+              onChange={setText}
+              images={images}
+              onImagesChange={setImages}
+              onSubmit={save}
               autoFocus
               placeholder="คุยอะไรกับลูกค้า… (Cmd/Ctrl+Enter เพื่อบันทึก)"
-              className={field}
             />
             <div className="mt-3 flex items-center justify-between">
               <span className="text-xs text-gray-400">{clientId ? `ลูกค้า: ${clients.find((c) => c.id === clientId)?.name}` : "เลือกลูกค้าก่อน"}</span>
               <button
                 onClick={save}
-                disabled={!clientId || !text.trim() || saving}
+                disabled={!clientId || (!text.trim() && images.length === 0) || saving}
                 className="rounded-lg bg-brand-500 px-5 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
               >
                 {saving ? "กำลังบันทึก…" : "บันทึก"}

@@ -24,6 +24,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
+import { stripNoteMarkup } from "@/lib/noteMarkup";
 import { summarizeStages } from "@/lib/workflow";
 import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
@@ -585,7 +586,7 @@ export default function ClientsPage() {
                         className="flex w-full items-start gap-1.5 text-left text-xs text-gray-500 hover:text-brand-600"
                       >
                         {note ? <History size={13} className="mt-0.5 shrink-0" /> : <MessageSquarePlus size={13} className="mt-0.5 shrink-0" />}
-                        <span className="line-clamp-2">{note ? note.note : "ยังไม่มีประวัติ — กดเพื่อเพิ่ม"}</span>
+                        <span className="line-clamp-2">{note ? `${stripNoteMarkup(note.note)}${note.images?.length ? ` 📷${note.images.length}` : ""}` : "ยังไม่มีประวัติ — กดเพื่อเพิ่ม"}</span>
                       </button>
                     </td>
                   ),
