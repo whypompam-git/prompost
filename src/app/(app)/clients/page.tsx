@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -24,7 +24,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
-import { StageSummary } from "@/components/clients/StageSummary";
+import { summarizeStages } from "@/lib/workflow";
 import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import {
@@ -68,6 +68,16 @@ const PAYMENT_STYLE: Record<PaymentStatus, string> = {
   paid: "bg-emerald-100 text-emerald-700",
   declined: "bg-gray-200 text-gray-600",
 };
+
+const STAGE_COLS: { key: string; label: string; tone: string }[] = [
+  { key: "total", label: "ทั้งหมด", tone: "bg-gray-800 text-white" },
+  { key: "plan", label: "Plan", tone: "bg-violet-50 text-violet-700" },
+  { key: "shoot", label: "ถ่าย", tone: "bg-sky-50 text-sky-700" },
+  { key: "edit", label: "ตัดต่อ", tone: "bg-amber-50 text-amber-700" },
+  { key: "pending", label: "Pending", tone: "bg-rose-50 text-rose-700" },
+  { key: "approved", label: "ผ่าน", tone: "bg-emerald-50 text-emerald-700" },
+  { key: "posted", label: "Post", tone: "bg-teal-50 text-teal-700" },
+];
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 
@@ -211,6 +221,64 @@ export default function ClientsPage() {
       </th>
     );
   }
+
+  // ── column order (drag a header, or use ◀ ▶; remembered in this browser) ──
+  const HEADS: Record<string, { label: React.ReactNode; sortKey?: SortKey; className?: string }> = {
+    priority: { label: <Star size={13} />, sortKey: "priority", className: "w-14" },
+    name: { label: "ชื่อร้าน", sortKey: "name" },
+    contact: { label: "ผู้ติดต่อ", sortKey: "contactName" },
+    phone: { label: "เบอร์โทร" },
+    manager: { label: "คนดูแล" },
+    ...Object.fromEntries(STAGE_COLS.map((sc) => [`s_${sc.key}`, { label: sc.label, className: "px-2 text-center" }])),
+    brief: { label: "แบรนด์/บรีฟ" },
+    history: { label: "ประวัติการคุยล่าสุด" },
+    payment: { label: "สถานะ", sortKey: "paymentStatus" },
+    package: { label: "แพ็คเกจ (รอบปัจจุบัน)" },
+    paid: { label: "จ่ายแล้ว", sortKey: "paid", className: "text-right" },
+    outstanding: { label: "ค้างชำระ", sortKey: "outstanding", className: "text-right" },
+    docs: { label: "เอกสาร", className: "text-center" },
+    link: { label: "ลิงก์ลูกค้า" },
+    actions: { label: "" },
+  };
+  const DEFAULT_COLS = Object.keys(HEADS);
+  const [colOrder, setColOrder] = useState<string[]>(DEFAULT_COLS);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("prompost:clients-columns") ?? "null") as string[] | null;
+      if (Array.isArray(saved)) {
+        // keep only known columns and append any new ones the saved list doesn't have
+        const known = saved.filter((c) => DEFAULT_COLS.includes(c));
+        setColOrder([...known, ...DEFAULT_COLS.filter((c) => !known.includes(c))]);
+      }
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  function saveOrder(next: string[]) {
+    setColOrder(next);
+    try {
+      localStorage.setItem("prompost:clients-columns", JSON.stringify(next));
+    } catch {}
+  }
+  function moveColumn(from: string, to: string) {
+    if (!from || from === to || !colOrder.includes(from)) return;
+    const next = colOrder.filter((c) => c !== from);
+    next.splice(next.indexOf(to), 0, from);
+    saveOrder(next);
+  }
+  function shiftColumn(id: string, dir: -1 | 1) {
+    const i = colOrder.indexOf(id);
+    const j = i + dir;
+    if (j < 0 || j >= colOrder.length) return;
+    const next = [...colOrder];
+    [next[i], next[j]] = [next[j], next[i]];
+    saveOrder(next);
+  }
+
+  const stageSums = useMemo(() => {
+    const byClient: Record<string, { type: string }[]> = {};
+    for (const t of taskStages) (byClient[t.clientId] ??= []).push(t);
+    return Object.fromEntries(Object.entries(byClient).map(([id, list]) => [id, summarizeStages(list)]));
+  }, [taskStages]);
 
   function exportClients() {
     downloadCsv(
@@ -393,24 +461,50 @@ export default function ClientsPage() {
         </div>
 
         <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-          <table className="w-full min-w-[1600px] text-left text-sm">
+          <table className="w-full min-w-[1700px] text-left text-sm">
             <thead>
               <tr className="border-b border-gray-100 text-xs uppercase tracking-wide text-gray-400">
-                <SortHeader label={<Star size={13} />} sortKey="priority" className="w-14" />
-                <SortHeader label="ชื่อร้าน" sortKey="name" />
-                <SortHeader label="ผู้ติดต่อ" sortKey="contactName" />
-                <th className="px-4 py-3 font-medium">เบอร์โทร</th>
-                <th className="px-4 py-3 font-medium">คนดูแล</th>
-                <th className="px-4 py-3 font-medium">คลิปตามขั้นตอน</th>
-                <th className="px-4 py-3 font-medium">แบรนด์/บรีฟ</th>
-                <th className="px-4 py-3 font-medium">ประวัติการคุยล่าสุด</th>
-                <SortHeader label="สถานะ" sortKey="paymentStatus" />
-                <th className="px-4 py-3 font-medium">แพ็คเกจ (รอบปัจจุบัน)</th>
-                <SortHeader label="จ่ายแล้ว" sortKey="paid" className="text-right" />
-                <SortHeader label="ค้างชำระ" sortKey="outstanding" className="text-right" />
-                <th className="px-4 py-3 font-medium text-center">เอกสาร</th>
-                <th className="px-4 py-3 font-medium">ลิงก์ลูกค้า</th>
-                <th className="px-4 py-3 font-medium" />
+                {colOrder.map((id) => {
+                  const h = HEADS[id];
+                  return (
+                    <th
+                      key={id}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("text/plain", id);
+                        e.dataTransfer.effectAllowed = "move";
+                      }}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        moveColumn(e.dataTransfer.getData("text/plain"), id);
+                      }}
+                      className={cn("group/th select-none px-4 py-3 font-medium", h.className)}
+                      title="ลากหัวตารางเพื่อสลับตำแหน่งคอลัมน์"
+                    >
+                      <span className="flex items-center gap-1">
+                        <button type="button" onClick={() => shiftColumn(id, -1)} className="hidden text-gray-300 hover:text-gray-600 group-hover/th:inline" aria-label="เลื่อนไปซ้าย">
+                          ◀
+                        </button>
+                        {h.sortKey ? (
+                          <button onClick={() => handleSort(h.sortKey!)} className="flex items-center gap-1 hover:text-gray-600">
+                            {h.label}
+                            {sortBy === h.sortKey ? (
+                              sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+                            ) : (
+                              <ChevronsUpDown size={12} className="opacity-40" />
+                            )}
+                          </button>
+                        ) : (
+                          <span>{h.label}</span>
+                        )}
+                        <button type="button" onClick={() => shiftColumn(id, 1)} className="hidden text-gray-300 hover:text-gray-600 group-hover/th:inline" aria-label="เลื่อนไปขวา">
+                          ▶
+                        </button>
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
@@ -420,8 +514,9 @@ export default function ClientsPage() {
                 const pkg = round ? packages.find((p) => p.id === round.packageId) : undefined;
                 const paid = roundPaid[client.id] ?? 0;
                 const outstanding = roundOutstanding(client.id);
-                return (
-                  <tr key={client.id} className="align-top hover:bg-gray-50/60">
+                const sums = stageSums[client.id] ?? { total: 0, groups: [] };
+                const cellNodes: Record<string, React.ReactNode> = {
+                  priority: (
                     <td className="px-4 py-3">
                       <input
                         type="number"
@@ -431,12 +526,18 @@ export default function ClientsPage() {
                         className="w-12 rounded-lg border border-gray-200 px-2 py-1 text-center text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
                       />
                     </td>
+                  ),
+                  name: (
                     <td className="px-4 py-3 font-medium text-gray-900">
                       <Link href={`/clients/${client.id}`} className="hover:text-brand-600 hover:underline">
                         {client.name}
                       </Link>
                     </td>
+                  ),
+                  contact: (
                     <td className="px-4 py-3 text-gray-600">{client.contactName || "—"}</td>
+                  ),
+                  phone: (
                     <td className="px-4 py-3">
                       <input
                         value={client.phone ?? ""}
@@ -446,6 +547,8 @@ export default function ClientsPage() {
                         className="w-32 rounded-lg border border-transparent px-2 py-1 text-gray-600 hover:border-gray-200 focus:border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-300"
                       />
                     </td>
+                  ),
+                  manager: (
                     <td className="px-4 py-3">
                       <select
                         value={client.managerId ?? ""}
@@ -464,9 +567,8 @@ export default function ClientsPage() {
                         ))}
                       </select>
                     </td>
-                    <td className="min-w-[200px] max-w-[260px] px-4 py-3">
-                      <StageSummary tasks={taskStages.filter((t) => t.clientId === client.id)} compact />
-                    </td>
+                  ),
+                  brief: (
                     <td className="max-w-[220px] px-4 py-3">
                       <Link
                         href={`/clients/${client.id}/brand`}
@@ -475,6 +577,8 @@ export default function ClientsPage() {
                         {client.brandBrief ? client.brandBrief : <span className="italic text-gray-300">กดเพื่อเพิ่มบรีฟแบรนด์</span>}
                       </Link>
                     </td>
+                  ),
+                  history: (
                     <td className="max-w-[260px] px-4 py-3">
                       <button
                         onClick={() => setHistoryFor(client)}
@@ -484,6 +588,8 @@ export default function ClientsPage() {
                         <span className="line-clamp-2">{note ? note.note : "ยังไม่มีประวัติ — กดเพื่อเพิ่ม"}</span>
                       </button>
                     </td>
+                  ),
+                  payment: (
                     <td className="px-4 py-3">
                       <span className={cn("relative inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium", PAYMENT_STYLE[client.paymentStatus])}>
                         {PAYMENT_LABEL[client.paymentStatus]}
@@ -501,6 +607,8 @@ export default function ClientsPage() {
                         </select>
                       </span>
                     </td>
+                  ),
+                  package: (
                     <td className="max-w-[180px] px-4 py-3 text-xs">
                       <button
                         onClick={() => setPickPackageFor(client)}
@@ -510,6 +618,8 @@ export default function ClientsPage() {
                         {pkg ? pkg.name : <span className="italic text-gray-300">เลือกแพ็คเกจ</span>}
                       </button>
                     </td>
+                  ),
+                  paid: (
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => setPayFor(client)}
@@ -519,9 +629,13 @@ export default function ClientsPage() {
                         {round ? `฿${currency(paid)}` : "—"}
                       </button>
                     </td>
+                  ),
+                  outstanding: (
                     <td className={cn("px-4 py-3 text-right font-medium", outstanding > 0 ? "text-rose-600" : "text-gray-400")}>
                       {round ? `฿${currency(outstanding)}` : "—"}
                     </td>
+                  ),
+                  docs: (
                     <td className="px-4 py-3 text-center">
                       <Link
                         href={`/clients/${client.id}/info`}
@@ -531,6 +645,8 @@ export default function ClientsPage() {
                         {docCount[client.id] ?? 0}
                       </Link>
                     </td>
+                  ),
+                  link: (
                     <td className="px-4 py-3">
                       {client.portalEnabled ? (
                         <div className="flex flex-col items-start gap-1">
@@ -548,6 +664,8 @@ export default function ClientsPage() {
                         </div>
                       )}
                     </td>
+                  ),
+                  actions: (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
                         <Link
@@ -566,12 +684,39 @@ export default function ClientsPage() {
                         </button>
                       </div>
                     </td>
+                  ),
+                  ...Object.fromEntries(
+                    STAGE_COLS.map((sc) => {
+                      const count = sc.key === "total" ? sums.total : (sums.groups.find((g) => g.key === sc.key)?.count ?? 0);
+                      return [
+                        `s_${sc.key}`,
+                        <td key={sc.key} className="px-2 py-3 text-center">
+                          {count > 0 ? (
+                            <Link
+                              href={sc.key === "total" ? `/clients/${client.id}` : `/clients/${client.id}?stage=${sc.key}`}
+                              className={cn("inline-block min-w-8 rounded-full px-2 py-0.5 text-xs font-semibold", sc.tone)}
+                            >
+                              {count}
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-gray-300">0</span>
+                          )}
+                        </td>,
+                      ];
+                    }),
+                  ),
+                };
+                return (
+                  <tr key={client.id} className="align-top hover:bg-gray-50/60">
+                    {colOrder.map((id) => (
+                      <Fragment key={id}>{cellNodes[id]}</Fragment>
+                    ))}
                   </tr>
                 );
               })}
               {sortedClients.length === 0 && (
                 <tr>
-                  <td colSpan={15} className="px-4 py-10 text-center text-sm text-gray-400">
+                  <td colSpan={colOrder.length} className="px-4 py-10 text-center text-sm text-gray-400">
                     ยังไม่มีลูกค้า — กด &quot;เพิ่มลูกค้าใหม่&quot; ด้านบน
                   </td>
                 </tr>

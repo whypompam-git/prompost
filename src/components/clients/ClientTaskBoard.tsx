@@ -92,11 +92,10 @@ export function ClientTaskBoard({
     }
     const idSet = new Set(ids);
     const mine = tasks.filter((t) => idSet.has(t.id));
-    // numbering continues after the clips already in that queue
-    let next = Math.max(0, ...tasks.filter((t) => t.queueId === qid).map((t) => t.shootOrder ?? 0)) + 1;
     const queueEditDate = (queueId ? queues.find((q) => q.id === queueId)?.editDate : undefined) ?? draft?.editDate;
     for (const t of mine) {
-      const fields: Partial<Task> = { queueId: qid, shootOrder: t.shootOrder ?? next++ };
+      // the shooting order is filled in by hand on set (not numbered automatically)
+      const fields: Partial<Task> = { queueId: qid };
       if (queueEditDate && !t.editDate) fields.editDate = queueEditDate;
       if (t.type === "plan") fields.type = "shoot";
       await change(t, fields);
