@@ -33,7 +33,8 @@ export async function GET(request: Request) {
     // at 08:00 so it is sent once a day and its time can be changed in Settings.
     // (Without this, every hourly poke would send another copy.)
     if (!chErr && (channels ?? []).length === 0 && process.env.LINE_TO && !dry) {
-      await db.from("line_channels").insert({ name: "กลุ่มทีม (ตั้งต้น)", group_id: process.env.LINE_TO, send_hour: 8 });
+      const { data: same } = await db.from("line_channels").select("id").eq("group_id", process.env.LINE_TO).limit(1);
+      if (!same?.length) await db.from("line_channels").insert({ name: "กลุ่มทีม (ตั้งต้น)", group_id: process.env.LINE_TO, send_hour: 8 });
       ({ data: channels, error: chErr } = await db.from("line_channels").select(cols));
     }
     if (!chErr && channels && channels.length > 0) {
