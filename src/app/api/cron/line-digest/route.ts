@@ -37,7 +37,10 @@ export async function GET(request: Request) {
       if (!same?.length) await db.from("line_channels").insert({ name: "กลุ่มทีม (ตั้งต้น)", group_id: process.env.LINE_TO, send_hour: 8 });
       ({ data: channels, error: chErr } = await db.from("line_channels").select(cols));
     }
-    if (!chErr && channels && channels.length > 0) {
+    // never fall back to "send everything" when the channel table can't be read —
+    // that is how repeated copies went out
+    if (chErr) return NextResponse.json({ error: `line_channels: ${chErr.message}` }, { status: 500 });
+    if (channels && channels.length > 0) {
       if (!lineTokenSet()) return NextResponse.json({ sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN not set" });
       const today = bangkokDay(now);
       const hour = bangkokHour(now);
