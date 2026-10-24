@@ -47,7 +47,8 @@ export function BillingDocument({
   const total = subtotal + vat - wht;
   const title = DOC_TITLE[docType];
   // a note typed on this document wins; otherwise the bank/payment details set in Accounting settings
-  const payment = (paymentNote?.trim() || seller.bankInfo?.trim() || "").trim();
+  // a receipt is proof the money was already paid, so it never prints payment channels
+  const payment = docType === "receipt" ? "" : (paymentNote?.trim() || seller.bankInfo?.trim() || "").trim();
 
   return (
     <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
