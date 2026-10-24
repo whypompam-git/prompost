@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/quote",
   "/invoice",
   "/receipt",
+  "/mc-pack/", // public MC proposal link for a client
   "/contract/", // public share + sign page (note the slash: /contracts/* is staff-only)
   "/manifest.json",
   "/sw.js",
@@ -52,7 +53,9 @@ export async function middleware(request: NextRequest) {
       ? "documents"
       : pathname.startsWith("/reports")
         ? "financialTotals"
-        : pathname.startsWith("/settings")
+        : pathname === "/mc" || pathname.startsWith("/mc/")
+          ? "mc"
+          : pathname.startsWith("/settings")
           ? "owner"
           : null;
   if (gate) {

@@ -22,3 +22,6 @@ jobs:
             exit 0
           fi
           curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://prompost.vercel.app/api/cron/line-digest
+          echo
+          # same hourly poke refreshes the MC profiles from the Google Sheet
+          curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://prompost.vercel.app/api/cron/mc-sync || echo "::warning::mc-sync failed (see the MC page for the reason)"

@@ -302,3 +302,40 @@ export interface Position {
   sortOrder: number;
   hideInternal: boolean;
 }
+
+// MC (presenter) profile synced from the Google Sheet; the local fields are ours.
+export interface McProfile {
+  id: string;
+  sourceId: string;
+  prefix?: string;
+  fullName?: string;
+  nickname: string;
+  age?: string;
+  height?: string;
+  weight?: string;
+  sheetRate?: string; // what the MC typed in the form (internal)
+  phone?: string;
+  lineId?: string;
+  ig?: string;
+  facebook?: string;
+  character?: string;
+  skills?: string;
+  experience?: string;
+  portfolio?: string;
+  photoUrl?: string;
+  extraPhotos: string[]; // first one overrides the synced photo
+  rateOffer?: number | null; // the price we quote to clients
+  notes?: string;
+  hidden: boolean;
+  syncedAt?: string;
+}
+
+export interface McPack {
+  id: string;
+  title: string;
+  shareToken: string;
+  mcIds: string[];
+  show: Record<string, boolean>;
+  enabled: boolean;
+  createdAt: string;
+}

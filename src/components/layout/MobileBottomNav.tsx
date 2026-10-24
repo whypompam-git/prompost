@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CalendarDays,
   ClipboardList,
+  Mic2,
   PlusCircle,
   Users,
   Menu,
@@ -28,6 +29,7 @@ const MAIN_ITEMS = [
 ];
 
 const MORE_ITEMS = [
+  { href: "/mc", label: "MC", icon: Mic2, permission: "mc" as const },
   { href: "/workload", label: "สรุปงาน", icon: ClipboardList },
   { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },

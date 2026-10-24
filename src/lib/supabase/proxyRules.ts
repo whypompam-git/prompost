@@ -11,7 +11,7 @@ export type ProxyAccess = {
   staffId: string;
   role: "owner" | "staff";
   hideInternal?: boolean; // position that must not see internal data (e.g. edit difficulty)
-  permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean };
+  permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean; mc?: boolean };
 };
 
 export type ProxyDecision =
@@ -33,6 +33,9 @@ const TABLES = new Set([
   "invoices",
   "leave_requests",
   "line_channels",
+  "mc_packs",
+  "mc_profiles",
+  "mc_settings",
   "notifications",
   "packages",
   "payroll_entries",
@@ -141,6 +144,17 @@ export function authorizeProxyRequest(input: {
     }
   }
 
+  // MC data (phone / Line / real names): owner or the MC permission only
+  if ((table === "mc_profiles" || table === "mc_packs" || table === "mc_settings") && !isOwner && !access.permissions.mc) {
+    return deny(403, "needs the MC permission");
+  }
+  // sheet-owned columns are written only by the sync; people edit our own fields
+  if (table === "mc_profiles" && write) {
+    if (method !== "PATCH") return deny(403, "profiles come from the sheet sync");
+    const LOCAL = new Set(["rate_offer", "notes", "hidden", "extra_photos"]);
+    for (const row of bodyRows(input.body)) for (const k of Object.keys(row)) if (!LOCAL.has(k)) return deny(403, `column "${k}" comes from the sheet`);
+  }
+  if (table === "mc_settings" && write && !isOwner) return deny(403, "owner only");
   if ((table === "positions") && write && !isOwner) return deny(403, "owner only");
 
   // Internal-only data: people in a "hide internal" position never get the

@@ -144,3 +144,17 @@ test("positions: readable by all, editable by the owner only", () => {
   assert.equal(run(staff, "POST", "rest/v1/positions", "", [{ name: "x" }]).ok, false);
   assert.equal(run(owner, "POST", "rest/v1/positions", "", [{ name: "x" }]).ok, true);
 });
+
+test("MC tables need the MC permission; profiles accept edits to our own columns only", () => {
+  const mcStaff: ProxyAccess = { ...staff, permissions: { ...staff.permissions, mc: true } };
+  assert.equal(run(staff, "GET", "rest/v1/mc_profiles", "?select=*").ok, false);
+  assert.equal(run(staff, "GET", "rest/v1/mc_packs", "?select=*").ok, false);
+  assert.equal(run(mcStaff, "GET", "rest/v1/mc_profiles", "?select=*").ok, true);
+  assert.equal(run(mcStaff, "PATCH", "rest/v1/mc_profiles", "?id=eq.1", { rate_offer: 3000, notes: "x" }).ok, true);
+  assert.equal(run(mcStaff, "PATCH", "rest/v1/mc_profiles", "?id=eq.1", { phone: "000" }).ok, false);
+  assert.equal(run(mcStaff, "POST", "rest/v1/mc_profiles", "", [{ nickname: "x" }]).ok, false);
+  assert.equal(run(mcStaff, "DELETE", "rest/v1/mc_profiles", "?id=eq.1").ok, false);
+  assert.equal(run(mcStaff, "POST", "rest/v1/mc_packs", "", [{ title: "x" }]).ok, true);
+  assert.equal(run(mcStaff, "PATCH", "rest/v1/mc_settings", "?id=eq.true", { sheet_url: "x" }).ok, false);
+  assert.equal(run(owner, "PATCH", "rest/v1/mc_settings", "?id=eq.true", { sheet_url: "x" }).ok, true);
+});

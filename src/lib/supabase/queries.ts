@@ -6,6 +6,8 @@ import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { DEFAULT_CONTRACT_TEMPLATE, fillVariables } from "@/lib/contractTemplate";
 import type {
+  McPack,
+  McProfile,
   Position,
   Queue,
   Client,
@@ -2043,4 +2045,112 @@ export async function updatePosition(id: string, values: { name?: string; hideIn
 export async function deletePosition(id: string): Promise<void> {
   const { error } = await supabase().from("positions").delete().eq("id", id);
   if (error) throw error;
+}
+
+// ── MC profiles (owner or MC permission; the proxy enforces it) ──────────
+type McRow = {
+  id: string; source_id: string; prefix: string | null; full_name: string | null; nickname: string | null;
+  age: string | null; height: string | null; weight: string | null; sheet_rate: string | null;
+  phone: string | null; line_id: string | null; ig: string | null; facebook: string | null;
+  character: string | null; skills: string | null; experience: string | null; portfolio: string | null;
+  photo_url: string | null; extra_photos: string[] | null; rate_offer: number | null; notes: string | null;
+  hidden: boolean; synced_at: string | null;
+};
+const MC_COLUMNS =
+  "id, source_id, prefix, full_name, nickname, age, height, weight, sheet_rate, phone, line_id, ig, facebook, character, skills, experience, portfolio, photo_url, extra_photos, rate_offer, notes, hidden, synced_at";
+const fromMcRow = (r: McRow): McProfile => ({
+  id: r.id,
+  sourceId: r.source_id,
+  prefix: r.prefix ?? undefined,
+  fullName: r.full_name ?? undefined,
+  nickname: r.nickname ?? r.full_name ?? "—",
+  age: r.age ?? undefined,
+  height: r.height ?? undefined,
+  weight: r.weight ?? undefined,
+  sheetRate: r.sheet_rate ?? undefined,
+  phone: r.phone ?? undefined,
+  lineId: r.line_id ?? undefined,
+  ig: r.ig ?? undefined,
+  facebook: r.facebook ?? undefined,
+  character: r.character ?? undefined,
+  skills: r.skills ?? undefined,
+  experience: r.experience ?? undefined,
+  portfolio: r.portfolio ?? undefined,
+  photoUrl: r.photo_url ?? undefined,
+  extraPhotos: r.extra_photos ?? [],
+  rateOffer: r.rate_offer === null ? null : Number(r.rate_offer),
+  notes: r.notes ?? undefined,
+  hidden: r.hidden,
+  syncedAt: r.synced_at ?? undefined,
+});
+
+export async function listMcProfiles(): Promise<McProfile[]> {
+  const { data, error } = await supabase().from("mc_profiles").select(MC_COLUMNS).order("submitted_at", { ascending: false, nullsFirst: false });
+  if (error) throw error;
+  return (data as McRow[]).map(fromMcRow);
+}
+
+export async function getMcProfile(id: string): Promise<McProfile | null> {
+  const { data, error } = await supabase().from("mc_profiles").select(MC_COLUMNS).eq("id", id).maybeSingle();
+  if (error) throw error;
+  return data ? fromMcRow(data as McRow) : null;
+}
+
+// Only our own fields — the sheet-owned ones are overwritten by the next sync anyway.
+export async function updateMcLocal(
+  id: string,
+  values: { rateOffer?: number | null; notes?: string | null; hidden?: boolean; extraPhotos?: string[] },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (values.rateOffer !== undefined) patch.rate_offer = values.rateOffer;
+  if (values.notes !== undefined) patch.notes = values.notes;
+  if (values.hidden !== undefined) patch.hidden = values.hidden;
+  if (values.extraPhotos !== undefined) patch.extra_photos = values.extraPhotos;
+  const { error } = await supabase().from("mc_profiles").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function getMcSettings(): Promise<{ sheetUrl: string; lastSyncedAt?: string; lastResult?: string }> {
+  const { data, error } = await supabase().from("mc_settings").select("sheet_url, last_synced_at, last_result").eq("id", true).maybeSingle();
+  if (error) throw error;
+  return { sheetUrl: data?.sheet_url ?? "", lastSyncedAt: data?.last_synced_at ?? undefined, lastResult: data?.last_result ?? undefined };
+}
+
+export async function saveMcSheetUrl(sheetUrl: string): Promise<void> {
+  const { error } = await supabase().from("mc_settings").upsert({ id: true, sheet_url: sheetUrl.trim() });
+  if (error) throw error;
+}
+
+type McPackRow = { id: string; title: string; share_token: string; mc_ids: string[]; show: Record<string, boolean>; enabled: boolean; created_at: string };
+const fromMcPackRow = (r: McPackRow): McPack => ({ id: r.id, title: r.title, shareToken: r.share_token, mcIds: r.mc_ids, show: r.show ?? {}, enabled: r.enabled, createdAt: r.created_at });
+
+export async function listMcPacks(): Promise<McPack[]> {
+  const { data, error } = await supabase().from("mc_packs").select("id, title, share_token, mc_ids, show, enabled, created_at").order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as McPackRow[]).map(fromMcPackRow);
+}
+
+export async function createMcPack(values: { title: string; mcIds: string[]; show: Record<string, boolean> }): Promise<McPack> {
+  const { data, error } = await supabase()
+    .from("mc_packs")
+    .insert({ title: values.title.trim(), mc_ids: values.mcIds, show: values.show })
+    .select("id, title, share_token, mc_ids, show, enabled, created_at")
+    .single();
+  if (error) throw error;
+  return fromMcPackRow(data as McPackRow);
+}
+
+export async function setMcPackEnabled(id: string, enabled: boolean): Promise<void> {
+  const { error } = await supabase().from("mc_packs").update({ enabled }).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteMcPack(id: string): Promise<void> {
+  const { error } = await supabase().from("mc_packs").delete().eq("id", id);
+  if (error) throw error;
+}
+
+// pictures added by hand to an MC profile (same bucket as the other brand images)
+export async function uploadMcPhoto(file: File): Promise<string> {
+  return uploadViaSignedUrl("client-brand", file);
 }
