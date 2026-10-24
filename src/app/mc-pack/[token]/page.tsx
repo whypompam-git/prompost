@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { McCarousel } from "@/components/mc/McCarousel";
 import { PrintButton } from "@/components/mc/PrintButton";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { baht, withScheme } from "@/lib/mcDisplay";
@@ -28,22 +29,22 @@ export default async function McPackPage({ params }: { params: { token: string }
 
   const Line = ({ label, value }: { label: string; value?: string | null }) =>
     value ? (
-      <p className="text-sm text-gray-700">
+      <p className="text-sm leading-snug text-gray-700">
         <span className="text-gray-400">{label}: </span>
         <span className="whitespace-pre-wrap">{value}</span>
       </p>
     ) : null;
-  const Link = ({ label, value }: { label: string; value?: string | null }) =>
-    value ? (
-      <p className="text-sm">
-        <span className="text-gray-400">{label}: </span>
-        <a href={withScheme(value)} target="_blank" rel="noreferrer" className="break-all text-brand-600 underline">{value}</a>
-      </p>
+  // links are small buttons (not long URLs) to save space
+  const LinkBtn = ({ label, href }: { label: string; href?: string | null }) =>
+    href ? (
+      <a href={withScheme(href)} target="_blank" rel="noreferrer" className="rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100">
+        {label} ↗
+      </a>
     ) : null;
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-8 print:bg-white print:py-2">
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <div className="mb-6 flex items-start justify-between gap-3">
           <div>
             <h1 className="text-xl font-bold text-gray-900">{pack.title}</h1>
@@ -51,42 +52,31 @@ export default async function McPackPage({ params }: { params: { token: string }
           </div>
           <PrintButton />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 print:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-3">
           {list.map((m) => {
             const photos = [...(m.extra_photos ?? []), ...(m.photo_url ? [m.photo_url] : [])];
             return (
               <div key={m.id} className="break-inside-avoid overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <div className="flex gap-4 p-4">
-                  <div className="w-32 shrink-0">
-                    {photos[0] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photos[0]} alt="" className="aspect-[3/4] w-full rounded-xl object-cover" />
-                    ) : (
-                      <div className="aspect-[3/4] w-full rounded-xl bg-gray-100" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-1">
+                <McCarousel photos={photos} />
+                <div className="space-y-1.5 p-4">
+                  <div className="flex items-baseline justify-between gap-2">
                     <h2 className="text-lg font-semibold text-gray-900">{m.nickname}</h2>
-                    {show.rate && m.rate_offer ? <p className="text-sm font-semibold text-brand-700">{baht(Number(m.rate_offer))} / คิว (3 ชม.)</p> : null}
-                    {show.age && <Line label="อายุ" value={m.age} />}
-                    {show.height && <Line label="ส่วนสูง" value={m.height} />}
-                    {show.weight && <Line label="น้ำหนัก" value={m.weight} />}
-                    {show.character && <Line label="สไตล์" value={m.character} />}
-                    {show.skills && <Line label="ความสามารถ" value={m.skills} />}
-                    {show.experience && <Line label="ประสบการณ์" value={m.experience} />}
-                    {show.portfolio && <Link label="ผลงาน" value={m.portfolio} />}
-                    {show.ig && <Link label="IG" value={m.ig} />}
-                    {show.facebook && <Link label="Facebook" value={m.facebook} />}
+                    {show.rate && m.rate_offer ? <p className="shrink-0 text-sm font-semibold text-brand-700">{baht(Number(m.rate_offer))} / คิว (3 ชม.)</p> : null}
+                  </div>
+                  {(show.age || show.height || show.weight) && (
+                    <p className="text-sm text-gray-500">
+                      {[show.age && m.age && `${m.age} ปี`, show.height && m.height && `สูง ${m.height}`, show.weight && m.weight && `หนัก ${m.weight}`].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                  {show.character && <Line label="สไตล์" value={m.character} />}
+                  {show.skills && <Line label="ความสามารถ" value={m.skills} />}
+                  {show.experience && <Line label="ประสบการณ์" value={m.experience} />}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    {show.portfolio && <LinkBtn label="ผลงาน" href={m.portfolio} />}
+                    {show.ig && <LinkBtn label="Instagram" href={m.ig} />}
+                    {show.facebook && <LinkBtn label="Facebook" href={m.facebook} />}
                   </div>
                 </div>
-                {photos.length > 1 && (
-                  <div className="flex gap-2 overflow-x-auto px-4 pb-4">
-                    {photos.slice(1, 6).map((u) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={u} src={u} alt="" className="h-20 w-16 shrink-0 rounded-lg object-cover" />
-                    ))}
-                  </div>
-                )}
               </div>
             );
           })}
