@@ -23,7 +23,7 @@ import {
   listContentSets,
   listStaff,
   listQueues,
-  listTasks,
+  listTasksForClient,
   type ContentSet,
 } from "@/lib/supabase/queries";
 import { ClientTaskBoard } from "@/components/clients/ClientTaskBoard";
@@ -47,15 +47,15 @@ export default function ClientContentDashboardPage() {
   const [toast, setToast] = useState("");
 
   useEffect(() => {
-    Promise.all([getClient(params.id), listTasks(), listQueues(params.id).catch(() => [] as Queue[])])
-      .then(([c, allTasks, qs]) => {
+    Promise.all([getClient(params.id), listTasksForClient(params.id), listQueues(params.id).catch(() => [] as Queue[])])
+      .then(([c, clientTasks, qs]) => {
         setQueues(qs);
         if (!c) {
           setNotFound(true);
           return;
         }
         setClient(c);
-        setTasks(allTasks.filter((t) => t.clientId === params.id));
+        setTasks(clientTasks);
       })
       .catch((err) => {
         console.error(err);
@@ -97,8 +97,7 @@ export default function ClientContentDashboardPage() {
     } else {
       await createTasksBulk(values);
     }
-    const all = await listTasks();
-    setTasks(all.filter((t) => t.clientId === params.id));
+    setTasks(await listTasksForClient(params.id));
     setBulkOpen(false);
     setToast("สำเร็จ");
   }

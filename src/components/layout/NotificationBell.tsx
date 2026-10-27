@@ -19,7 +19,7 @@ import {
   listQuotations,
   listReceipts,
   listStaff,
-  listTasks,
+  listDueTasks,
   listTransactions,
 } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
@@ -32,6 +32,10 @@ const timeAgo = (iso: string) => {
   if (m < 1440) return `${Math.round(m / 60)} ชม.ก่อน`;
   return `${Math.round(m / 1440)} วันก่อน`;
 };
+
+// the automatic alerts are shared across pages: switching pages must not refetch them
+let alertsCache: { at: number; who: string; notices: Notice[] } | null = null;
+const ALERTS_TTL_MS = 300_000;
 
 const SEEN_KEY = "prompost:seen-notifications";
 const DAY = 86_400_000;
@@ -71,12 +75,25 @@ export function NotificationBell() {
   const wrapRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
-    const [tasks, clients, staff] = await Promise.all([listTasks(), listClients(), listStaff()]);
+    const wantsMoney = isOwner || auth.permissions.documents || auth.permissions.accounting;
+    const soon = new Date(Date.now() + 2 * DAY).toISOString().slice(0, 10);
+    // everything in ONE round of parallel requests (it used to be four in a row)
+    const [clients, staff, due, quotations, invoices, rounds, packages, receipts, txs, leaves] = await Promise.all([
+      listClients(),
+      isOwner ? listStaff() : Promise.resolve([] as Awaited<ReturnType<typeof listStaff>>),
+      listDueTasks(soon),
+      wantsMoney ? listQuotations() : Promise.resolve([]),
+      wantsMoney ? listInvoices() : Promise.resolve([]),
+      wantsMoney ? listClientPackages() : Promise.resolve([]),
+      wantsMoney ? listPackages() : Promise.resolve([]),
+      wantsMoney ? listReceipts() : Promise.resolve([]),
+      wantsMoney ? listTransactions().catch(() => []) : Promise.resolve([]),
+      isOwner ? listLeaveRequests() : Promise.resolve([]),
+    ]);
     const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
     const out: Notice[] = [];
 
-    if (isOwner || auth.permissions.documents || auth.permissions.accounting) {
-      const [quotations, invoices] = await Promise.all([listQuotations(), listInvoices()]);
+    if (wantsMoney) {
       for (const q of quotations) {
         if (q.clientFeedback) {
           out.push({
@@ -88,7 +105,6 @@ export function NotificationBell() {
           });
         }
       }
-      const [rounds, packages, receipts, txs] = await Promise.all([listClientPackages(), listPackages(), listReceipts(), listTransactions().catch(() => [])]);
       const billing = alertBilling(
         rounds.map((r) => ({ id: r.id, clientId: r.clientId, packageName: packages.find((p) => p.id === r.packageId)?.name ?? "", amount: r.amount, assignedAt: r.assignedAt })),
         quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
@@ -129,38 +145,32 @@ export function NotificationBell() {
       }
     }
 
-    if (isOwner) {
-      const leaves = await listLeaveRequests();
-      for (const l of leaves) {
-        if (l.status === "pending") {
-          const name = staff.find((s) => s.id === l.staffId)?.name ?? "พนักงาน";
-          out.push({
-            id: `leave:${l.id}`,
-            icon: "leave",
-            title: `${name} ขอลา รออนุมัติ`,
-            detail: `${l.dateFrom}${l.dateTo !== l.dateFrom ? ` – ${l.dateTo}` : ""}`,
-            href: "/settings/staff",
-          });
-        }
-      }
-    }
-
-    const soon = new Date(Date.now() + 2 * DAY).toISOString().slice(0, 10);
-    const today = new Date().toISOString().slice(0, 10);
-    for (const t of tasks) {
-      if (t.status === "done" || t.status === "waiting") continue; // waiting = with the client
-      if (!isOwner && t.assigneeId !== auth.staffId) continue;
-      if (t.dueDate <= soon) {
+    for (const l of leaves) {
+      if (l.status === "pending") {
+        const name = staff.find((s) => s.id === l.staffId)?.name ?? "พนักงาน";
         out.push({
-          id: `task:${t.id}:${t.dueDate}`,
-          icon: "task",
-          title: t.dueDate < today ? `เลยกำหนดส่ง: ${t.title}` : `ใกล้ถึงกำหนดส่ง: ${t.title}`,
-          detail: `${clientName(t.clientId)} · ส่ง ${t.dueDate}`,
-          href: `/tasks/${t.id}`,
+          id: `leave:${l.id}`,
+          icon: "leave",
+          title: `${name} ขอลา รออนุมัติ`,
+          detail: `${l.dateFrom}${l.dateTo !== l.dateFrom ? ` – ${l.dateTo}` : ""}`,
+          href: "/settings/staff",
         });
       }
     }
 
+    const today = new Date().toISOString().slice(0, 10);
+    for (const t of due) {
+      if (!isOwner && t.assigneeId !== auth.staffId) continue;
+      out.push({
+        id: `task:${t.id}:${t.dueDate}`,
+        icon: "task",
+        title: t.dueDate < today ? `เลยกำหนดส่ง: ${t.title}` : `ใกล้ถึงกำหนดส่ง: ${t.title}`,
+        detail: `${clientName(t.clientId)} · ส่ง ${t.dueDate}`,
+        href: `/tasks/${t.id}`,
+      });
+    }
+
+    alertsCache = { at: Date.now(), who: auth.staffId, notices: out };
     setNotices(out);
   }, [auth.permissions.documents, auth.permissions.accounting, auth.staffId, isOwner]);
 
@@ -193,10 +203,17 @@ export function NotificationBell() {
 
   useEffect(() => {
     setSeen(readSeen());
-    load().catch(() => {});
-    const timer = setInterval(() => load().catch(() => {}), 300_000);
-    return () => clearInterval(timer);
-  }, [load]);
+    // reuse what an earlier page already computed; otherwise fetch a moment AFTER the
+    // page has drawn so the alerts never slow down opening a page
+    const fresh = alertsCache && alertsCache.who === auth.staffId && Date.now() - alertsCache.at < ALERTS_TTL_MS;
+    if (fresh) setNotices(alertsCache!.notices);
+    const first = fresh ? undefined : setTimeout(() => load().catch(() => {}), 2500);
+    const timer = setInterval(() => load().catch(() => {}), ALERTS_TTL_MS);
+    return () => {
+      if (first) clearTimeout(first);
+      clearInterval(timer);
+    };
+  }, [load, auth.staffId]);
 
   useEffect(() => {
     function onDown(e: MouseEvent) {

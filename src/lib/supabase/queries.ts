@@ -479,6 +479,13 @@ export async function listTasks(): Promise<Task[]> {
   });
 }
 
+// One client's clips only (the client page used to download every client's tasks).
+export async function listTasksForClient(clientId: string): Promise<Task[]> {
+  const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("client_id", clientId).order("scheduled_date", { ascending: true });
+  if (error) throw error;
+  return (data as TaskRow[]).map(fromTaskRow);
+}
+
 export async function getTask(id: string): Promise<Task | null> {
   const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("id", id).maybeSingle();
   if (error) throw error;
@@ -500,6 +507,25 @@ export async function listDistinctShotsAndEquipment(): Promise<{
     (row.equipment ?? []).forEach((e) => equipment.add(e));
   }
   return { shots: [...shots].sort(), equipment: [...equipment].sort() };
+}
+
+// Just the clips that are due soon and still the team's job (the bell's alerts) —
+// the full task list carries every script and is close to 1 MB.
+export async function listDueTasks(untilIso: string): Promise<Pick<Task, "id" | "title" | "clientId" | "assigneeId" | "status" | "dueDate">[]> {
+  const { data, error } = await supabase()
+    .from("tasks")
+    .select("id, title, client_id, assignee_id, status, due_date")
+    .not("status", "in", "(done,waiting)")
+    .lte("due_date", untilIso);
+  if (error) throw error;
+  return (data as { id: string; title: string; client_id: string; assignee_id: string | null; status: Task["status"]; due_date: string }[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    clientId: r.client_id,
+    assigneeId: r.assignee_id,
+    status: r.status,
+    dueDate: r.due_date,
+  }));
 }
 
 // Slim read for screens that only count tasks per person — the full list
