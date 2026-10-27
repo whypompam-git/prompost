@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { ChevronDown, ChevronRight, ExternalLink, Loader2, LogOut, Send } from "lucide-react";
+import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
+import { th } from "date-fns/locale";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListChecks, Loader2, LogOut, Send } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScriptText } from "@/components/ui/ScriptText";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -129,11 +131,77 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
   );
 }
 
+const WEEKDAYS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
+
+// The editor's own calendar: the days they work on a clip (วันตัดต่อ) and the
+// delivery deadlines of clips that are still theirs to finish. Tap a day to see
+// its clips below.
+function MyCalendar({ tasks, onChange }: { tasks: MyTask[]; onChange: () => void }) {
+  const [anchor, setAnchor] = useState(() => new Date());
+  const [day, setDay] = useState<string | null>(todayIso());
+  const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 }) });
+  const working = tasks.filter((t) => t.type === "edit" || t.type === "qc");
+  const editOn = (iso: string) => working.filter((t) => t.editDate === iso);
+  const dueOn = (iso: string) => working.filter((t) => t.dueDate === iso);
+  const dayTasks = day ? [...editOn(day), ...dueOn(day).filter((t) => !editOn(day).includes(t))] : [];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base font-semibold text-gray-900">{format(anchor, "MMMM yyyy", { locale: th })}</h2>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setAnchor((a) => addMonths(a, -1))} className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500" aria-label="เดือนก่อน"><ChevronLeft size={16} /></button>
+          <button onClick={() => { setAnchor(new Date()); setDay(todayIso()); }} className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600">วันนี้</button>
+          <button onClick={() => setAnchor((a) => addMonths(a, 1))} className="rounded-lg border border-gray-200 bg-white p-1.5 text-gray-500" aria-label="เดือนถัดไป"><ChevronRight size={16} /></button>
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
+        <div className="grid grid-cols-7 border-b border-gray-100 text-center text-[11px] font-medium text-gray-400">
+          {WEEKDAYS.map((d) => <div key={d} className="py-1.5">{d}</div>)}
+        </div>
+        <div className="grid grid-cols-7">
+          {days.map((d) => {
+            const iso = format(d, "yyyy-MM-dd");
+            const e = editOn(iso).length;
+            const due = dueOn(iso).length;
+            const isToday = iso === todayIso();
+            return (
+              <button
+                key={iso}
+                onClick={() => setDay(iso)}
+                className={cn("flex min-h-[64px] flex-col items-center gap-0.5 border-b border-r border-gray-50 p-1 text-xs", !isSameMonth(d, anchor) && "bg-gray-50/70 text-gray-300", day === iso && "bg-brand-50 ring-1 ring-inset ring-brand-300")}
+              >
+                <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium", isToday ? "bg-brand-500 text-white" : "text-gray-600")}>{d.getDate()}</span>
+                {e > 0 && <span className="w-full truncate rounded bg-sky-100 px-1 text-[10px] font-medium text-sky-700">ตัด {e}</span>}
+                {due > 0 && <span className="w-full truncate rounded bg-rose-100 px-1 text-[10px] font-medium text-rose-700">ส่ง {due}</span>}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <p className="flex gap-3 text-[11px] text-gray-400">
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />วันตัดต่อ</span>
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-400" />วันส่ง (งานที่ยังไม่ส่งตรวจ)</span>
+      </p>
+      {day && (
+        <section>
+          <h3 className="mb-2 text-sm font-semibold text-gray-700">{format(new Date(day), "d MMMM", { locale: th })} · {dayTasks.length} งาน</h3>
+          <div className="space-y-3">
+            {dayTasks.map((t) => <TaskCard key={t.id} t={t} onChange={onChange} />)}
+            {dayTasks.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-6 text-center text-sm text-gray-400">ไม่มีงานในวันนี้</p>}
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
 // The only screen for people locked to their own work (outsourced editors).
 export function MyWork({ name }: { name: string }) {
   const router = useRouter();
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState("");
+  const [view, setView] = useState<"list" | "calendar">("list");
   const [filter, setFilter] = useState<MyBucket | "all" | null>(null); // null = not chosen yet → best default
 
   async function load() {
@@ -192,11 +260,24 @@ export function MyWork({ name }: { name: string }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6">
+      <nav className="mx-auto flex max-w-3xl gap-2 px-4 pt-4">
+        {([["list", "งานของฉัน", ListChecks], ["calendar", "ปฏิทิน", CalendarDays]] as const).map(([key, label, Icon]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className={cn("flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium", view === key ? "bg-brand-500 text-white" : "bg-white text-gray-600 border border-gray-200")}
+          >
+            <Icon size={15} /> {label}
+          </button>
+        ))}
+      </nav>
+
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-4">
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {tasks === null && !error && <p className="py-10 text-center text-sm text-gray-400">กำลังโหลด…</p>}
-        {tasks !== null && tasks.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">ยังไม่มีงานที่มอบหมายให้คุณ</p>}
-        {tasks !== null && tasks.length > 0 && (
+        {tasks !== null && view === "list" && tasks.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">ยังไม่มีงานที่มอบหมายให้คุณ</p>}
+        {tasks !== null && view === "calendar" && <MyCalendar tasks={tasks} onChange={load} />}
+        {tasks !== null && view === "list" && tasks.length > 0 && (
           <>
             {/* filter chips, like the dashboard's stage filter */}
             <div className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-gray-50/95 px-4 py-2 backdrop-blur">
