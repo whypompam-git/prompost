@@ -8,8 +8,7 @@ export type MyTask = {
   type: string;
   status: string;
   clientName: string;
-  editDate: string | null;
-  dueDate: string;
+  editDate: string | null; // the day the editor works on it AND hands it in — the only deadline they see
   scriptText: string | null;
   shots: string[];
   equipment: string[];

@@ -66,8 +66,7 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
       <p className="text-xs font-medium text-gray-400">{t.clientName}</p>
       <p className="text-base font-semibold text-gray-900">{t.title}</p>
       <div className="mt-2 flex flex-wrap gap-1.5">
-        <Deadline label="ตัดต่อ" date={t.editDate} />
-        <Deadline label="ส่ง" date={t.dueDate} />
+        <Deadline label="ส่งงานภายใน" date={t.editDate} />
         {t.revisionCount > 0 && <span className="rounded-full bg-rose-100 px-2.5 py-1 text-[11px] font-medium text-rose-700">แก้รอบที่ {t.revisionCount}</span>}
       </div>
 
@@ -142,8 +141,7 @@ function MyCalendar({ tasks, onChange }: { tasks: MyTask[]; onChange: () => void
   const days = eachDayOfInterval({ start: startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 }), end: endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 }) });
   const working = tasks.filter((t) => t.type === "edit" || t.type === "qc");
   const editOn = (iso: string) => working.filter((t) => t.editDate === iso);
-  const dueOn = (iso: string) => working.filter((t) => t.dueDate === iso);
-  const dayTasks = day ? [...editOn(day), ...dueOn(day).filter((t) => !editOn(day).includes(t))] : [];
+  const dayTasks = day ? editOn(day) : [];
 
   return (
     <div className="space-y-4">
@@ -163,7 +161,6 @@ function MyCalendar({ tasks, onChange }: { tasks: MyTask[]; onChange: () => void
           {days.map((d) => {
             const iso = format(d, "yyyy-MM-dd");
             const e = editOn(iso).length;
-            const due = dueOn(iso).length;
             const isToday = iso === todayIso();
             return (
               <button
@@ -172,16 +169,14 @@ function MyCalendar({ tasks, onChange }: { tasks: MyTask[]; onChange: () => void
                 className={cn("flex min-h-[64px] flex-col items-center gap-0.5 border-b border-r border-gray-50 p-1 text-xs", !isSameMonth(d, anchor) && "bg-gray-50/70 text-gray-300", day === iso && "bg-brand-50 ring-1 ring-inset ring-brand-300")}
               >
                 <span className={cn("flex h-5 min-w-5 items-center justify-center rounded-full px-1 font-medium", isToday ? "bg-brand-500 text-white" : "text-gray-600")}>{d.getDate()}</span>
-                {e > 0 && <span className="w-full truncate rounded bg-sky-100 px-1 text-[10px] font-medium text-sky-700">ตัด {e}</span>}
-                {due > 0 && <span className="w-full truncate rounded bg-rose-100 px-1 text-[10px] font-medium text-rose-700">ส่ง {due}</span>}
+                {e > 0 && <span className="w-full truncate rounded bg-sky-100 px-1 text-[10px] font-medium text-sky-700">{e} งาน</span>}
               </button>
             );
           })}
         </div>
       </div>
       <p className="flex gap-3 text-[11px] text-gray-400">
-        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />วันตัดต่อ</span>
-        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-rose-400" />วันส่ง (งานที่ยังไม่ส่งตรวจ)</span>
+        <span><span className="mr-1 inline-block h-2 w-2 rounded-full bg-sky-400" />วันที่ต้องตัดและส่งงาน</span>
       </p>
       {day && (
         <section>
@@ -225,8 +220,8 @@ export function MyWork({ name }: { name: string }) {
   const grouped = useMemo(() => {
     const g: Record<MyBucket, MyTask[]> = { revise: [], todo: [], review: [], done: [] };
     for (const t of tasks ?? []) g[bucketOf(t)].push(t);
-    g.todo.sort((a, b) => (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999") || a.dueDate.localeCompare(b.dueDate));
-    g.revise.sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+    g.todo.sort((a, b) => (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999"));
+    g.revise.sort((a, b) => (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999"));
     g.done.reverse();
     return g;
   }, [tasks]);
