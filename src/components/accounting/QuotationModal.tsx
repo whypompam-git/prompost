@@ -16,6 +16,7 @@ export type QuotationFormValues = {
   validUntil?: string;
   paymentNote?: string;
   notes?: string;
+  clientPackageId?: string | null; // the billing round (package) this prices
 };
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 2 });
@@ -24,26 +25,31 @@ const emptyItem = (): QuotationItem => ({ description: "", qty: 1, unitPrice: 0 
 export function QuotationModal({
   initial,
   prefill,
+  suggest,
   clients,
   onClose,
   onSave,
 }: {
   initial?: Quotation;
   prefill?: { clientId?: string; description?: string; amount?: number }; // e.g. from a ledger row
+  // the client's package as the starting item (extras can be added) and the round to link
+  suggest?: (clientId: string) => { items: QuotationItem[]; clientPackageId?: string | null };
   clients: Client[];
   onClose: () => void;
   onSave: (values: QuotationFormValues) => void;
 }) {
   const [quoteNo, setQuoteNo] = useState(initial?.quoteNo ?? "");
   const [issuedAt, setIssuedAt] = useState(toInputDate(initial?.createdAt ?? new Date().toISOString()));
-  const [clientId, setClientId] = useState(initial?.clientId ?? prefill?.clientId ?? clients[0]?.id ?? "");
+  const initialClient = initial?.clientId ?? prefill?.clientId ?? clients[0]?.id ?? "";
+  const [clientId, setClientId] = useState(initialClient);
   const [items, setItems] = useState<QuotationItem[]>(
     initial?.items.length
       ? initial.items
       : prefill?.description || prefill?.amount
         ? [{ description: prefill.description ?? "", qty: 1, unitPrice: prefill.amount ?? 0 }]
-        : [emptyItem()],
+        : (initialClient && suggest?.(initialClient).items.length ? suggest(initialClient).items : [emptyItem()]),
   );
+  const [touched, setTouched] = useState(false); // once items are edited by hand, changing client no longer replaces them
   const [vatPercent, setVatPercent] = useState(initial?.vatPercent ?? 7);
   const [whtPercent, setWhtPercent] = useState(initial?.whtPercent ?? 0);
   const [validUntil, setValidUntil] = useState(initial?.validUntil?.slice(0, 10) ?? "");
@@ -54,11 +60,19 @@ export function QuotationModal({
   const canSave =
     clientId.length > 0 && (!initial || quoteNo.trim().length > 0) && items.some((i) => i.description.trim().length > 0 && i.qty > 0);
 
+  function changeClient(id: string) {
+    setClientId(id);
+    const s = !initial && !touched ? suggest?.(id) : undefined;
+    if (s) setItems(s.items.length > 0 ? s.items : [emptyItem()]);
+  }
+
   function updateItem(index: number, patch: Partial<QuotationItem>) {
+    setTouched(true);
     setItems((prev) => prev.map((it, i) => (i === index ? { ...it, ...patch } : it)));
   }
 
   function removeItem(index: number) {
+    setTouched(true);
     setItems((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -74,6 +88,7 @@ export function QuotationModal({
       validUntil: validUntil || undefined,
       paymentNote: paymentNote.trim() || undefined,
       notes: notes.trim() || undefined,
+      clientPackageId: initial ? undefined : suggest?.(clientId).clientPackageId,
     });
   }
 
@@ -116,7 +131,7 @@ export function QuotationModal({
             <span className="mb-1 block text-xs font-medium text-gray-500">ลูกค้า</span>
             <select
               value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
+              onChange={(e) => changeClient(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             >
               {clients.map((c) => (
@@ -128,7 +143,7 @@ export function QuotationModal({
           </label>
 
           <div>
-            <span className="mb-1.5 block text-xs font-medium text-gray-500">รายการ</span>
+            <span className="mb-1.5 block text-xs font-medium text-gray-500">รายการ {suggest?.(clientId).items.length ? "(เริ่มจากแพ็คเกจของลูกค้า — แก้/เพิ่มรายการอื่นได้)" : ""}</span>
             <div className="space-y-2">
               {items.map((item, i) => (
                 <div key={i} className="flex items-center gap-2">

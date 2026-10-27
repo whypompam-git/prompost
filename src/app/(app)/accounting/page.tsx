@@ -15,17 +15,23 @@ import { TransactionModal, type TransactionFormValues } from "@/components/accou
 import { useAuth } from "@/lib/auth/AuthContext";
 import { downloadCsv } from "@/lib/exportCsv";
 import {
+  createInvoiceRow,
   createQuotationRow,
   createReceiptRow,
   createTransactionRow,
   deleteTransactionRow,
+  listClientPackages,
   listClients,
+  listPackages,
+  listReceipts,
   listQuotations,
   listTransactions,
   updateTransactionRow,
   uploadSlip,
 } from "@/lib/supabase/queries";
-import type { Client, Quotation, Transaction } from "@/lib/types";
+import { effectivePayments, roundBalance, suggestedInvoiceItems, suggestedQuoteItems, type Round } from "@/lib/billing";
+import { InvoiceModal, type InvoiceFormValues } from "@/components/accounting/InvoiceModal";
+import type { Client, ClientPackage, Package, Quotation, Receipt, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -44,13 +50,20 @@ export default function AccountingPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [issuingFor, setIssuingFor] = useState<Transaction | null>(null);
   const [quoting, setQuoting] = useState(false);
-  const [quotePrefill, setQuotePrefill] = useState<{ clientId?: string; description?: string; amount?: number } | undefined>();
+  const [quoteClient, setQuoteClient] = useState<string | undefined>();
+  const [invoiceFor, setInvoiceFor] = useState<Transaction | null>(null);
+  const [rounds, setRounds] = useState<ClientPackage[]>([]);
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [clientFilter, setClientFilter] = useState("");
-  const [createdQuote, setCreatedQuote] = useState<{ id: string; no: string } | null>(null);
+  const [createdQuote, setCreatedQuote] = useState<{ id: string; no: string; kind: "quotation" | "invoice" } | null>(null);
 
   useEffect(() => {
-    Promise.all([listTransactions(), listClients(), listQuotations()])
-      .then(([t, c, q]) => {
+    Promise.all([listTransactions(), listClients(), listQuotations(), listClientPackages().catch(() => [] as ClientPackage[]), listPackages().catch(() => [] as Package[]), listReceipts().catch(() => [] as Receipt[])])
+      .then(([t, c, q, cp, pk, rc]) => {
+        setRounds(cp);
+        setPackages(pk);
+        setReceipts(rc);
         setTransactions(t);
         setClients(c);
         setQuotations(q);
@@ -70,6 +83,26 @@ export default function AccountingPage() {
     const key = (t: Transaction) => `${t.occurredAt}T${t.occurredTime ?? "00:00"}`;
     return [...byClient].sort((a, b) => (dateSort === "desc" ? key(b).localeCompare(key(a)) : key(a).localeCompare(key(b))));
   }, [transactions, monthFrom, monthTo, dateSort, clientFilter]);
+
+  // ── billing: each client's current round, what is billed / paid / left ──
+  const roundList: Round[] = useMemo(
+    () => rounds.map((r) => ({ id: r.id, clientId: r.clientId, packageName: packages.find((p) => p.id === r.packageId)?.name, amount: r.amount, assignedAt: r.assignedAt })),
+    [rounds, packages],
+  );
+  const quoteList = useMemo(() => quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })), [quotations]);
+  const payments = useMemo(
+    () => effectivePayments(roundList, receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })), transactions),
+    [roundList, receipts, transactions],
+  );
+  const currentRound = (clientId?: string) => (clientId ? roundList.filter((r) => r.clientId === clientId).sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0] : undefined);
+  const balanceOf = (clientId?: string) => {
+    const r = currentRound(clientId);
+    return r ? { round: r, ...roundBalance(r, quoteList, payments) } : null;
+  };
+  const suggestQuote = (clientId: string) => {
+    const r = currentRound(clientId);
+    return { items: suggestedQuoteItems(r), clientPackageId: r?.id ?? null };
+  };
 
   const clientName = (id?: string) => clients.find((c) => c.id === id)?.name;
 
@@ -111,11 +144,22 @@ export default function AccountingPage() {
     try {
       const created = await createQuotationRow(v);
       setQuotations((prev) => [created, ...prev]);
-      setCreatedQuote({ id: created.id, no: created.quoteNo });
+      setCreatedQuote({ id: created.id, no: created.quoteNo, kind: "quotation" });
       setQuoting(false);
     } catch (err) {
       console.error(err);
       window.alert(`ออกใบเสนอราคาไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+    }
+  }
+
+  async function handleCreateInvoice(v: InvoiceFormValues) {
+    try {
+      const created = await createInvoiceRow(v);
+      setInvoiceFor(null);
+      setCreatedQuote({ id: created.id, no: created.invoiceNo, kind: "invoice" });
+    } catch (err) {
+      console.error(err);
+      window.alert(`ออกใบแจ้งหนี้ไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
     }
   }
 
@@ -194,9 +238,9 @@ export default function AccountingPage() {
 
         {createdQuote && (
           <div className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
-            <span>ออกใบเสนอราคา {createdQuote.no} แล้ว</span>
+            <span>ออก{createdQuote.kind === "invoice" ? "ใบแจ้งหนี้" : "ใบเสนอราคา"} {createdQuote.no} แล้ว</span>
             <span className="flex items-center gap-3">
-              <a href={`/print/quotation/${createdQuote.id}`} target="_blank" rel="noreferrer" className="font-medium underline">
+              <a href={`/print/${createdQuote.kind}/${createdQuote.id}`} target="_blank" rel="noreferrer" className="font-medium underline">
                 เปิดดู / ดาวน์โหลด
               </a>
               <button onClick={() => setCreatedQuote(null)} className="text-emerald-500 hover:text-emerald-700">
@@ -236,7 +280,7 @@ export default function AccountingPage() {
               </button>
               <button
                 onClick={() => {
-                  setQuotePrefill(undefined);
+                  setQuoteClient(undefined);
                   setQuoting(true);
                 }}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"
@@ -338,14 +382,24 @@ export default function AccountingPage() {
                         {t.type === "income" && (
                           <button
                             onClick={() => {
-                              setQuotePrefill({ clientId: t.clientId, description: t.description ?? t.category, amount: t.amount });
+                              setQuoteClient(t.clientId);
                               setQuoting(true);
                             }}
                             className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50"
-                            title="ออกใบเสนอราคาจากรายการนี้"
+                            title="ออกใบเสนอราคา (เริ่มจากแพ็คเกจของลูกค้า เพิ่มรายการได้)"
                           >
                             <FileText size={13} />
                             ออกใบเสนอราคา
+                          </button>
+                        )}
+                        {t.type === "income" && t.clientId && (balanceOf(t.clientId)?.outstanding ?? 0) > 0 && (
+                          <button
+                            onClick={() => setInvoiceFor(t)}
+                            className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-amber-600 hover:bg-amber-50"
+                            title={`ออกใบแจ้งหนี้ยอดคงเหลือ ฿${currency(balanceOf(t.clientId)!.outstanding)}`}
+                          >
+                            <FileText size={13} />
+                            ใบแจ้งหนี้ยอดเหลือ ฿{currency(balanceOf(t.clientId)!.outstanding)}
                           </button>
                         )}
                         {t.receiptId ? (
@@ -405,14 +459,26 @@ export default function AccountingPage() {
       {quoting && (
         <QuotationModal
           clients={clients}
-          prefill={quotePrefill}
+          prefill={quoteClient ? { clientId: quoteClient } : undefined}
+          suggest={suggestQuote}
           onClose={() => {
             setQuoting(false);
-            setQuotePrefill(undefined);
+            setQuoteClient(undefined);
           }}
           onSave={handleCreateQuotation}
         />
       )}
+      {invoiceFor && invoiceFor.clientId && (() => {
+        const b = balanceOf(invoiceFor.clientId);
+        return (
+          <InvoiceModal
+            clients={clients}
+            prefill={{ clientId: invoiceFor.clientId, items: suggestedInvoiceItems(b?.round, b?.outstanding ?? 0, b?.paid ?? 0), notes: b ? `ยอดแพ็คเกจ ฿${currency(b.billed)} · ชำระแล้ว ฿${currency(b.paid)}` : undefined }}
+            onClose={() => setInvoiceFor(null)}
+            onSave={handleCreateInvoice}
+          />
+        );
+      })()}
       {issuingFor && (
         <IssueReceiptModal
           transaction={issuingFor}

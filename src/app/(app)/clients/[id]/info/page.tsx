@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BalanceSummary } from "@/components/billing/BalanceSummary";
 import { clientBalance } from "@/lib/accounting";
+import { effectivePayments, roundBalance, type Round } from "@/lib/billing";
 import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -23,10 +24,11 @@ import {
   listInvoices,
   listQuotations,
   listReceipts,
+  listTransactions,
   updateClientRow,
   listStaff,
 } from "@/lib/supabase/queries";
-import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt , Invoice, Staff } from "@/lib/types";
+import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt, Invoice, Staff, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -45,6 +47,7 @@ export default function ClientInfoPage() {
   const [quotations, setQuotations] = useState<Quotation[]>([]);
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [allPackages, setAllPackages] = useState<Package[]>([]);
   const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -57,8 +60,9 @@ export default function ClientInfoPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices()])
-      .then(([c, assignments, packages, q, r, inv]) => {
+    Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices(), listTransactions().catch(() => [] as Transaction[])])
+      .then(([c, assignments, packages, q, r, inv, tx]) => {
+        setTransactions(tx.filter((x) => x.clientId === params.id));
         setInvoices(inv.filter((x) => x.clientId === params.id));
         setAllPackages(packages);
         if (!c) {
@@ -80,6 +84,19 @@ export default function ClientInfoPage() {
       })
       .finally(() => setLoading(false));
   }, [params.id]);
+
+  // billed / paid / left for the client's CURRENT round: the quotation (package + extras)
+  // against everything received — receipts and deposits booked in accounting. Without a
+  // round (old clients) it falls back to invoices vs receipts.
+  const rounds: Round[] = myPackages.map((m) => ({ id: m.assignment.id, clientId: m.assignment.clientId, packageName: m.pkg?.name, amount: m.assignment.amount, assignedAt: m.assignment.assignedAt }));
+  const current = [...rounds].sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0];
+  const balance = current
+    ? roundBalance(
+        current,
+        quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
+        effectivePayments(rounds, receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })), transactions),
+      )
+    : clientBalance(invoices, receipts);
 
   function patch(fields: Partial<Client>) {
     setClient((prev) => (prev ? { ...prev, ...fields } : prev));
@@ -167,7 +184,7 @@ export default function ClientInfoPage() {
           </button>
         </div>
 
-        <BalanceSummary {...clientBalance(invoices, receipts)} />
+        <BalanceSummary {...balance} />
 
         <Card className="space-y-4">
           <div>

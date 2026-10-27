@@ -144,6 +144,7 @@ export interface Quotation {
   clientFeedback?: string; // client's requested changes, left via the share link
   fileUrl?: string; // set = an old quotation uploaded as a file instead of generated in-app
   shareToken: string; // /quote/:shareToken — public read + feedback link
+  clientPackageId?: string | null; // billing round (package) this quotation prices
 }
 
 export interface Receipt {

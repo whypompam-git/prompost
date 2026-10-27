@@ -22,21 +22,23 @@ const emptyItem = (): QuotationItem => ({ description: "", qty: 1, unitPrice: 0 
 
 export function InvoiceModal({
   clients,
+  prefill,
   onClose,
   onSave,
 }: {
   clients: Client[];
+  prefill?: { clientId: string; items: QuotationItem[]; notes?: string }; // e.g. the balance left after a deposit
   onClose: () => void;
   onSave: (values: InvoiceFormValues) => void;
 }) {
   const [issuedAt, setIssuedAt] = useState(toInputDate(new Date().toISOString()));
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
-  const [items, setItems] = useState<QuotationItem[]>([emptyItem()]);
+  const [clientId, setClientId] = useState(prefill?.clientId ?? clients[0]?.id ?? "");
+  const [items, setItems] = useState<QuotationItem[]>(prefill?.items.length ? prefill.items : [emptyItem()]);
   const [vatPercent, setVatPercent] = useState(7);
   const [whtPercent, setWhtPercent] = useState(0);
   const [dueDate, setDueDate] = useState("");
   const [paymentNote, setPaymentNote] = useState("");
-  const [notes, setNotes] = useState("");
+  const [notes, setNotes] = useState(prefill?.notes ?? "");
 
   const totals = calcQuotationTotals(items, vatPercent, whtPercent);
   const canSave =

@@ -6,6 +6,7 @@ import { Bell, CalendarOff, CircleAlert, MessageSquareText, Receipt } from "luci
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { bangkokDay, buildDigest } from "@/lib/alerts";
+import { alertBilling } from "@/lib/billing";
 import {
   listClientPackages,
   listClients,
@@ -19,6 +20,7 @@ import {
   listReceipts,
   listStaff,
   listTasks,
+  listTransactions,
 } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
 
@@ -86,7 +88,13 @@ export function NotificationBell() {
           });
         }
       }
-      const [rounds, packages, receipts] = await Promise.all([listClientPackages(), listPackages(), listReceipts()]);
+      const [rounds, packages, receipts, txs] = await Promise.all([listClientPackages(), listPackages(), listReceipts(), listTransactions().catch(() => [])]);
+      const billing = alertBilling(
+        rounds.map((r) => ({ id: r.id, clientId: r.clientId, packageName: packages.find((p) => p.id === r.packageId)?.name ?? "", amount: r.amount, assignedAt: r.assignedAt })),
+        quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
+        receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })),
+        txs,
+      );
       const owed = buildDigest({
         today: bangkokDay(new Date()),
         graceDays: 7,
@@ -94,14 +102,8 @@ export function NotificationBell() {
         staff: [],
         tasks: [],
         invoices: [],
-        rounds: rounds.map((r) => ({
-          id: r.id,
-          clientId: r.clientId,
-          packageName: packages.find((p) => p.id === r.packageId)?.name ?? "",
-          amount: r.amount,
-          assignedAt: r.assignedAt,
-        })),
-        receipts: receipts.map((r) => ({ clientPackageId: r.clientPackageId, amount: r.amount })),
+        rounds: billing.rounds,
+        receipts: billing.receipts,
         leave: [],
       }).overduePayments;
       for (const p of owed) {

@@ -738,10 +738,11 @@ type QuotationRow = {
   client_feedback: string | null;
   file_url: string | null;
   share_token: string;
+  client_package_id: string | null;
 };
 
 const QUOTATION_COLUMNS =
-  "id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at, valid_until, payment_note, notes, client_feedback, file_url, share_token";
+  "id, client_id, quote_no, items, vat_percent, wht_percent, status, created_at, valid_until, payment_note, notes, client_feedback, file_url, share_token, client_package_id";
 
 const fromQuotationRow = (r: QuotationRow): Quotation => ({
   id: r.id,
@@ -758,6 +759,7 @@ const fromQuotationRow = (r: QuotationRow): Quotation => ({
   clientFeedback: r.client_feedback ?? undefined,
   fileUrl: r.file_url ?? undefined,
   shareToken: r.share_token,
+  clientPackageId: r.client_package_id ?? undefined,
 });
 
 export async function listQuotations(): Promise<Quotation[]> {
@@ -804,8 +806,14 @@ export async function createQuotationRow(values: {
   validUntil?: string;
   paymentNote?: string;
   notes?: string;
+  clientPackageId?: string | null; // undefined = the client's current round
 }): Promise<Quotation> {
   const quoteNo = await nextDocNo("quotations", "QT");
+  let roundId = values.clientPackageId;
+  if (roundId === undefined) {
+    const { data: round } = await supabase().from("client_packages").select("id").eq("client_id", values.clientId).order("assigned_at", { ascending: false }).limit(1).maybeSingle();
+    roundId = round?.id ?? null;
+  }
   const { data, error } = await supabase()
     .from("quotations")
     .insert({
@@ -817,6 +825,7 @@ export async function createQuotationRow(values: {
       valid_until: values.validUntil || null,
       payment_note: values.paymentNote,
       notes: values.notes,
+      client_package_id: roundId,
       ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(QUOTATION_COLUMNS)

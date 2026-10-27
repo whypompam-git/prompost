@@ -24,6 +24,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientModal, type ClientFormValues } from "@/components/clients/ClientModal";
+import { effectivePayments, roundBalance, type Round } from "@/lib/billing";
 import { stripNoteMarkup } from "@/lib/noteMarkup";
 import { summarizeStages } from "@/lib/workflow";
 import { ClientHistoryModal } from "@/components/clients/ClientHistoryModal";
@@ -40,6 +41,7 @@ import {
   listPackages,
   listQuotations,
   listReceipts,
+  listTransactions,
   recordRoundPayment,
   listStaff,
   listTaskStageRows,
@@ -51,7 +53,7 @@ import {
 } from "@/lib/supabase/queries";
 import { clientLinkPath } from "@/lib/slug";
 import { downloadCsv } from "@/lib/exportCsv";
-import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt, Staff } from "@/lib/types";
+import type { Client, ClientNote, ClientPackage, Invoice, Package, PaymentStatus, Quotation, Receipt, Staff, Transaction } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const PAYMENT_LABEL: Record<PaymentStatus, string> = {
@@ -101,10 +103,12 @@ export default function ClientsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [staff, setStaff] = useState<Staff[]>([]);
   const [managerFilter, setManagerFilter] = useState("");
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [allRounds, setAllRounds] = useState<ClientPackage[]>([]);
   const [taskStages, setTaskStages] = useState<{ clientId: string; type: string }[]>([]);
 
   async function loadAll() {
-    const [c, p, cp, r, q, inv, notes, staffRows, stageRows] = await Promise.all([
+    const [c, p, cp, r, q, inv, notes, staffRows, stageRows, txRows] = await Promise.all([
       listClients(),
       listPackages(),
       listClientPackages(),
@@ -117,7 +121,10 @@ export default function ClientsPage() {
       }),
       listStaff().catch(() => [] as Staff[]),
       listTaskStageRows().catch(() => [] as { clientId: string; type: string }[]),
+      listTransactions().catch(() => [] as Transaction[]),
     ]);
+    setTransactions(txRows);
+    setAllRounds(cp);
     setStaff(staffRows);
     setTaskStages(stageRows);
     setClients(c);
@@ -140,25 +147,23 @@ export default function ClientsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Paid-so-far for a client's CURRENT round only — receipts linked to that
-  // round's id, not every receipt the client has ever had.
-  const roundPaid = useMemo(() => {
-    const byClient: Record<string, number> = {};
+  // billed / paid / left for each client's CURRENT round, from one shared calculation:
+  // billed = the round's quotation (package + extras) or the package price; paid =
+  // receipts + deposits booked in accounting that have no receipt yet (see lib/billing.ts).
+  const balances = useMemo(() => {
+    const rounds: Round[] = allRounds.map((r) => ({ id: r.id, clientId: r.clientId, packageName: packages.find((p) => p.id === r.packageId)?.name, amount: r.amount, assignedAt: r.assignedAt }));
+    const quotes = quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent }));
+    const payments = effectivePayments(rounds, receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })), transactions);
+    const out: Record<string, { billed: number; paid: number; outstanding: number }> = {};
     for (const client of clients) {
-      const round = currentRounds[client.id];
-      if (!round) continue;
-      byClient[client.id] = receipts
-        .filter((r) => r.clientPackageId === round.id)
-        .reduce((sum, r) => sum + r.amount, 0);
+      const cur = currentRounds[client.id];
+      const round = cur && rounds.find((r) => r.id === cur.id);
+      if (round) out[client.id] = roundBalance(round, quotes, payments);
     }
-    return byClient;
-  }, [clients, currentRounds, receipts]);
-
-  const roundOutstanding = (clientId: string) => {
-    const round = currentRounds[clientId];
-    if (!round) return 0;
-    return Math.max(round.amount - (roundPaid[clientId] ?? 0), 0);
-  };
+    return out;
+  }, [clients, allRounds, currentRounds, packages, quotations, receipts, transactions]);
+  const roundPaid = useMemo(() => Object.fromEntries(Object.entries(balances).map(([id, b]) => [id, b.paid])) as Record<string, number>, [balances]);
+  const roundOutstanding = (clientId: string) => balances[clientId]?.outstanding ?? 0;
 
   const docCount = useMemo(() => {
     const byClient: Record<string, number> = {};
@@ -170,10 +175,10 @@ export default function ClientsPage() {
   }, [quotations, invoices, receipts]);
 
   const summary = useMemo(() => {
-    const totalBilled = clients.reduce((sum, c) => sum + (currentRounds[c.id]?.amount ?? 0), 0);
+    const totalBilled = clients.reduce((sum, c) => sum + (balances[c.id]?.billed ?? 0), 0);
     const totalPaid = clients.reduce((sum, c) => sum + (roundPaid[c.id] ?? 0), 0);
     return { count: clients.length, totalBilled, totalPaid, totalOutstanding: Math.max(totalBilled - totalPaid, 0) };
-  }, [clients, currentRounds, roundPaid]);
+  }, [clients, balances, roundPaid]);
 
   const sortedClients = useMemo(() => {
     const base = managerFilter
@@ -294,7 +299,7 @@ export default function ClientsPage() {
           staff.find((s) => s.id === c.managerId)?.name ?? "",
           PAYMENT_LABEL[c.paymentStatus],
           round ? (packages.find((p) => p.id === round.packageId)?.name ?? "") : "",
-          round?.amount ?? "",
+          balances[c.id]?.billed ?? "",
           round ? (roundPaid[c.id] ?? 0) : "",
           round ? roundOutstanding(c.id) : "",
           c.priority || "",
