@@ -134,7 +134,7 @@ export function MyWork({ name }: { name: string }) {
   const router = useRouter();
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState("");
-  const [opened, setOpened] = useState<Record<string, boolean>>({});
+  const [filter, setFilter] = useState<MyBucket | "all" | null>(null); // null = not chosen yet → best default
 
   async function load() {
     try {
@@ -162,6 +162,9 @@ export function MyWork({ name }: { name: string }) {
     g.done.reverse();
     return g;
   }, [tasks]);
+
+  // first visit: jump to what needs attention (sent-back work first, then to-do)
+  const active: MyBucket | "all" = filter ?? (grouped.revise.length > 0 ? "revise" : grouped.todo.length > 0 ? "todo" : "all");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -193,27 +196,47 @@ export function MyWork({ name }: { name: string }) {
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {tasks === null && !error && <p className="py-10 text-center text-sm text-gray-400">กำลังโหลด…</p>}
         {tasks !== null && tasks.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">ยังไม่มีงานที่มอบหมายให้คุณ</p>}
-        {SECTIONS.map((s) => {
-          const list = grouped[s.key];
-          if (list.length === 0) return null;
-          const isOpen = opened[s.key] ?? s.open;
-          return (
-            <section key={s.key}>
-              <button onClick={() => setOpened((p) => ({ ...p, [s.key]: !isOpen }))} className="mb-2 flex w-full items-baseline gap-2 text-left">
-                {isOpen ? <ChevronDown size={15} className="self-center text-gray-400" /> : <ChevronRight size={15} className="self-center text-gray-400" />}
-                <h2 className={cn("text-sm font-semibold", s.tone)}>{s.title} ({list.length})</h2>
-                {s.hint && <span className="text-xs text-gray-400">{s.hint}</span>}
+        {tasks !== null && tasks.length > 0 && (
+          <>
+            {/* filter chips, like the dashboard's stage filter */}
+            <div className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-gray-50/95 px-4 py-2 backdrop-blur">
+              <button
+                onClick={() => setFilter("all")}
+                className={cn("shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium", active === "all" ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600")}
+              >
+                ทั้งหมด {tasks.length}
               </button>
-              {isOpen && (
-                <div className="space-y-3">
-                  {list.map((t) => (
-                    <TaskCard key={t.id} t={t} onChange={load} />
-                  ))}
-                </div>
-              )}
-            </section>
-          );
-        })}
+              {SECTIONS.map((s) => (
+                <button
+                  key={s.key}
+                  onClick={() => setFilter(s.key)}
+                  className={cn(
+                    "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium",
+                    active === s.key ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600",
+                    active !== s.key && s.key === "revise" && grouped.revise.length > 0 && "border-rose-200 bg-rose-50 text-rose-600",
+                    grouped[s.key].length === 0 && "opacity-40",
+                  )}
+                >
+                  {s.title} {grouped[s.key].length}
+                </button>
+              ))}
+            </div>
+            {SECTIONS.filter((s) => active === "all" || active === s.key).map((s) => {
+              const list = grouped[s.key];
+              if (list.length === 0) return active === s.key ? <p key={s.key} className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-400">ไม่มีงานในกลุ่ม "{s.title}"</p> : null;
+              return (
+                <section key={s.key}>
+                  {active === "all" && <h2 className={cn("mb-2 text-sm font-semibold", s.tone)}>{s.title} ({list.length}) {s.hint && <span className="text-xs font-normal text-gray-400">{s.hint}</span>}</h2>}
+                  <div className="space-y-3">
+                    {list.map((t) => (
+                      <TaskCard key={t.id} t={t} onChange={load} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })}
+          </>
+        )}
       </main>
     </div>
   );
