@@ -2017,26 +2017,27 @@ export async function deleteQueue(id: string): Promise<void> {
 }
 
 // ── Positions ────────────────────────────────────────────────────────────
-type PositionRow = { id: string; name: string; sort_order: number; hide_internal: boolean };
-const fromPositionRow = (r: PositionRow): Position => ({ id: r.id, name: r.name, sortOrder: r.sort_order, hideInternal: r.hide_internal });
+type PositionRow = { id: string; name: string; sort_order: number; hide_internal: boolean; own_only: boolean };
+const fromPositionRow = (r: PositionRow): Position => ({ id: r.id, name: r.name, sortOrder: r.sort_order, hideInternal: r.hide_internal, ownOnly: r.own_only });
 
 export async function listPositions(): Promise<Position[]> {
-  const { data, error } = await supabase().from("positions").select("id, name, sort_order, hide_internal").order("sort_order").order("created_at");
+  const { data, error } = await supabase().from("positions").select("id, name, sort_order, hide_internal, own_only").order("sort_order").order("created_at");
   if (error) throw error;
   return (data as PositionRow[]).map(fromPositionRow);
 }
 
 export async function createPosition(name: string, sortOrder: number): Promise<Position> {
-  const { data, error } = await supabase().from("positions").insert({ name: name.trim(), sort_order: sortOrder }).select("id, name, sort_order, hide_internal").single();
+  const { data, error } = await supabase().from("positions").insert({ name: name.trim(), sort_order: sortOrder }).select("id, name, sort_order, hide_internal, own_only").single();
   if (error) throw error;
   return fromPositionRow(data as PositionRow);
 }
 
 // Renaming also renames the free-text staff.position copy, so every screen that prints it stays right.
-export async function updatePosition(id: string, values: { name?: string; hideInternal?: boolean }): Promise<void> {
+export async function updatePosition(id: string, values: { name?: string; hideInternal?: boolean; ownOnly?: boolean }): Promise<void> {
   const patch: Record<string, unknown> = {};
   if (values.name !== undefined) patch.name = values.name.trim();
   if (values.hideInternal !== undefined) patch.hide_internal = values.hideInternal;
+  if (values.ownOnly !== undefined) patch.own_only = values.ownOnly;
   const { error } = await supabase().from("positions").update(patch).eq("id", id);
   if (error) throw error;
   if (values.name !== undefined) await supabase().from("staff").update({ position: values.name.trim() }).eq("position_id", id);

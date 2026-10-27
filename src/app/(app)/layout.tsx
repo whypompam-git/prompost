@@ -4,6 +4,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { ALL_PERMISSIONS, NO_PERMISSIONS } from "@/lib/permissions";
 import { OfflineStatus } from "@/components/OfflineStatus";
+import { MyWork } from "@/components/my/MyWork";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 
@@ -25,7 +26,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     role: live?.role ?? claims.role,
     permissions: live?.permissions ?? (claims.role === "owner" ? ALL_PERMISSIONS : NO_PERMISSIONS),
     hideInternal: live?.hideInternal ?? false,
+    ownOnly: live?.ownOnly ?? false,
   };
+
+  // People locked to their own work see this single screen on every URL; the
+  // data behind it is limited on the server (/api/my/*), not just hidden here.
+  if (auth.ownOnly) {
+    return (
+      <AuthProvider auth={auth}>
+        <MyWork name={auth.name} />
+      </AuthProvider>
+    );
+  }
 
   return (
     <AuthProvider auth={auth}>

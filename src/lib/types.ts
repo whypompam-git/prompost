@@ -301,6 +301,7 @@ export interface Position {
   name: string;
   sortOrder: number;
   hideInternal: boolean;
+  ownOnly: boolean; // people in it see only their own clips ("งานของฉัน"), nothing else
 }
 
 // MC (presenter) profile synced from the Google Sheet; the local fields are ours.

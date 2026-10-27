@@ -11,6 +11,7 @@ export type ProxyAccess = {
   staffId: string;
   role: "owner" | "staff";
   hideInternal?: boolean; // position that must not see internal data (e.g. edit difficulty)
+  ownOnly?: boolean; // locked to /api/my/* — the generic database proxy is closed to them (except their own inbox)
   permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean; mc?: boolean };
 };
 
@@ -100,6 +101,7 @@ export function authorizeProxyRequest(input: {
 
   const table = parts[2];
   if (!TABLES.has(table)) return deny(403, `table "${table}" not allowed`);
+  if (access.ownOnly && table !== "notifications") return deny(403, "this account only has access to its own work (/my-work)");
 
   let search = input.search;
   const params = new URLSearchParams(search);

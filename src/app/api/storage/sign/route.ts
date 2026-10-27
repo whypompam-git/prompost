@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
   if (!claims) return NextResponse.json({ message: "not logged in" }, { status: 401 });
   const live = await fetchLiveAccess(claims.staffId);
   if (!live || !live.active) return NextResponse.json({ message: "account disabled" }, { status: 401 });
+  if (live.ownOnly) return NextResponse.json({ message: "not available for this account" }, { status: 403 });
 
   const { bucket, ext } = await request.json().catch(() => ({}));
   if (typeof bucket !== "string" || !BUCKETS.has(bucket)) {

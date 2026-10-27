@@ -158,3 +158,16 @@ test("MC tables need the MC permission; profiles accept edits to our own columns
   assert.equal(run(mcStaff, "PATCH", "rest/v1/mc_settings", "?id=eq.true", { sheet_url: "x" }).ok, false);
   assert.equal(run(owner, "PATCH", "rest/v1/mc_settings", "?id=eq.true", { sheet_url: "x" }).ok, true);
 });
+
+test("own-work-only accounts can reach nothing in the database proxy except their own inbox", () => {
+  const mine: ProxyAccess = { ...staff, ownOnly: true };
+  for (const t of ["tasks", "clients", "staff", "queues", "client_notes", "payroll_entries", "transactions", "positions", "task_revisions"]) {
+    assert.equal(run(mine, "GET", `rest/v1/${t}`, "?select=*").ok, false, t);
+  }
+  assert.equal(run(mine, "PATCH", "rest/v1/tasks", "?id=eq.x", { status: "done" }).ok, false);
+  assert.equal(run(mine, "POST", "rest/v1/rpc/next_doc_no").ok, false);
+  const inbox = run(mine, "GET", "rest/v1/notifications", "?select=*&recipient_id=eq.other");
+  assert.equal(inbox.ok && inbox.search.includes("recipient_id=eq.staff-1"), true);
+  assert.equal(run(mine, "PATCH", "rest/v1/notifications", "?id=eq.1", { read_at: "2026-01-01" }).ok, true);
+  assert.equal(run(mine, "POST", "rest/v1/notifications", "", [{ title: "x" }]).ok, false);
+});

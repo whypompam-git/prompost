@@ -49,6 +49,7 @@ export async function fetchLiveAccess(staffId: string): Promise<{
   permissions: Permissions;
   name: string;
   hideInternal: boolean; // position flagged "hide internal" (e.g. outsourced editors)
+  ownOnly: boolean; // position locked to "my work only" (served by /api/my/*)
 } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // service key: once the database is locked down the anon key reads nothing
@@ -56,7 +57,7 @@ export async function fetchLiveAccess(staffId: string): Promise<{
   if (!url || !key) return null;
   try {
     const res = await fetch(
-      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,positions(hide_internal)`,
+      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,positions(hide_internal,own_only)`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: "no-store" },
     );
     if (!res.ok) return null;
@@ -70,6 +71,7 @@ export async function fetchLiveAccess(staffId: string): Promise<{
       name: r.name,
       // owners always see everything
       hideInternal: role !== "owner" && Boolean(r.positions?.hide_internal),
+      ownOnly: role !== "owner" && Boolean(r.positions?.own_only),
       permissions:
         role === "owner"
           ? ALL_PERMISSIONS

@@ -132,6 +132,12 @@ export default function StaffSettingsPage() {
     setPositions((prev) => prev.map((x) => (x.id === p.id ? { ...x, hideInternal: !p.hideInternal } : x)));
   }
 
+  async function handleToggleOwnOnly(p: Position) {
+    if (!p.ownOnly && !window.confirm(`คนในตำแหน่ง "${p.name}" จะเห็นแค่หน้า "งานของฉัน" หน้าเดียว (เฉพาะงานที่เป็น Editor ของตัวเอง) — ยืนยัน?`)) return;
+    await updatePosition(p.id, { ownOnly: !p.ownOnly });
+    setPositions((prev) => prev.map((x) => (x.id === p.id ? { ...x, ownOnly: !p.ownOnly } : x)));
+  }
+
   async function handleDeletePosition(p: Position) {
     const n = staff.filter((s) => s.positionId === p.id).length;
     if (!window.confirm(`ลบตำแหน่ง "${p.name}"?${n ? ` (พนักงาน ${n} คนจะไม่มีตำแหน่งในรายการ แต่ชื่อตำแหน่งเดิมยังแสดงอยู่)` : ""}`)) return;
@@ -299,6 +305,10 @@ export default function StaffSettingsPage() {
                 <label className="ml-2 flex items-center gap-1.5 text-xs text-gray-600">
                   <input type="checkbox" checked={p.hideInternal} onChange={() => handleToggleHidden(p)} />
                   ซ่อนข้อมูลภายใน
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-gray-600" title="เห็นหน้า 'งานของฉัน' หน้าเดียว เฉพาะงานที่เป็น Editor ของตัวเอง (ล็อกที่ระบบ)">
+                  <input type="checkbox" checked={p.ownOnly} onChange={() => handleToggleOwnOnly(p)} />
+                  เห็นเฉพาะงานของตัวเอง
                 </label>
                 <span className="ml-auto flex gap-1">
                   <button onClick={() => handleRenamePosition(p)} className="rounded-full p-1.5 text-gray-400 hover:bg-white hover:text-gray-600" aria-label="เปลี่ยนชื่อตำแหน่ง">

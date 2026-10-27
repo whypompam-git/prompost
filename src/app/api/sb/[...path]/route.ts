@@ -77,6 +77,7 @@ async function handle(request: NextRequest, { params }: { params: { path: string
       staffId: claims.staffId,
       role: live.role,
       hideInternal: live.hideInternal,
+      ownOnly: live.ownOnly,
       permissions: {
         documents: live.permissions.documents,
         accounting: live.permissions.accounting,
