@@ -89,3 +89,21 @@ export function alertBilling(rounds: Round[], quotes: QuoteLite[], receipts: Rec
     receipts: effectivePayments(rounds, receipts, transactions).map((p) => ({ clientPackageId: p.roundId ?? undefined, amount: p.amount })),
   };
 }
+
+// For a client with no billing round (no package assigned): billed = the latest
+// quotation that was not rejected (or the invoices, whichever is larger), paid =
+// every receipt + deposits booked without a receipt.
+export function looseBalance(
+  quotes: QuoteLite[],
+  invoices: Pick<QuoteLite, "items" | "vatPercent" | "whtPercent">[],
+  receipts: Pick<ReceiptLite, "amount">[],
+  transactions: TxLite[],
+) {
+  const latest = [...quotes].filter((q) => q.status !== "rejected").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+  const invoiced = invoices.reduce((s, i) => s + quoteTotal(i), 0);
+  const billed = Math.max(latest ? quoteTotal(latest) : 0, invoiced);
+  const paid =
+    receipts.reduce((s, r) => s + r.amount, 0) +
+    transactions.filter((t) => t.type === "income" && t.clientId && !t.receiptId).reduce((s, t) => s + t.amount, 0);
+  return { billed, paid, outstanding: Math.max(billed - paid, 0) };
+}

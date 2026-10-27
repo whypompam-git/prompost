@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BalanceSummary } from "@/components/billing/BalanceSummary";
-import { clientBalance } from "@/lib/accounting";
-import { effectivePayments, roundBalance, type Round } from "@/lib/billing";
+import { effectivePayments, looseBalance, roundBalance, type Round } from "@/lib/billing";
 import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -96,7 +95,12 @@ export default function ClientInfoPage() {
         quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
         effectivePayments(rounds, receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })), transactions),
       )
-    : clientBalance(invoices, receipts);
+    : looseBalance(
+        quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
+        invoices,
+        receipts,
+        transactions,
+      );
 
   function patch(fields: Partial<Client>) {
     setClient((prev) => (prev ? { ...prev, ...fields } : prev));

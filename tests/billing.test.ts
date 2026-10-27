@@ -56,3 +56,14 @@ test("alert feed: billed amount per round and payments attached to rounds", () =
   assert.equal(f.rounds[0].amount, 17000);
   assert.deepEqual(f.receipts, [{ clientPackageId: "r1", amount: 8500 }]);
 });
+
+import { looseBalance } from "../src/lib/billing.ts";
+test("a client with no package round is still matched from the quotation and receipts", () => {
+  const q = quote({ clientPackageId: null, items: [{ description: "x", qty: 1, unitPrice: 14550 }] });
+  assert.deepEqual(looseBalance([q], [], [{ amount: 7000 }], []), { billed: 14550, paid: 7000, outstanding: 7550 });
+  assert.deepEqual(looseBalance([quote({ status: "rejected" })], [], [{ amount: 100 }], []), { billed: 0, paid: 100, outstanding: 0 });
+  // invoices larger than the quotation win; unreceipted deposits count
+  const inv = { items: [{ description: "i", qty: 1, unitPrice: 20000 }], vatPercent: 0, whtPercent: 0 };
+  const b = looseBalance([q], [inv], [], [{ id: "t", type: "income", clientId: "c1", receiptId: null, amount: 5000, occurredAt: "2026-10-01" }]);
+  assert.deepEqual(b, { billed: 20000, paid: 5000, outstanding: 15000 });
+});
