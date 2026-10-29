@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, Plus, Save, Trash2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Plus, Save, Sparkles, Trash2, XCircle } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { Card } from "@/components/ui/Card";
@@ -70,6 +70,8 @@ export default function StudioPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [gen, setGen] = useState({ mode: "script" as "ideas" | "script", count: 3, category: "", instruction: "" });
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     listClients().then(setClients).finally(() => setLoading(false));
@@ -104,6 +106,22 @@ export default function StudioPage() {
     const v = variety[it.id];
     return { len, kw, facts, v, level: worst([len.level, kw.level, v?.level ?? "pass", facts.level]) };
   };
+
+  async function generate() {
+    setGenerating(true);
+    setMessage("");
+    try {
+      const res = await fetch("/api/studio/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId, ...gen }) });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? String(res.status));
+      setDrafts((p) => [...p, ...data.clips.map((c: { title: string; category: string; script: string }) => ({ id: newId(), title: c.title, category: c.category as Draft["category"], script: c.script }))]);
+      setMessage(`AI สร้าง ${data.clips.length} คลิป · ค่าใช้จ่ายรอบนี้ ≈ ${data.costThb} บาท · วันนี้รวม ${data.spentToday.toFixed(2)}/${data.cap} บาท — ตรวจแล้วค่อยลงระบบ`);
+    } catch (e) {
+      setMessage(`ผิดพลาด: ${e instanceof Error ? e.message : "ลองใหม่"}`);
+    } finally {
+      setGenerating(false);
+    }
+  }
 
   function numberTitles() {
     const q = queue.trim();
@@ -211,7 +229,30 @@ export default function StudioPage() {
             {tab === "new" && (
               <>
                 <Card className="space-y-2">
-                  <p className="text-xs text-gray-500">วางสคริปต์ได้หลายคลิปพร้อมกัน — แบ่งคลิปด้วยหัวข้อ <code>## ชื่อคลิป</code> หรือวาง JSON ของ batch (<code>{"{tasks:[{title,script}]}"}</code>) หรือวางสคริปต์เดียว</p>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800"><Sparkles size={15} className="text-brand-500" /> ให้ AI สร้าง</p>
+                  <div className="flex flex-wrap items-center gap-2 text-sm">
+                    <select value={gen.mode} onChange={(e) => setGen({ ...gen, mode: e.target.value as "ideas" | "script", count: Math.min(gen.count, e.target.value === "script" ? 10 : 15) })} className="rounded-lg border border-gray-200 px-2 py-1.5">
+                      <option value="script">สคริปต์เต็ม (Sonnet ≈ 1–2 บาท/คลิป)</option>
+                      <option value="ideas">ไอเดียสั้น ๆ (Haiku ≈ ไม่ถึงบาท)</option>
+                    </select>
+                    <input type="number" min={1} max={gen.mode === "script" ? 10 : 15} value={gen.count} onChange={(e) => setGen({ ...gen, count: Number(e.target.value) })} className="w-16 rounded-lg border border-gray-200 px-2 py-1.5" />
+                    <span className="text-gray-500">คลิป</span>
+                    <select value={gen.category} onChange={(e) => setGen({ ...gen, category: e.target.value })} className="rounded-lg border border-gray-200 px-2 py-1.5">
+                      <option value="">หมวด: ให้ AI เลือก</option>
+                      <option value="mass">Mass</option>
+                      <option value="royalty">Royalty</option>
+                      <option value="sell">Sell</option>
+                    </select>
+                  </div>
+                  <textarea value={gen.instruction} onChange={(e) => setGen({ ...gen, instruction: e.target.value })} rows={3} placeholder="สั่งเพิ่มเติม เช่น ธีมเดือนนี้ โปรโมชั่น เรื่องที่ลูกค้าอยากเน้น…" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" />
+                  <button onClick={generate} disabled={generating || gen.count < 1} className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40">
+                    <Sparkles size={14} /> {generating ? "กำลังสร้าง… (อาจใช้ 1–3 นาที)" : "สร้าง"}
+                  </button>
+                  <p className="text-xs text-gray-400">ข้อมูลบริบทของลูกค้ารายนี้ (ไม่รวมข้อมูลการเงิน/ภาษี) จะถูกส่งไปยัง Anthropic เพื่อสร้าง · ผลลัพธ์ยังไม่ลงระบบจนกว่าจะกดลงเอง</p>
+                </Card>
+
+                <Card className="space-y-2">
+                  <p className="text-xs text-gray-500">หรือวางสคริปต์ได้หลายคลิปพร้อมกัน — แบ่งคลิปด้วยหัวข้อ <code>## ชื่อคลิป</code> หรือวาง JSON ของ batch (<code>{"{tasks:[{title,script}]}"}</code>) หรือวางสคริปต์เดียว</p>
                   <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={7} placeholder={"## 3.01 ชื่อคลิป\nA) Hook…\n🎬 ภาพ…\n🗣 บทพูด…"} className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-brand-300" />
                   <div className="flex flex-wrap items-center gap-2">
                     <button onClick={() => { setDrafts((p) => [...p, ...parseBatch(paste)]); setPaste(""); }} disabled={!paste.trim()} className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40">
