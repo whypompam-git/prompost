@@ -8,6 +8,7 @@ import {
   CalendarDays,
   ClipboardList,
   Mic2,
+  Sparkles,
   PlusCircle,
   Users,
   Menu,
@@ -30,6 +31,7 @@ const MAIN_ITEMS = [
 
 const MORE_ITEMS = [
   { href: "/mc", label: "MC", icon: Mic2, permission: "mc" as const },
+  { href: "/studio", label: "AI สคริปต์", icon: Sparkles, permission: "studio" as const },
   { href: "/workload", label: "สรุปงาน", icon: ClipboardList },
   { href: "/menu", label: "Menu", icon: LayoutList },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
