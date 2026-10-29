@@ -36,7 +36,8 @@ export async function callClaude(opts: {
       max_tokens: opts.maxTokens,
       system: [{ type: "text", text: opts.stable, cache_control: { type: "ephemeral" } }],
       tools: [opts.tool],
-      tool_choice: { type: "tool", name: opts.tool.name },
+      // this model family rejects a forced tool_choice; the prompt tells it to answer only via the tool
+      tool_choice: { type: "auto" },
       messages: [{ role: "user", content: opts.variable }],
     }),
   });
