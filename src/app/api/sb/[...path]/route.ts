@@ -83,6 +83,7 @@ async function handle(request: NextRequest, { params }: { params: { path: string
         accounting: live.permissions.accounting,
         othersPayroll: live.permissions.othersPayroll,
         mc: live.permissions.mc,
+        studio: live.permissions.studio,
       },
     },
   });

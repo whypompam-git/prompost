@@ -55,7 +55,9 @@ export async function middleware(request: NextRequest) {
         ? "financialTotals"
         : pathname === "/mc" || pathname.startsWith("/mc/")
           ? "mc"
-          : pathname.startsWith("/settings")
+          : pathname === "/studio" || pathname.startsWith("/studio/")
+            ? "studio"
+            : pathname.startsWith("/settings")
           ? "owner"
           : null;
   if (gate) {

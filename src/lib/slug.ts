@@ -4,7 +4,7 @@ export const RESERVED_SLUGS = new Set([
   "dashboard", "calendar", "clients", "packages", "hr", "documents", "accounting",
   "settings", "profile", "tasks", "login", "api", "portal", "quote", "invoice",
   "receipt", "print", "info", "manifest", "sw", "icon", "favicon", "apple-touch-icon",
-  "logo-source", "logout", "admin", "app", "static", "public", "mc", "workload", "mc-pack",
+  "logo-source", "logout", "admin", "app", "static", "public", "mc", "workload", "mc-pack", "studio",
 ]);
 
 export function slugify(input: string): string {

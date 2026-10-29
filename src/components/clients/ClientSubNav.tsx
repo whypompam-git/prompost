@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { cn } from "@/lib/utils";
 
 export function ClientSubNav({ clientId }: { clientId: string }) {
   const pathname = usePathname();
+  const auth = useAuth();
   const contentHref = `/clients/${clientId}`;
   const infoHref = `/clients/${clientId}/info`;
   const brandHref = `/clients/${clientId}/brand`;
@@ -14,6 +16,7 @@ export function ClientSubNav({ clientId }: { clientId: string }) {
     { href: contentHref, label: "คอนเทนต์", active: pathname === contentHref },
     { href: infoHref, label: "ข้อมูลลูกค้า", active: pathname === infoHref },
     { href: brandHref, label: "แบรนด์บรีฟ", active: pathname === brandHref },
+    ...(auth.permissions.studio ? [{ href: `/clients/${clientId}/context`, label: "บริบท AI", active: pathname === `/clients/${clientId}/context` }] : []),
   ];
 
   return (

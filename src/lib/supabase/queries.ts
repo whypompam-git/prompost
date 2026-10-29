@@ -2190,3 +2190,40 @@ export async function deleteMcPack(id: string): Promise<void> {
 export async function uploadMcPhoto(file: File): Promise<string> {
   return uploadViaSignedUrl("client-brand", file);
 }
+
+// ── AI Studio: client context + writing rules ───────────────────────────
+export type AiPlaybook = { key: string; title: string; content: string; updatedAt: string };
+export type AiPlaybookVersion = { id: string; content: string; savedAt: string };
+
+export async function listClientContext(clientId: string): Promise<Record<string, { content: string; updatedAt: string }>> {
+  const { data, error } = await supabase().from("client_context").select("key, content, updated_at").eq("client_id", clientId);
+  if (error) throw error;
+  return Object.fromEntries((data as { key: string; content: string; updated_at: string }[]).map((r) => [r.key, { content: r.content, updatedAt: r.updated_at }]));
+}
+
+export async function saveClientContext(clientId: string, key: string, content: string, staffId: string): Promise<void> {
+  const { error } = await supabase()
+    .from("client_context")
+    .upsert({ client_id: clientId, key, content, updated_by: staffId, updated_at: new Date().toISOString() }, { onConflict: "client_id,key" });
+  if (error) throw error;
+}
+
+export async function listAiPlaybooks(): Promise<AiPlaybook[]> {
+  const { data, error } = await supabase().from("ai_playbooks").select("key, title, content, updated_at").order("key");
+  if (error) throw error;
+  return (data as { key: string; title: string; content: string; updated_at: string }[]).map((r) => ({ key: r.key, title: r.title, content: r.content, updatedAt: r.updated_at }));
+}
+
+// Saving keeps the previous text as a version, so a rule change can always be undone.
+export async function saveAiPlaybook(pb: AiPlaybook, newContent: string, staffId: string): Promise<void> {
+  const { error: vErr } = await supabase().from("ai_playbook_versions").insert({ playbook_key: pb.key, content: pb.content, saved_by: staffId });
+  if (vErr) throw vErr;
+  const { error } = await supabase().from("ai_playbooks").update({ content: newContent, updated_by: staffId, updated_at: new Date().toISOString() }).eq("key", pb.key);
+  if (error) throw error;
+}
+
+export async function listAiPlaybookVersions(key: string): Promise<AiPlaybookVersion[]> {
+  const { data, error } = await supabase().from("ai_playbook_versions").select("id, content, saved_at").eq("playbook_key", key).order("saved_at", { ascending: false }).limit(20);
+  if (error) throw error;
+  return (data as { id: string; content: string; saved_at: string }[]).map((r) => ({ id: r.id, content: r.content, savedAt: r.saved_at }));
+}

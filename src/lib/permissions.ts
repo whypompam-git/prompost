@@ -6,6 +6,7 @@ export const PERMISSION_KEYS = [
   "staffList",
   "othersPayroll",
   "mc",
+  "studio",
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -18,6 +19,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, { label: string; hint: str
   staffList: { label: "รายชื่อพนักงาน", hint: "เห็นรายชื่อและตำแหน่งของทีมงานทั้งหมด" },
   othersPayroll: { label: "เงินเดือนของคนอื่น", hint: "เห็นตารางเงินเดือนของพนักงานทุกคน" },
   mc: { label: "หน้า MC", hint: "ดูโปรไฟล์ MC (รวมเบอร์โทร/Line) และสร้างชุดเสนอลูกค้า" },
+  studio: { label: "AI สคริปต์", hint: "ดู/แก้ข้อมูล context ลูกค้าสำหรับ AI และใช้เมนู AI สคริปต์" },
 };
 
 export const NO_PERMISSIONS: Permissions = {
@@ -27,6 +29,7 @@ export const NO_PERMISSIONS: Permissions = {
   staffList: false,
   othersPayroll: false,
   mc: false,
+  studio: false,
 };
 
 export const ALL_PERMISSIONS: Permissions = {
@@ -36,6 +39,7 @@ export const ALL_PERMISSIONS: Permissions = {
   staffList: true,
   othersPayroll: true,
   mc: true,
+  studio: true,
 };
 
 // legacyAccounting: the old can_view_accounting flag, honored until the

@@ -31,5 +31,8 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "staff", columns: "position_id", migration: "0038" },
   { table: "tasks", columns: "editor_id, edit_difficulty", migration: "0038" },
   { table: "quotations", columns: "client_package_id", migration: "0041" },
+  { table: "client_context", columns: "client_id, key, content", migration: "0042" },
+  { table: "ai_playbooks", columns: "key, title, content", migration: "0042" },
+  { table: "ai_runs", columns: "id, kind, tokens_in, cost_thb", migration: "0042" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
 ];

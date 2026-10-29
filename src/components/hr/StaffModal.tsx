@@ -43,7 +43,7 @@ export function StaffModal({
   const [hireDate, setHireDate] = useState(initial?.hireDate ?? "");
   const [baseSalary, setBaseSalary] = useState(initial?.baseSalary ?? 0);
   const [permissions, setPermissions] = useState<Permissions>(
-    initial?.permissions ?? { ...ALL_PERMISSIONS, accounting: false, documents: false, financialTotals: false, staffList: false, othersPayroll: false, mc: false },
+    initial?.permissions ?? { ...ALL_PERMISSIONS, accounting: false, documents: false, financialTotals: false, staffList: false, othersPayroll: false, mc: false, studio: false },
   );
   const [pin, setPin] = useState("");
   const [color, setColor] = useState(

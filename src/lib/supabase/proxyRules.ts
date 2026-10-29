@@ -12,7 +12,7 @@ export type ProxyAccess = {
   role: "owner" | "staff";
   hideInternal?: boolean; // position that must not see internal data (e.g. edit difficulty)
   ownOnly?: boolean; // locked to /api/my/* — the generic database proxy is closed to them (except their own inbox)
-  permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean; mc?: boolean };
+  permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean; mc?: boolean; studio?: boolean };
 };
 
 export type ProxyDecision =
@@ -24,6 +24,10 @@ const deny = (status: number, reason: string): ProxyDecision => ({ ok: false, st
 // Tables the app reads/writes through the browser client.
 const TABLES = new Set([
   "agency_settings",
+  "ai_playbook_versions",
+  "ai_playbooks",
+  "ai_runs",
+  "client_context",
   "client_notes",
   "client_packages",
   "clients",
@@ -145,6 +149,14 @@ export function authorizeProxyRequest(input: {
       return deny(403, "owner only");
     }
   }
+
+  // AI Studio data (client context, writing rules, run log): owner or the studio permission;
+  // the rules themselves are changed by the owner only, runs/versions are written by the server
+  if ((table === "client_context" || table === "ai_playbooks" || table === "ai_playbook_versions" || table === "ai_runs") && !isOwner && !access.permissions.studio) {
+    return deny(403, "needs the AI Studio permission");
+  }
+  if (table === "ai_playbooks" && write && !isOwner) return deny(403, "only the owner edits the writing rules");
+  if ((table === "ai_runs" || table === "ai_playbook_versions") && write && !isOwner) return deny(403, "written by the server");
 
   // MC data (phone / Line / real names): owner or the MC permission only
   if ((table === "mc_profiles" || table === "mc_packs" || table === "mc_settings") && !isOwner && !access.permissions.mc) {
