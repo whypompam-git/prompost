@@ -17,3 +17,22 @@
 
 ลำดับ: เปิด Postgres → `node demo-db/postgrest-shim.js` → `next build && next start` โดยตั้ง `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321`
 → `demo-db/reset.sh` → `node staff.js` (หรือ `outsource.js`)
+
+## ใส่เสียงพากย์ (เสียงผู้ชาย th-TH-NiwatNeural ผ่าน Azure Speech)
+
+ต้องมีใน environment: ตัวแปร `AZURE_SPEECH_KEY`, `AZURE_SPEECH_REGION` (เช่น `southeastasia`) และโดเมน
+`<region>.tts.speech.microsoft.com` ใน Allowed domains
+
+ขั้นตอน (รันจาก `content/tutorials/tooling`, ทำ "อัดใหม่" ด้านบนให้แอป + demo-db พร้อมก่อน):
+
+```bash
+node collect.js staff.js > lines-staff.json
+node collect.js outsource.js > lines-outsource.json
+python3 tts.py lines-staff.json out-staff/voice azure th-TH-NiwatNeural
+python3 tts.py lines-outsource.json out-outsource/voice azure th-TH-NiwatNeural
+demo-db/reset.sh && node staff.js
+demo-db/reset.sh && node outsource.js
+```
+
+`tut.js` เจอ `out-*/voice/manifest.json` แล้วจะเล่นเสียงตามซับแต่ละบรรทัด ยืดเวลาแต่ละขั้นให้พอดีเสียง
+ลดเพลงลง และเขียนไฟล์ `.srt` คู่กับ `.mp4`
