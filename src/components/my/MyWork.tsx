@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
@@ -140,7 +140,7 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
           <input
             value={finalDraft}
             onChange={(e) => setFinalDraft(e.target.value)}
-            onBlur={() => void saveLink().then((ok) => ok && onChange())}
+            onBlur={() => void saveLink()}
             placeholder="วางลิงก์ Drive ของงานที่ตัดเสร็จ"
             className="min-w-[180px] flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
           />
