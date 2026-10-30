@@ -49,13 +49,44 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
   const editable = t.type === "edit" || t.type === "qc";
   const canSubmit = t.type === "edit";
 
-  async function post(path: string, body: object) {
-    setBusy(true);
+  // saving the link on blur must NOT disable the submit button: the blur fires on mouse-down, and a button
+  // that turns disabled before mouse-up swallows the click. Submit waits for any pending save instead.
+  const linkSave = useRef<Promise<boolean> | null>(null);
+  const savedUrl = useRef(t.finalUrl ?? "");
+
+  async function post(path: string, body: object): Promise<boolean> {
     try {
       const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) window.alert(data.error ?? "ไม่สำเร็จ ลองใหม่อีกครั้ง");
-      else onChange();
+      if (!res.ok) {
+        window.alert(data.error ?? "ไม่สำเร็จ ลองใหม่อีกครั้ง");
+        return false;
+      }
+      return true;
+    } catch {
+      window.alert("ไม่สำเร็จ ลองใหม่อีกครั้ง");
+      return false;
+    }
+  }
+
+  function saveLink(): Promise<boolean> {
+    const url = finalDraft.trim();
+    if (url === savedUrl.current) return linkSave.current ?? Promise.resolve(true);
+    const p = (linkSave.current ?? Promise.resolve(true)).then(async () => {
+      const ok = await post("/api/my/final", { taskId: t.id, finalUrl: url || null });
+      if (ok) savedUrl.current = url;
+      return ok;
+    });
+    linkSave.current = p;
+    return p;
+  }
+
+  async function submit() {
+    if (!window.confirm(`ส่ง "${t.title}" ให้ตรวจ? ส่งแล้วจะถอนกลับเองไม่ได้`)) return;
+    setBusy(true);
+    try {
+      if (!(await saveLink())) return;
+      if (await post("/api/my/submit", { taskId: t.id })) onChange();
     } finally {
       setBusy(false);
     }
@@ -109,14 +140,14 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
           <input
             value={finalDraft}
             onChange={(e) => setFinalDraft(e.target.value)}
-            onBlur={() => finalDraft.trim() !== (t.finalUrl ?? "") && post("/api/my/final", { taskId: t.id, finalUrl: finalDraft.trim() || null })}
+            onBlur={() => void saveLink().then((ok) => ok && onChange())}
             placeholder="วางลิงก์ Drive ของงานที่ตัดเสร็จ"
             className="min-w-[180px] flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
           />
           {canSubmit && (
             <button
               disabled={busy || !finalDraft.trim()}
-              onClick={() => window.confirm(`ส่ง "${t.title}" ให้ตรวจ? ส่งแล้วจะถอนกลับเองไม่ได้`) && post("/api/my/submit", { taskId: t.id })}
+              onClick={submit}
               title={finalDraft.trim() ? "" : "ใส่ลิงก์งานที่ตัดเสร็จก่อน"}
               className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
             >
