@@ -36,3 +36,14 @@ demo-db/reset.sh && node outsource.js
 
 `tut.js` เจอ `out-*/voice/manifest.json` แล้วจะเล่นเสียงตามซับแต่ละบรรทัด ยืดเวลาแต่ละขั้นให้พอดีเสียง
 ลดเพลงลง และเขียนไฟล์ `.srt` คู่กับ `.mp4`
+
+### ทางเลือก: Google Cloud Text-to-Speech
+
+ต้องมีตัวแปร `GOOGLE_TTS_API_KEY` และโดเมน `texttospeech.googleapis.com` ใน Allowed domains
+เสียงผู้ชายภาษาไทยอยู่ในกลุ่ม Chirp 3 HD — ดูรายชื่อเสียงไทยที่ใช้ได้จริงก่อน แล้วเลือกตัวที่ `ssmlGender` เป็น `MALE`:
+
+```bash
+python3 -c "import os,json,ssl,urllib.request as u; c=ssl.create_default_context(cafile='/root/.ccr/ca-bundle.crt'); r=json.load(u.urlopen('https://texttospeech.googleapis.com/v1/voices?languageCode=th-TH&key='+os.environ['GOOGLE_TTS_API_KEY'],context=c)); [print(v['name'],v['ssmlGender']) for v in r['voices']]"
+python3 tts.py lines-staff.json out-staff/voice google <ชื่อเสียงผู้ชาย>
+python3 tts.py lines-outsource.json out-outsource/voice google <ชื่อเสียงผู้ชาย>
+```
