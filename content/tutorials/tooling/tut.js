@@ -72,6 +72,23 @@ const OVERLAY = String.raw`
 })();
 `;
 
+// What the narrator says for a caption: no markup/emoji, symbols read as words.
+function speechText(html) {
+  return (html || "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/[✅🎉⚠️✓📋🧡]/gu, "")
+    .replace(/\b0:(\d\d)\b/g, (_, s) => `วินาทีที่ ${Number(s)}`)
+    .replace(/\s*→\s*/g, " แล้ว ")
+    .replace(/\s+=\s+/g, " คือ ")
+    .replace(/\s+\/\s+/g, " หรือ ")
+    .replace(/\s*·\s*/g, ", ")
+    .replace(/\+\s*(?=File|Ref|Final|เพิ่ม)/g, "")
+    .replace(/\s+\+\s+/g, " และ ")
+    .replace(/\bPIN\b/g, "พิน")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 class Tut {
   constructor(name, outDir, { vw = 1600 } = {}) {
     this.vw = vw; this.vh = Math.round(vw * 9 / 16);
@@ -80,6 +97,17 @@ class Tut {
     this.frames = [];
     this.state = { x: 700, y: 500 };
     this.pending = [];
+    this.events = []; // { t, file } narration clips, absolute time
+    this.caps = []; // { t0, t1, text } for the SRT
+    const vf = path.join(outDir, "voice", "manifest.json");
+    this.voice = fs.existsSync(vf) ? JSON.parse(fs.readFileSync(vf, "utf8")) : null;
+  }
+  // start a narration clip now; returns how long it lasts (ms), 0 without a voice
+  speak(text) {
+    const v = this.voice && this.voice[speechText(text)];
+    if (!v) { if (this.voice) console.log("NO VOICE FOR", speechText(text)); return 0; }
+    this.events.push({ t: Date.now() / 1000, file: v.file });
+    return Math.round(v.dur * 1000);
   }
   async start({ clock = "2026-10-29T10:00:00+07:00", loginAs } = {}) {
     fs.rmSync(path.join(this.outDir, "frames"), { recursive: true, force: true });
@@ -129,9 +157,12 @@ class Tut {
     Object.assign(this.state, { cap: html, step, pos });
     await this.page.evaluate(([h, s, p]) => window.__tut.cap(h, s, p), [html, step, pos]);
     await this.sync();
-    // reading time: ~14 Thai chars per second, at least 2.6 s
+    const t0 = Date.now() / 1000;
+    const said = this.speak(html);
+    // reading time: ~14 Thai chars per second, at least 2.6 s — and never shorter than the narration
     const plain = (html || "").replace(/<[^>]+>/g, "");
-    await this.wait(read ?? Math.max(2600, plain.length * 70));
+    await this.wait(Math.max(read ?? Math.max(2600, plain.length * 70), said ? said + 700 : 0));
+    this.caps.push({ t0, t1: Date.now() / 1000, text: plain });
   }
   async nocap() { this.state.cap = null; await this.page.evaluate(() => window.__tut.cap(null)); await this.sync(); await this.wait(300); }
   async box(loc) {
@@ -178,20 +209,24 @@ class Tut {
     await this.page.evaluate(([b, pad]) => window.__tut.hl(b, pad), [b, pad]);
     if (ms) await this.wait(ms);
   }
-  async title(html, ms = 3200) {
+  async title(html, ms = 3200, { say } = {}) {
     await this.page.evaluate((h) => window.__tut.title(h), html);
-    await this.wait(ms);
+    await this.wait(400);
+    const said = say ? this.speak(say) : 0;
+    await this.wait(Math.max(ms - 400, said ? said + 700 : 0));
     await this.page.evaluate(() => window.__tut.title(null));
     await this.wait(500);
   }
-  async card(html, ms) {
+  async card(html, ms, { say } = {}) {
     await this.page.evaluate((h) => window.__tut.card(h), html);
-    await this.wait(ms);
+    await this.wait(400);
+    const said = say ? this.speak(say) : 0;
+    await this.wait(Math.max(ms - 400, said ? said + 700 : 0));
     await this.page.evaluate(() => window.__tut.card(null));
     await this.wait(450);
   }
   chapter(n, main, sub) {
-    return this.title(`<img src="/icon-512.png"><div class="ch">บทที่ ${n}</div><div class="main">${main}</div>${sub ? `<div class="sub">${sub}</div>` : ""}`, 2800);
+    return this.title(`<img src="/icon-512.png"><div class="ch">บทที่ ${n}</div><div class="main">${main}</div>${sub ? `<div class="sub">${sub}</div>` : ""}`, 2800, { say: `บทที่ ${n}. ${main.replace(/"/g, "")}` });
   }
   async finish(musicGain = 0.06) {
     await this.wait(400);
@@ -206,11 +241,21 @@ class Tut {
     const silent = path.join(this.outDir, "video.mp4");
     execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-f", "concat", "-safe", "0", "-i", path.join(this.outDir, "list.txt"),
       "-vf", "fps=30,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "18", silent]);
-    execFileSync("python3", ["-I", path.join(__dirname, "music.py"), path.join(this.outDir, "music.wav"), String(dur), String(musicGain)]);
+    // music sits lower under a narrator
+    execFileSync("python3", ["-I", path.join(__dirname, "music.py"), path.join(this.outDir, "music.wav"), String(dur), String(this.events.length ? musicGain * 0.45 : musicGain)]);
+    let audio = path.join(this.outDir, "music.wav");
+    if (this.events.length) {
+      const ev = this.events.map((e) => ({ at: e.t - fr[0].t, file: e.file }));
+      fs.writeFileSync(path.join(this.outDir, "voice-events.json"), JSON.stringify(ev));
+      execFileSync("python3", ["-I", path.join(__dirname, "mix.py"), audio, path.join(this.outDir, "voice-events.json"), path.join(this.outDir, "mix.wav")]);
+      audio = path.join(this.outDir, "mix.wav");
+    }
+    const ts = (x) => { const ms = Math.max(0, Math.round((x - fr[0].t) * 1000)); const h = Math.floor(ms / 3600000), m = Math.floor(ms / 60000) % 60, s = Math.floor(ms / 1000) % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")},${String(ms % 1000).padStart(3, "0")}`; };
+    fs.writeFileSync(path.join(this.outDir, `${this.name}.srt`), this.caps.map((c, i) => `${i + 1}\n${ts(c.t0)} --> ${ts(c.t1)}\n${c.text}\n`).join("\n"));
     const out = path.join(this.outDir, `${this.name}.mp4`);
-    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", silent, "-i", path.join(this.outDir, "music.wav"), "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", out]);
+    execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-i", silent, "-i", audio, "-c:v", "copy", "-c:a", "aac", "-b:a", "160k", "-shortest", "-movflags", "+faststart", out]);
     console.log("wrote", out, dur.toFixed(1) + "s", fr.length, "frames");
   }
 }
 
-module.exports = { Tut, IDS };
+module.exports = { Tut, IDS, speechText };

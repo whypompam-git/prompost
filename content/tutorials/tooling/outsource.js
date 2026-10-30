@@ -9,7 +9,7 @@ const path = require("path");
   await t.rec();
 
   await t.title(`<img src="/icon-512.png"><div class="main">คู่มือ Editor Outsource</div><div class="sub">รับงาน · ดูบรีฟ · ส่งงานตัดต่อ ผ่านระบบพร้อมโพส</div>
-    <ul><li><span>1</span>เข้าสู่ระบบ</li><li><span>2</span>หน้า "งานของฉัน"</li><li><span>3</span>เปิดงาน ดูฟุตเทจ/สคริปต์</li><li><span>4</span>ส่งงาน</li><li><span>5</span>งานที่ถูกสั่งแก้</li><li><span>6</span>ปฏิทิน & แจ้งเตือน</li></ul>`, 6500);
+    <ul><li><span>1</span>เข้าสู่ระบบ</li><li><span>2</span>หน้า "งานของฉัน"</li><li><span>3</span>เปิดงาน ดูฟุตเทจ/สคริปต์</li><li><span>4</span>ส่งงาน</li><li><span>5</span>งานที่ถูกสั่งแก้</li><li><span>6</span>ปฏิทิน & แจ้งเตือน</li></ul>`, 6500, { say: "สวัสดีค่ะ คลิปนี้สำหรับ Editor Outsource สอนวิธีรับงาน ดูบรีฟ และส่งงานตัดต่อผ่านระบบพร้อมโพส มีทั้งหมด 6 บทค่ะ" });
 
   // 1 — login
   await t.chapter(1, "เข้าสู่ระบบ", "ใช้ชื่อของคุณ + PIN 4 หลัก");
@@ -92,6 +92,6 @@ const path = require("path");
   await t.nocap();
 
   await t.title(`<img src="/icon-512.png"><div class="main">เช็กลิสต์ก่อนกดส่งงาน</div>
-    <ul><li><span>✓</span>แก้ครบทุกข้อในบรีฟ</li><li><span>✓</span>ลิงก์ Drive เปิดให้ดูได้</li><li><span>✓</span>ส่งภายในวันที่กำหนด</li><li><span>✓</span>สงสัย ทักผู้รับผิดชอบงาน</li></ul>`, 6500);
+    <ul><li><span>✓</span>แก้ครบทุกข้อในบรีฟ</li><li><span>✓</span>ลิงก์ Drive เปิดให้ดูได้</li><li><span>✓</span>ส่งภายในวันที่กำหนด</li><li><span>✓</span>สงสัย ทักผู้รับผิดชอบงาน</li></ul>`, 6500, { say: "ก่อนกดส่งงานทุกครั้ง เช็กให้ครบนะคะ. แก้ครบทุกข้อในบรีฟ, ลิงก์ไดรฟ์เปิดให้ดูได้, ส่งภายในวันที่กำหนด. และถ้าสงสัยอะไร ทักผู้รับผิดชอบงานได้เลย ขอบคุณค่ะ" });
   await t.finish();
 })().catch((e) => { console.error(e); process.exit(1); });
