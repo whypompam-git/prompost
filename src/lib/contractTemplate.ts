@@ -1,4 +1,4 @@
-import type { ContractInstallment, ContractParty, ContractTemplate } from "@/lib/types";
+import type { ContractInstallment, ContractKind, ContractParty, ContractTemplate, ContractTerms } from "@/lib/types";
 
 // Starting template. Edited in the app (Documents → Contracts → template);
 // {{variables}} are filled when a contract is created, "[ระบุ…]" placeholders
@@ -54,6 +54,121 @@ export const DEFAULT_CONTRACT_TEMPLATE: ContractTemplate = {
   closing: "คู่สัญญาได้อ่านและเข้าใจข้อความในสัญญานี้โดยละเอียดตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญ",
 };
 
+// Team member on a monthly service agreement — hired for monthly deliverables, NOT an employee.
+export const DEFAULT_MONTHLY_TEMPLATE: ContractTemplate = {
+  title: "สัญญาจ้างบริการรายเดือน (ผลิตคอนเทนต์)",
+  intro: "สัญญาฉบับนี้ทำขึ้น ณ วันที่ {{sign_date}} โดยและระหว่าง:",
+  clauses: [
+    {
+      heading: "ข้อ 1. ขอบเขตงาน (Scope of Work)",
+      body: `ผู้รับจ้างตกลงรับจ้างให้บริการผลิตคอนเทนต์แก่ผู้ว่าจ้าง โดยวัดผลจากผลงานที่ส่งมอบในแต่ละเดือน ดังนี้:
+- ตัดต่อวิดีโอ: {{clips_per_month}} คลิปต่อเดือน
+- ลงถ่ายทำ: {{shoot_days_per_month}} วัน/คิวต่อเดือน (ตามคิวที่นัดหมายล่วงหน้า)
+- รายละเอียดงานอื่น: [ระบุ เช่น ความยาวคลิป ใส่ซับไตเติล]
+- การแก้ไขงาน: แก้ไขได้ [ระบุจำนวน] ครั้งต่อคลิป ภายใต้บรีฟที่ตกลงกัน`,
+    },
+    {
+      heading: "ข้อ 2. ระยะเวลาสัญญา",
+      body: `สัญญานี้มีผลตั้งแต่วันที่ {{start_date}} ถึงวันที่ {{end_date}} (รวม {{term_months}} เดือน) เมื่อครบกำหนดคู่สัญญาอาจตกลงต่อสัญญาฉบับใหม่ได้`,
+    },
+    {
+      heading: "ข้อ 3. การส่งมอบงานและวิธีทำงาน",
+      body: `1. ผู้รับจ้างส่งมอบงานตามกำหนดส่ง (เดดไลน์) ของแต่ละงานที่ผู้ว่าจ้างแจ้งผ่านระบบ และเข้าร่วมคิวถ่ายทำตามวันที่นัดหมาย
+2. ผู้รับจ้างมีอิสระในการบริหารเวลาและวิธีทำงานของตนเอง ไม่มีการกำหนดเวลาเข้า-ออกงาน ผู้ว่าจ้างพิจารณาจากผลงานที่ส่งมอบเป็นสำคัญ`,
+    },
+    {
+      heading: "ข้อ 4. ค่าบริการและการชำระเงิน",
+      body: `1. ค่าบริการเดือนละ {{monthly_fee}} บาท ({{monthly_fee_text}})
+2. ผู้ว่าจ้างชำระค่าบริการทุกวันที่ {{pay_day}} ของเดือน เมื่อผู้รับจ้างส่งมอบงานครบตามขอบเขตของเดือนนั้น หากส่งไม่ครบ ผู้ว่าจ้างจ่ายตามสัดส่วนผลงานหรือตามที่ตกลงกัน
+3. ภาษี: {{withholding_text}}
+4. ทุกครั้งที่รับเงิน ผู้รับจ้างลงนามในใบสำคัญรับเงินผ่านระบบออนไลน์ของผู้ว่าจ้าง`,
+    },
+    {
+      heading: "ข้อ 5. ลิขสิทธิ์และกรรมสิทธิ์ในผลงาน",
+      body: `วิดีโอ ภาพ ฟุตเทจดิบ ไฟล์โปรเจกต์ และผลงานทั้งหมดที่ผลิตภายใต้สัญญานี้ เป็นลิขสิทธิ์และกรรมสิทธิ์ของผู้ว่าจ้างแต่เพียงผู้เดียว ผู้รับจ้างจะไม่นำไปใช้ เผยแพร่ หรือขายต่อ เว้นแต่ได้รับอนุญาตเป็นลายลักษณ์อักษร (ผู้ว่าจ้างอาจอนุญาตให้ใช้เป็นพอร์ตโฟลิโอได้ เมื่อลูกค้าเผยแพร่ผลงานแล้ว)`,
+    },
+    {
+      heading: "ข้อ 6. การรักษาความลับ (NDA)",
+      body: `ผู้รับจ้างจะไม่เปิดเผยข้อมูลของผู้ว่าจ้างและลูกค้าของผู้ว่าจ้าง เช่น ข้อมูลสินค้า แผนการตลาด ราคา สคริปต์ที่ยังไม่เผยแพร่ หรือข้อมูลภายในอื่นใด ทั้งระหว่างและหลังสิ้นสุดสัญญา`,
+    },
+    {
+      heading: "ข้อ 7. การบอกเลิกสัญญา",
+      body: `คู่สัญญาฝ่ายใดประสงค์จะเลิกสัญญาก่อนครบกำหนด ต้องแจ้งอีกฝ่ายล่วงหน้าไม่น้อยกว่า {{notice_days}} วัน และผู้รับจ้างต้องส่งมอบงานที่ค้างพร้อมไฟล์ทั้งหมดให้เรียบร้อย`,
+    },
+    {
+      heading: "ข้อ 8. สถานะของคู่สัญญา",
+      body: `สัญญานี้เป็นสัญญาจ้างทำของ/จ้างบริการ คู่สัญญาไม่มีนิติสัมพันธ์เป็นนายจ้างและลูกจ้างตามกฎหมายคุ้มครองแรงงาน ผู้รับจ้างรับผิดชอบภาระภาษีเงินได้ของตนเอง`,
+    },
+    {
+      heading: "ข้อ 9. การลงนามและข้อมูลส่วนบุคคล",
+      body: `สัญญานี้ทำเป็นเอกสารอิเล็กทรอนิกส์ การลงลายมือชื่ออิเล็กทรอนิกส์ผ่านระบบให้มีผลผูกพันตามกฎหมาย ผู้รับจ้างยินยอมให้ผู้ว่าจ้างเก็บข้อมูลส่วนบุคคลที่ให้ไว้ในสัญญาเพื่อใช้ในการทำสัญญา การจ่ายเงิน และภาษีเท่านั้น`,
+    },
+  ],
+  closing: "คู่สัญญาได้อ่านและเข้าใจข้อความในสัญญานี้โดยละเอียดตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญ",
+};
+
+// Outsource: one batch of N clips at one price per clip; renewed with a new contract when done.
+export const DEFAULT_FREELANCE_TEMPLATE: ContractTemplate = {
+  title: "สัญญาจ้างทำของ (ตัดต่อวิดีโอ รายชุดงาน)",
+  intro: "สัญญาฉบับนี้ทำขึ้น ณ วันที่ {{sign_date}} โดยและระหว่าง:",
+  clauses: [
+    {
+      heading: "ข้อ 1. งานที่จ้าง",
+      body: `ผู้ว่าจ้างตกลงจ้างและผู้รับจ้างตกลงรับจ้างตัดต่อวิดีโอ จำนวน {{clip_count}} คลิป ตามบรีฟและฟุตเทจที่ผู้ว่าจ้างส่งให้ผ่านระบบ
+- รายละเอียดงาน: [ระบุ เช่น ความยาวคลิป ใส่ซับไตเติล เอฟเฟกต์]
+- การแก้ไขงาน: แก้ไขได้ [ระบุจำนวน] ครั้งต่อคลิป ตามบรีฟที่ตกลงกัน`,
+    },
+    {
+      heading: "ข้อ 2. ระยะเวลาและการส่งมอบ",
+      body: `ผู้รับจ้างส่งมอบงานแต่ละคลิปตามกำหนดส่งที่ระบุในระบบ และส่งครบทั้ง {{clip_count}} คลิป ภายในวันที่ {{end_date}}`,
+    },
+    {
+      heading: "ข้อ 3. ค่าจ้างและการชำระเงิน",
+      body: `1. ค่าจ้างคลิปละ {{price_per_clip}} บาท รวม {{clip_count}} คลิป เป็นเงินทั้งสิ้น {{total}} บาท ({{total_text}})
+2. การชำระเงิน:
+{{installments}}
+3. ภาษี: {{withholding_text}}
+4. ทุกครั้งที่รับเงิน ผู้รับจ้างลงนามในใบสำคัญรับเงินผ่านระบบออนไลน์ของผู้ว่าจ้าง`,
+    },
+    {
+      heading: "ข้อ 4. ลิขสิทธิ์และกรรมสิทธิ์ในผลงาน",
+      body: `ผลงาน ฟุตเทจ และไฟล์ทั้งหมดที่ได้รับหรือผลิตภายใต้สัญญานี้ เป็นลิขสิทธิ์และกรรมสิทธิ์ของผู้ว่าจ้างแต่เพียงผู้เดียว ผู้รับจ้างจะไม่นำไปใช้ เผยแพร่ หรือเก็บสำเนาไว้หลังส่งมอบ เว้นแต่ได้รับอนุญาตเป็นลายลักษณ์อักษร`,
+    },
+    {
+      heading: "ข้อ 5. การรักษาความลับ (NDA)",
+      body: `ผู้รับจ้างจะไม่เปิดเผยข้อมูลของผู้ว่าจ้างและลูกค้าของผู้ว่าจ้าง รวมถึงฟุตเทจและสคริปต์ที่ยังไม่เผยแพร่ ทั้งระหว่างและหลังสิ้นสุดสัญญา`,
+    },
+    {
+      heading: "ข้อ 6. สถานะของคู่สัญญาและการต่อสัญญา",
+      body: `สัญญานี้เป็นสัญญาจ้างทำของ คู่สัญญาไม่มีนิติสัมพันธ์เป็นนายจ้างและลูกจ้าง เมื่อส่งมอบงานครบตามสัญญา ผู้ว่าจ้างอาจพิจารณาจ้างงานชุดถัดไปด้วยสัญญาฉบับใหม่`,
+    },
+    {
+      heading: "ข้อ 7. การลงนามและข้อมูลส่วนบุคคล",
+      body: `สัญญานี้ทำเป็นเอกสารอิเล็กทรอนิกส์ การลงลายมือชื่ออิเล็กทรอนิกส์ผ่านระบบให้มีผลผูกพันตามกฎหมาย ผู้รับจ้างยินยอมให้ผู้ว่าจ้างเก็บข้อมูลส่วนบุคคลที่ให้ไว้ในสัญญาเพื่อใช้ในการทำสัญญา การจ่ายเงิน และภาษีเท่านั้น`,
+    },
+  ],
+  closing: "คู่สัญญาได้อ่านและเข้าใจข้อความในสัญญานี้โดยละเอียดตลอดแล้ว จึงได้ลงลายมือชื่อไว้เป็นสำคัญ",
+};
+
+export const DEFAULT_TEMPLATES: Record<ContractKind, ContractTemplate> = {
+  client: DEFAULT_CONTRACT_TEMPLATE,
+  monthly: DEFAULT_MONTHLY_TEMPLATE,
+  freelance: DEFAULT_FREELANCE_TEMPLATE,
+};
+
+export const KIND_LABEL: Record<ContractKind, string> = { client: "ลูกค้า", monthly: "ทีมรายเดือน", freelance: "Outsource" };
+
+// who is who: on a client contract we are the contractor; on the staff kinds we hire
+export const roleLabels = (kind: ContractKind) =>
+  kind === "client" ? { counterparty: "ผู้ว่าจ้าง", us: "ผู้รับจ้าง" } : { counterparty: "ผู้รับจ้าง", us: "ผู้ว่าจ้าง" };
+
+// an unregistered business signs as its owner, trading under the business name (agency.name)
+export function ourPartyName(agency: { name: string; businessType?: string; ownerName?: string }): string {
+  const owner = agency.ownerName?.trim();
+  if (agency.businessType === "company" || !owner) return agency.name;
+  return agency.name.trim() ? `${owner} (ดำเนินธุรกิจภายใต้ชื่อทางการค้า “${agency.name.trim()}”)` : owner;
+}
+
 export const TEMPLATE_VARIABLES: { key: string; hint: string }[] = [
   { key: "sign_date", hint: "วันที่ทำสัญญา" },
   { key: "start_date", hint: "วันเริ่มสัญญา" },
@@ -64,8 +179,27 @@ export const TEMPLATE_VARIABLES: { key: string; hint: string }[] = [
   { key: "installments", hint: "รายการงวดชำระ (หลายบรรทัด)" },
   { key: "bank", hint: "ช่องทางชำระเงิน" },
   { key: "client_name", hint: "ชื่อผู้ว่าจ้าง" },
-  { key: "seller_name", hint: "ชื่อผู้รับจ้าง" },
+  { key: "seller_name", hint: "ชื่อฝั่งเรา" },
 ];
+
+export const KIND_VARIABLES: Record<ContractKind, { key: string; hint: string }[]> = {
+  client: [{ key: "term_months", hint: "จำนวนเดือนของสัญญา" }],
+  monthly: [
+    { key: "term_months", hint: "จำนวนเดือนของสัญญา" },
+    { key: "monthly_fee", hint: "ค่าบริการต่อเดือน" },
+    { key: "monthly_fee_text", hint: "ค่าบริการต่อเดือน (ตัวอักษร)" },
+    { key: "clips_per_month", hint: "เป้าคลิปต่อเดือน" },
+    { key: "shoot_days_per_month", hint: "เป้าวันถ่ายต่อเดือน" },
+    { key: "pay_day", hint: "วันที่จ่ายของเดือน" },
+    { key: "notice_days", hint: "แจ้งเลิกล่วงหน้า (วัน)" },
+    { key: "withholding_text", hint: "เงื่อนไขภาษี" },
+  ],
+  freelance: [
+    { key: "clip_count", hint: "จำนวนคลิปในชุด" },
+    { key: "price_per_clip", hint: "ราคาต่อคลิป" },
+    { key: "withholding_text", hint: "เงื่อนไขภาษี" },
+  ],
+};
 
 export const thaiLongDate = (iso?: string) =>
   iso
@@ -132,7 +266,16 @@ export type ContractVariables = {
   bank?: string;
   client: ContractParty;
   seller: ContractParty;
+  termMonths?: number;
+  terms?: ContractTerms;
+  clipCount?: number;
+  pricePerClip?: number;
 };
+
+const withholdingText = (t?: ContractTerms) =>
+  t?.withholding
+    ? "ผู้ว่าจ้างหักภาษี ณ ที่จ่าย 3% และออกหนังสือรับรองการหักภาษี ณ ที่จ่ายให้ผู้รับจ้าง"
+    : "ผู้ว่าจ้างจ่ายเต็มจำนวน ผู้รับจ้างรับผิดชอบยื่นภาษีเงินได้ของตนเอง";
 
 export function fillVariables(text: string, v: ContractVariables): string {
   const map: Record<string, string> = {
@@ -146,6 +289,16 @@ export function fillVariables(text: string, v: ContractVariables): string {
     bank: v.bank || "[ระบุชื่อธนาคาร / เลขที่บัญชี / ชื่อบัญชี]",
     client_name: v.client.name,
     seller_name: v.seller.name,
+    term_months: v.termMonths ? String(v.termMonths) : "[ระบุจำนวนเดือน]",
+    monthly_fee: v.terms?.monthlyFee ? baht(v.terms.monthlyFee) : "[ระบุค่าบริการ]",
+    monthly_fee_text: v.terms?.monthlyFee ? thaiBahtText(v.terms.monthlyFee) : "[ระบุ]",
+    clips_per_month: v.terms?.clipsPerMonth ? String(v.terms.clipsPerMonth) : "-",
+    shoot_days_per_month: v.terms?.shootDaysPerMonth ? String(v.terms.shootDaysPerMonth) : "-",
+    pay_day: v.terms?.payDay ? String(v.terms.payDay) : "[ระบุวันที่]",
+    notice_days: String(v.terms?.noticeDays ?? 30),
+    withholding_text: withholdingText(v.terms),
+    clip_count: v.clipCount ? String(v.clipCount) : "[ระบุจำนวน]",
+    price_per_clip: v.pricePerClip ? baht(v.pricePerClip) : "[ระบุราคา]",
   };
   return text.replace(/\{\{(\w+)\}\}/g, (whole, key: string) => map[key] ?? whole);
 }

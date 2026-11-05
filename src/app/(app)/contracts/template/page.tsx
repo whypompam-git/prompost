@@ -6,32 +6,35 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClauseEditor } from "@/components/contracts/ClauseEditor";
-import { DEFAULT_CONTRACT_TEMPLATE, TEMPLATE_VARIABLES } from "@/lib/contractTemplate";
+import { DEFAULT_TEMPLATES, KIND_LABEL, KIND_VARIABLES, TEMPLATE_VARIABLES } from "@/lib/contractTemplate";
 import { getContractTemplate, saveContractTemplate } from "@/lib/supabase/queries";
-import type { ContractTemplate } from "@/lib/types";
+import type { ContractKind, ContractTemplate } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const field =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
 
 export default function ContractTemplatePage() {
+  const [kind, setKind] = useState<ContractKind>("client");
   const [tpl, setTpl] = useState<ContractTemplate | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    getContractTemplate()
+    setTpl(null);
+    getContractTemplate(kind)
       .then(setTpl)
       .catch((err) => {
         console.error(err);
-        setTpl(DEFAULT_CONTRACT_TEMPLATE);
+        setTpl(DEFAULT_TEMPLATES[kind]);
       });
-  }, []);
+  }, [kind]);
 
   async function handleSave() {
     if (!tpl) return;
     setSaving(true);
     try {
-      await saveContractTemplate(tpl);
+      await saveContractTemplate(tpl, kind);
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
@@ -55,10 +58,17 @@ export default function ContractTemplatePage() {
     <>
       <Topbar back="/documents" title="แม่แบบสัญญา" subtitle="แก้ครั้งเดียว ใช้กับสัญญาใหม่ทุกฉบับ (สัญญาที่สร้างไปแล้วไม่เปลี่ยน)" />
       <div className="flex-1 space-y-4 p-4 sm:p-6">
+        <div className="flex max-w-md gap-1 rounded-xl bg-gray-100 p-1">
+          {(Object.keys(KIND_LABEL) as ContractKind[]).map((k) => (
+            <button key={k} onClick={() => setKind(k)} className={cn("flex-1 rounded-lg px-2 py-1.5 text-sm font-medium", kind === k ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>
+              สัญญา{KIND_LABEL[k]}
+            </button>
+          ))}
+        </div>
         <Card className="space-y-2">
           <p className="text-sm font-medium text-gray-700">ตัวแปรที่ระบบเติมให้ตอนสร้างสัญญา</p>
           <div className="flex flex-wrap gap-1.5">
-            {TEMPLATE_VARIABLES.map((v) => (
+            {[...TEMPLATE_VARIABLES, ...KIND_VARIABLES[kind]].map((v) => (
               <span key={v.key} className="rounded-full bg-gray-100 px-2.5 py-1 text-xs text-gray-600" title={v.hint}>
                 {`{{${v.key}}}`} <span className="text-gray-400">· {v.hint}</span>
               </span>
@@ -91,7 +101,7 @@ export default function ContractTemplatePage() {
 
         <div className="flex items-center justify-between">
           <button
-            onClick={() => window.confirm("คืนค่าแม่แบบเป็นแบบตั้งต้น? ข้อความที่แก้ไว้จะหายไป (ยังไม่บันทึกจนกว่าจะกดบันทึก)") && setTpl(DEFAULT_CONTRACT_TEMPLATE)}
+            onClick={() => window.confirm("คืนค่าแม่แบบเป็นแบบตั้งต้น? ข้อความที่แก้ไว้จะหายไป (ยังไม่บันทึกจนกว่าจะกดบันทึก)") && setTpl(DEFAULT_TEMPLATES[kind])}
             className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             <RotateCcw size={14} />

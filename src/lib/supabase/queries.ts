@@ -4,7 +4,7 @@ import { defaultStatusFor } from "@/lib/workflow";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
-import { DEFAULT_CONTRACT_TEMPLATE, fillVariables } from "@/lib/contractTemplate";
+import { DEFAULT_CONTRACT_TEMPLATE, DEFAULT_TEMPLATES, fillVariables, ourPartyName } from "@/lib/contractTemplate";
 import type {
   McPack,
   McProfile,
@@ -15,6 +15,9 @@ import type {
   ClientPackage,
   Contract,
   ContractInstallment,
+  ContractKind,
+  ContractTerms,
+  PaymentMode,
   ContractParty,
   ContractTemplate,
   Invoice,
@@ -1176,12 +1179,14 @@ type AgencySettingsRow = {
   tax_id: string | null;
   bank_info: string | null;
   signature_url: string | null;
+  business_type?: string | null;
+  owner_name?: string | null;
 };
 
 export async function getAgencySettings() {
   const { data, error } = await supabase()
     .from("agency_settings")
-    .select("name, address, phone, tax_id, bank_info, signature_url")
+    .select("name, address, phone, tax_id, bank_info, signature_url, business_type, owner_name")
     .eq("id", true)
     .maybeSingle();
   if (error) throw error;
@@ -1193,6 +1198,8 @@ export async function getAgencySettings() {
     taxId: r?.tax_id ?? "",
     bankInfo: r?.bank_info ?? "",
     signatureUrl: r?.signature_url ?? undefined,
+    businessType: (r?.business_type === "company" ? "company" : "individual") as "individual" | "company",
+    ownerName: r?.owner_name ?? "",
   };
 }
 
@@ -1203,6 +1210,8 @@ export async function saveAgencySettings(values: {
   taxId: string;
   bankInfo: string;
   signatureUrl?: string;
+  businessType?: "individual" | "company";
+  ownerName?: string;
 }): Promise<void> {
   const { error } = await supabase()
     .from("agency_settings")
@@ -1214,6 +1223,8 @@ export async function saveAgencySettings(values: {
       tax_id: values.taxId,
       bank_info: values.bankInfo,
       signature_url: values.signatureUrl || null,
+      business_type: values.businessType ?? "individual",
+      owner_name: values.ownerName?.trim() || null,
     });
   if (error) throw error;
 }
@@ -1702,7 +1713,16 @@ export async function createTasksFromSet(values: {
 type ContractRow = {
   id: string;
   contract_no: string;
-  client_id: string;
+  kind?: ContractKind | null;
+  client_id: string | null;
+  staff_id?: string | null;
+  term_months?: number | null;
+  payment_mode?: PaymentMode | null;
+  terms?: ContractTerms | null;
+  clip_count?: number | null;
+  price_per_clip?: number | null;
+  renewed_from?: string | null;
+  estamp_ref?: string | null;
   status: Contract["status"];
   title: string;
   sign_date: string;
@@ -1726,12 +1746,21 @@ type ContractRow = {
 };
 
 export const CONTRACT_COLUMNS =
-  "id, contract_no, client_id, status, title, sign_date, start_date, end_date, package_name, total_amount, installments, parties, intro, clauses, closing, share_token, seller_signature_url, client_signer_name, client_signature_url, client_signed_at, client_sign_ip, content_hash, created_at";
+  "id, contract_no, kind, client_id, staff_id, term_months, payment_mode, terms, clip_count, price_per_clip, renewed_from, estamp_ref, status, title, sign_date, start_date, end_date, package_name, total_amount, installments, parties, intro, clauses, closing, share_token, seller_signature_url, client_signer_name, client_signature_url, client_signed_at, client_sign_ip, content_hash, created_at";
 
 export const fromContractRow = (r: ContractRow): Contract => ({
   id: r.id,
   contractNo: r.contract_no,
-  clientId: r.client_id,
+  kind: r.kind ?? "client",
+  clientId: r.client_id ?? undefined,
+  staffId: r.staff_id ?? undefined,
+  termMonths: r.term_months ?? undefined,
+  paymentMode: r.payment_mode ?? undefined,
+  terms: r.terms ?? {},
+  clipCount: r.clip_count ?? undefined,
+  pricePerClip: r.price_per_clip == null ? undefined : Number(r.price_per_clip),
+  renewedFrom: r.renewed_from ?? undefined,
+  estampRef: r.estamp_ref ?? undefined,
   status: r.status,
   title: r.title,
   signDate: r.sign_date,
@@ -1754,16 +1783,24 @@ export const fromContractRow = (r: ContractRow): Contract => ({
   createdAt: r.created_at,
 });
 
-export async function getContractTemplate(): Promise<ContractTemplate> {
-  const { data, error } = await supabase().from("contract_template").select("content").eq("id", true).maybeSingle();
+// the client template lives in the original single-row table; the staff kinds have their own rows
+export async function getContractTemplate(kind: ContractKind = "client"): Promise<ContractTemplate> {
+  if (kind === "client") {
+    const { data, error } = await supabase().from("contract_template").select("content").eq("id", true).maybeSingle();
+    if (error) throw error;
+    return (data?.content as ContractTemplate | undefined) ?? DEFAULT_CONTRACT_TEMPLATE;
+  }
+  const { data, error } = await supabase().from("contract_templates").select("content").eq("kind", kind).maybeSingle();
   if (error) throw error;
-  return (data?.content as ContractTemplate | undefined) ?? DEFAULT_CONTRACT_TEMPLATE;
+  return (data?.content as ContractTemplate | undefined) ?? DEFAULT_TEMPLATES[kind];
 }
 
-export async function saveContractTemplate(content: ContractTemplate): Promise<void> {
-  const { error } = await supabase()
-    .from("contract_template")
-    .upsert({ id: true, content, updated_at: new Date().toISOString() });
+export async function saveContractTemplate(content: ContractTemplate, kind: ContractKind = "client"): Promise<void> {
+  const now = new Date().toISOString();
+  const { error } =
+    kind === "client"
+      ? await supabase().from("contract_template").upsert({ id: true, content, updated_at: now })
+      : await supabase().from("contract_templates").upsert({ kind, content, updated_at: now });
   if (error) throw error;
 }
 
@@ -1782,38 +1819,45 @@ export async function getContract(id: string): Promise<Contract | null> {
   return data ? fromContractRow(data as ContractRow) : null;
 }
 
-// Copy the template into a new draft contract: parties are snapshotted from
-// the client + agency settings, {{variables}} are filled in, "[ระบุ…]"
-// placeholders stay for the editor.
-export async function createContractFromTemplate(values: {
-  clientId: string;
+export type NewContractValues = {
+  kind: ContractKind;
+  clientId?: string;
+  staffId?: string;
   signDate: string;
   startDate?: string;
   endDate?: string;
   packageName?: string;
   totalAmount: number;
   installments: ContractInstallment[];
-}): Promise<Contract> {
-  const db = supabase();
-  const [template, agency, { data: client, error: clientError }] = await Promise.all([
-    getContractTemplate(),
-    getAgencySettings(),
-    db.from("clients").select("name, billing_name, address, tax_id, phone").eq("id", values.clientId).single(),
-  ]);
-  if (clientError || !client) throw clientError ?? new Error("ไม่พบลูกค้า");
+  termMonths?: number;
+  paymentMode?: PaymentMode;
+  terms?: ContractTerms;
+  clipCount?: number;
+  pricePerClip?: number;
+  renewedFrom?: string;
+};
 
-  const clientParty: ContractParty = {
-    name: client.billing_name || client.name,
-    address: client.address ?? "",
-    taxId: client.tax_id ?? "",
-    phone: client.phone ?? "",
-  };
-  const sellerParty: ContractParty = {
-    name: agency.name,
-    address: agency.address,
-    taxId: agency.taxId,
-    phone: agency.phone,
-  };
+// Copy the template into a new draft contract: parties are snapshotted from
+// the client / staff member + agency settings, {{variables}} are filled in,
+// "[ระบุ…]" placeholders stay for the editor. parties.client is always the
+// other side and parties.seller is always us (roles depend on the kind).
+export async function createContractFromTemplate(values: NewContractValues): Promise<Contract> {
+  const db = supabase();
+  const kind = values.kind ?? "client";
+  const [template, agency] = await Promise.all([getContractTemplate(kind), getAgencySettings()]);
+
+  let counterparty: ContractParty;
+  if (kind === "client") {
+    const { data: client, error } = await db.from("clients").select("name, billing_name, address, tax_id, phone").eq("id", values.clientId ?? "").single();
+    if (error || !client) throw error ?? new Error("ไม่พบลูกค้า");
+    counterparty = { name: client.billing_name || client.name, address: client.address ?? "", taxId: client.tax_id ?? "", phone: client.phone ?? "" };
+  } else {
+    const { data: person, error } = await db.from("staff").select("name, phone").eq("id", values.staffId ?? "").single();
+    if (error || !person) throw error ?? new Error("ไม่พบคนทำงาน");
+    // ID card no. and address are typed by the person when they sign
+    counterparty = { name: person.name, address: "", taxId: "", phone: person.phone ?? "" };
+  }
+  const sellerParty: ContractParty = { name: ourPartyName(agency), address: agency.address, taxId: agency.taxId, phone: agency.phone };
   const vars = {
     signDate: values.signDate,
     startDate: values.startDate,
@@ -1822,8 +1866,12 @@ export async function createContractFromTemplate(values: {
     total: values.totalAmount,
     installments: values.installments,
     bank: agency.bankInfo || undefined,
-    client: clientParty,
+    client: counterparty,
     seller: sellerParty,
+    termMonths: values.termMonths,
+    terms: values.terms,
+    clipCount: values.clipCount,
+    pricePerClip: values.pricePerClip,
   };
   const fill = (t: string) => fillVariables(t, vars);
 
@@ -1832,7 +1880,9 @@ export async function createContractFromTemplate(values: {
     .from("contracts")
     .insert({
       contract_no: contractNo,
-      client_id: values.clientId,
+      kind,
+      client_id: kind === "client" ? values.clientId : null,
+      staff_id: kind === "client" ? null : values.staffId,
       title: template.title,
       sign_date: values.signDate,
       start_date: values.startDate || null,
@@ -1840,7 +1890,13 @@ export async function createContractFromTemplate(values: {
       package_name: values.packageName || null,
       total_amount: values.totalAmount,
       installments: values.installments,
-      parties: { seller: sellerParty, client: clientParty, bank: agency.bankInfo || undefined },
+      term_months: values.termMonths ?? null,
+      payment_mode: values.paymentMode ?? null,
+      terms: values.terms ?? {},
+      clip_count: values.clipCount ?? null,
+      price_per_clip: values.pricePerClip ?? null,
+      renewed_from: values.renewedFrom ?? null,
+      parties: { seller: sellerParty, client: counterparty, bank: agency.bankInfo || undefined },
       intro: fill(template.intro),
       clauses: template.clauses.map((c) => ({ heading: c.heading, body: fill(c.body) })),
       closing: fill(template.closing),
@@ -1850,6 +1906,11 @@ export async function createContractFromTemplate(values: {
     .single();
   if (error) throw error;
   return fromContractRow(data as ContractRow);
+}
+
+export async function setContractEstampRef(id: string, ref: string): Promise<void> {
+  const { error } = await supabase().from("contracts").update({ estamp_ref: ref.trim() || null }).eq("id", id);
+  if (error) throw error;
 }
 
 export async function updateContractRow(

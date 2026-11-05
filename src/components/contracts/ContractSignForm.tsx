@@ -4,15 +4,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PenLine } from "lucide-react";
 import { SignaturePad } from "@/components/contracts/SignaturePad";
+import { roleLabels } from "@/lib/contractTemplate";
+import type { ContractKind } from "@/lib/types";
 
-export function ContractSignForm({ shareToken, defaultName }: { shareToken: string; defaultName: string }) {
+export function ContractSignForm({ shareToken, defaultName, kind = "client" }: { shareToken: string; defaultName: string; kind?: ContractKind }) {
+  const staffKind = kind !== "client";
+  const [idNo, setIdNo] = useState("");
+  const [address, setAddress] = useState("");
+  const idOk = !staffKind || (/^\d{13}$/.test(idNo.replace(/[\s-]/g, "")) && address.trim().length >= 10);
   const router = useRouter();
   const [name, setName] = useState(defaultName);
   const [signature, setSignature] = useState("");
   const [agreed, setAgreed] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const canSign = name.trim().length >= 2 && signature !== "" && agreed && !sending;
+  const canSign = name.trim().length >= 2 && signature !== "" && agreed && idOk && !sending;
 
   async function handleSign() {
     if (!canSign) return;
@@ -21,7 +27,7 @@ export function ContractSignForm({ shareToken, defaultName }: { shareToken: stri
       const res = await fetch("/api/public/contract-sign", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: shareToken, name: name.trim(), signature, consent: true }),
+        body: JSON.stringify({ token: shareToken, name: name.trim(), signature, consent: true, ...(staffKind ? { idNo, address } : {}) }),
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
@@ -40,7 +46,7 @@ export function ContractSignForm({ shareToken, defaultName }: { shareToken: stri
       <div className="space-y-4 rounded-2xl border border-gray-200 bg-white p-5">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
           <PenLine size={16} />
-          ลงนามสัญญา (ผู้ว่าจ้าง)
+          ลงนามสัญญา ({roleLabels(kind).counterparty})
         </p>
         <label className="block">
           <span className="mb-1 block text-xs font-medium text-gray-500">ชื่อ-นามสกุลผู้ลงนาม</span>
@@ -50,6 +56,19 @@ export function ContractSignForm({ shareToken, defaultName }: { shareToken: stri
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
           />
         </label>
+        {staffKind && (
+          <>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">เลขบัตรประชาชน (13 หลัก)</span>
+              <input value={idNo} onChange={(e) => setIdNo(e.target.value)} inputMode="numeric" maxLength={17} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">ที่อยู่ตามบัตร / ที่ติดต่อได้</span>
+              <textarea value={address} onChange={(e) => setAddress(e.target.value)} rows={2} className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" />
+            </label>
+            <p className="text-xs text-gray-400">ข้อมูลนี้ใช้เพื่อทำสัญญา การจ่ายเงิน และภาษีเท่านั้น เห็นได้เฉพาะผู้ว่าจ้าง ไม่แสดงในลิงก์นี้</p>
+          </>
+        )}
         <div>
           <span className="mb-1 block text-xs font-medium text-gray-500">ลายเซ็น</span>
           <SignaturePad onChange={setSignature} />

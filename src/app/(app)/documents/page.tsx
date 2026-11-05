@@ -41,9 +41,11 @@ import {
   deleteContractRow,
   listContracts,
   listPackages,
+  listStaff,
 } from "@/lib/supabase/queries";
 import { CreateContractModal, type CreateContractValues } from "@/components/contracts/CreateContractModal";
-import type { AgencySettings, Client, Contract, Invoice, Package, Quotation, QuotationStatus, Receipt } from "@/lib/types";
+import { KIND_LABEL } from "@/lib/contractTemplate";
+import type { AgencySettings, Client, Contract, Staff, Invoice, Package, Quotation, QuotationStatus, Receipt } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
@@ -69,6 +71,8 @@ type Row = {
   id: string;
   no: string;
   clientId: string;
+  party?: string; // name to show instead of the client (staff contracts)
+  kind?: Contract["kind"];
   date: string;
   amount: number;
   status?: { key: string; label: string; style: string; onClick?: () => void };
@@ -99,6 +103,8 @@ export default function DocumentsPage() {
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [packages, setPackages] = useState<Package[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [kindFilter, setKindFilter] = useState<"" | Contract["kind"]>("");
 
   useEffect(() => {
     // Load each list independently — one failing query (e.g. a migration not
@@ -118,8 +124,10 @@ export default function DocumentsPage() {
       safe("ข้อมูลผู้เสนอราคา", getAgencySettings(), null as AgencySettings | null),
       safe("สัญญา", listContracts(), [] as Contract[]),
       safe("แพ็คเกจ", listPackages(), [] as Package[]),
+      safe("ทีมงาน", listStaff(), [] as Staff[]),
     ])
-      .then(([c, q, i, r, a, ct, pk]) => {
+      .then(([c, q, i, r, a, ct, pk, st]) => {
+        setStaff(st);
         setContracts(ct);
         setPackages(pk);
         setClients(c);
@@ -139,6 +147,7 @@ export default function DocumentsPage() {
   useEffect(() => setVisible(PAGE_SIZE), [query, clientFilter, statusFilter]);
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
+  const partyName = (r: Row) => r.party ?? clientName(r.clientId);
 
   async function confirmDelete<T extends { id: string }>(
     label: string,
@@ -202,7 +211,9 @@ export default function DocumentsPage() {
       return contracts.map((ct) => ({
         id: ct.id,
         no: ct.contractNo,
-        clientId: ct.clientId,
+        clientId: ct.clientId ?? "",
+        party: ct.kind === "client" ? undefined : `${ct.parties.client.name} · ${KIND_LABEL[ct.kind]}`,
+        kind: ct.kind,
         date: ct.createdAt,
         amount: ct.totalAmount,
         status: { key: ct.status, ...CONTRACT_STATUS[ct.status] },
@@ -230,11 +241,12 @@ export default function DocumentsPage() {
     const q = query.trim().toLowerCase();
     return rows
       .filter((r) => (clientFilter ? r.clientId === clientFilter : true))
+      .filter((r) => (tab === "contract" && kindFilter ? r.kind === kindFilter : true))
       .filter((r) => (statusFilter ? r.status?.key === statusFilter : true))
-      .filter((r) => (q ? r.no.toLowerCase().includes(q) || clientName(r.clientId).toLowerCase().includes(q) : true))
+      .filter((r) => (q ? r.no.toLowerCase().includes(q) || partyName(r).toLowerCase().includes(q) : true))
       .sort((a, b) => b.date.localeCompare(a.date));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rows, query, clientFilter, statusFilter, clients]);
+  }, [rows, query, clientFilter, statusFilter, kindFilter, clients]);
 
   const shown = filtered.slice(0, visible);
   const total = filtered.reduce((s, r) => s + r.amount, 0);
@@ -335,7 +347,7 @@ export default function DocumentsPage() {
               downloadCsv(
                 `${{ quotation: "ใบเสนอราคา", invoice: "ใบแจ้งหนี้", receipt: "ใบเสร็จ", contract: "สัญญา" }[tab]}`,
                 ["เลขที่", "ลูกค้า", "วันที่", "ยอดรวม", "สถานะ"],
-                filtered.map((r) => [r.no, clientName(r.clientId), r.date.slice(0, 10), r.amount, r.status?.label ?? ""]),
+                filtered.map((r) => [r.no, partyName(r), r.date.slice(0, 10), r.amount, r.status?.label ?? ""]),
               )
             }
             className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -344,6 +356,20 @@ export default function DocumentsPage() {
             <Download size={15} />
             Export
           </button>
+          {tab === "contract" && (
+            <select
+              value={kindFilter}
+              onChange={(e) => setKindFilter(e.target.value as "" | Contract["kind"])}
+              className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-sm text-gray-700"
+            >
+              <option value="">ทุกประเภทสัญญา</option>
+              {(Object.keys(KIND_LABEL) as Contract["kind"][]).map((k) => (
+                <option key={k} value={k}>
+                  {KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          )}
           {tab === "contract" && (
             <Link
               href="/contracts/template"
@@ -405,7 +431,7 @@ export default function DocumentsPage() {
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-gray-900">{r.no}</p>
                         <p className="truncate text-xs text-gray-500">
-                          {clientName(r.clientId)} · {format(new Date(r.date), "d MMM", { locale: th })}
+                          {partyName(r)} · {format(new Date(r.date), "d MMM", { locale: th })}
                         </p>
                       </div>
                       <p className="shrink-0 text-sm font-semibold text-gray-900">฿{currency(r.amount)}</p>
@@ -494,6 +520,7 @@ export default function DocumentsPage() {
       {modal === "contract" && (
         <CreateContractModal
           clients={clients}
+          staff={staff}
           packages={packages}
           onClose={() => setModal("closed")}
           onSave={async (v: CreateContractValues) => {

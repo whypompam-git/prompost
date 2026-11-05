@@ -3,6 +3,7 @@ import { ContractDocument } from "@/components/contracts/ContractDocument";
 import { ContractToolbar } from "@/components/contracts/ContractToolbar";
 import { CONTRACT_COLUMNS, fromContractRow } from "@/lib/supabase/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { signerInfo, viewerIsOwner, withViewableSignatures } from "@/lib/contractServer";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +11,11 @@ export const dynamic = "force-dynamic";
 export default async function PrintContractPage({ params }: { params: { id: string } }) {
   const { data } = await createAdminClient().from("contracts").select(CONTRACT_COLUMNS).eq("id", params.id).maybeSingle();
   if (!data) notFound();
-  const contract = fromContractRow(data);
+  const owner = await viewerIsOwner();
+  // staff contracts are owner-only
+  if (data.kind && data.kind !== "client" && !owner) notFound();
+  const contract = await withViewableSignatures(fromContractRow(data));
+  const signer = owner && contract.kind !== "client" ? await signerInfo(contract.id) : undefined;
   return (
     <div className="min-h-screen bg-gray-100">
       <ContractToolbar
@@ -18,7 +23,7 @@ export default async function PrintContractPage({ params }: { params: { id: stri
         fileName={`สัญญา ${contract.parties.client.name} ${contract.contractNo}`.replace(/[\\/:*?"<>|]/g, " ")}
       />
       <div className="py-6">
-        <ContractDocument contract={contract} />
+        <ContractDocument contract={contract} signer={signer} />
       </div>
     </div>
   );

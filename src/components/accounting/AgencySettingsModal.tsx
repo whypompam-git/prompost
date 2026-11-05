@@ -62,6 +62,8 @@ export function AgencySettingsModal({
   const [taxId, setTaxId] = useState(initial.taxId);
   const [bankInfo, setBankInfo] = useState(initial.bankInfo);
   const [signatureUrl, setSignatureUrl] = useState(initial.signatureUrl ?? "");
+  const [businessType, setBusinessType] = useState<"individual" | "company">(initial.businessType ?? "individual");
+  const [ownerName, setOwnerName] = useState(initial.ownerName ?? "");
   const [uploading, setUploading] = useState(false);
   const sigRef = useRef<HTMLInputElement>(null);
 
@@ -82,7 +84,7 @@ export function AgencySettingsModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-2xl bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-gray-900">ข้อมูลผู้เสนอราคา (แสดงบนเอกสาร)</h3>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400 hover:bg-gray-100">
@@ -92,13 +94,35 @@ export function AgencySettingsModal({
 
         <div className="space-y-3">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-gray-500">ชื่อ</span>
+            <span className="mb-1 block text-xs font-medium text-gray-500">ชื่อกิจการ / ชื่อทางการค้า</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
           </label>
+          <div className="rounded-lg bg-gray-50 p-3">
+            <span className="mb-1.5 block text-xs font-medium text-gray-500">รูปแบบกิจการ (ใช้เป็นคู่สัญญา)</span>
+            <div className="mb-2 flex gap-3 text-sm text-gray-700">
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={businessType === "individual"} onChange={() => setBusinessType("individual")} /> บุคคลธรรมดา (ยังไม่จดบริษัท)
+              </label>
+              <label className="flex items-center gap-1.5">
+                <input type="radio" checked={businessType === "company"} onChange={() => setBusinessType("company")} /> นิติบุคคล
+              </label>
+            </div>
+            {businessType === "individual" && (
+              <>
+                <input
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="ชื่อ-นามสกุลเจ้าของ (ผู้ลงนามในสัญญา)"
+                  className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+                />
+                <p className="mt-1 text-[11px] text-gray-400">ในสัญญาจะเขียนว่า “{ownerName || "ชื่อเจ้าของ"} (ดำเนินธุรกิจภายใต้ชื่อทางการค้า “{name || "ชื่อด้านบน"}”)” — ใบเสนอราคา/ใบเสร็จยังใช้ชื่อด้านบน</p>
+              </>
+            )}
+          </div>
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-gray-500">ที่อยู่</span>
             <textarea
@@ -118,7 +142,7 @@ export function AgencySettingsModal({
               />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">เลขประจำตัวผู้เสียภาษี</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">เลขผู้เสียภาษี (บุคคลธรรมดา = เลขบัตรเจ้าของ)</span>
               <input
                 value={taxId}
                 onChange={(e) => setTaxId(e.target.value)}
@@ -170,7 +194,7 @@ export function AgencySettingsModal({
             ยกเลิก
           </button>
           <button
-            onClick={() => onSave({ name, address, phone, taxId, bankInfo, signatureUrl: signatureUrl || undefined })}
+            onClick={() => onSave({ name, address, phone, taxId, bankInfo, signatureUrl: signatureUrl || undefined, businessType, ownerName })}
             className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
           >
             บันทึก

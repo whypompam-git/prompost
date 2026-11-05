@@ -14,7 +14,7 @@ export function contractFingerprintSource(c: {
   intro: string;
   clauses: Contract["clauses"];
   closing: string;
-}): string {
+}, signer?: { idNo?: string; address?: string }): string {
   return JSON.stringify({
     no: c.contractNo,
     title: c.title,
@@ -27,6 +27,8 @@ export function contractFingerprintSource(c: {
     intro: c.intro,
     clauses: c.clauses,
     closing: c.closing,
+    // staff contracts: the identity the signer typed is part of what was agreed
+    ...(signer ? { signer: { idNo: signer.idNo ?? "", address: signer.address ?? "" } } : {}),
   });
 }
 

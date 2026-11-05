@@ -184,6 +184,8 @@ export interface AgencySettings {
   taxId: string;
   bankInfo: string;
   signatureUrl?: string;
+  businessType?: "individual" | "company";
+  ownerName?: string;
 }
 
 export type TransactionType = "income" | "expense";
@@ -258,10 +260,32 @@ export interface ContractTemplate {
   closing: string;
 }
 
+export type ContractKind = "client" | "monthly" | "freelance";
+export type PaymentMode = "monthly" | "deposit" | "custom";
+
+// kind-specific terms (monthly service agreement)
+export interface ContractTerms {
+  monthlyFee?: number;
+  clipsPerMonth?: number;
+  shootDaysPerMonth?: number;
+  payDay?: number;
+  noticeDays?: number;
+  withholding?: boolean; // deduct 3% withholding tax
+}
+
 export interface Contract {
   id: string;
   contractNo: string;
-  clientId: string;
+  kind: ContractKind;
+  clientId?: string;
+  staffId?: string;
+  termMonths?: number;
+  paymentMode?: PaymentMode;
+  terms: ContractTerms;
+  clipCount?: number;
+  pricePerClip?: number;
+  renewedFrom?: string;
+  estampRef?: string;
   status: ContractStatus;
   title: string;
   signDate: string; // ISO date

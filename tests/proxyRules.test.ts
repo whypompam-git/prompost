@@ -171,3 +171,16 @@ test("own-work-only accounts can reach nothing in the database proxy except thei
   assert.equal(run(mine, "PATCH", "rest/v1/notifications", "?id=eq.1", { read_at: "2026-01-01" }).ok, true);
   assert.equal(run(mine, "POST", "rest/v1/notifications", "", [{ title: "x" }]).ok, false);
 });
+
+test("staff contracts, signer info and payment vouchers are owner-only", () => {
+  const read = run(staff, "GET", "rest/v1/contracts", "?select=*");
+  assert.ok(read.ok && read.search.includes("kind=eq.client"));
+  const patch = run(finance, "PATCH", "rest/v1/contracts", "?id=eq.x");
+  assert.ok(patch.ok && patch.search.includes("kind=eq.client"));
+  assert.equal(run(staff, "POST", "rest/v1/contracts", "", { kind: "monthly" }).ok, false);
+  const ownerRead = run(owner, "GET", "rest/v1/contracts", "?select=*");
+  assert.ok(ownerRead.ok && !ownerRead.search.includes("kind="));
+  for (const t of ["contract_signer_info", "contract_payments", "contract_templates"]) assert.equal(run(staff, "GET", `rest/v1/${t}`, "?select=*").ok, false);
+  assert.equal(run(owner, "GET", "rest/v1/contract_signer_info", "?select=*").ok, true);
+  assert.equal(run(owner, "POST", "rest/v1/contract_signer_info", "", { contract_id: "x" }).ok, false);
+});

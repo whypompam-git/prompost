@@ -1,5 +1,5 @@
 import type { Contract } from "@/lib/types";
-import { thaiLongDate } from "@/lib/contractTemplate";
+import { roleLabels, thaiLongDate } from "@/lib/contractTemplate";
 
 const stamp = (iso: string) =>
   new Date(iso).toLocaleString("th-TH", {
@@ -26,9 +26,15 @@ function Party({ role, p }: { role: string; p: Contract["parties"]["client"] }) 
 
 // Every direct child of #contract-doc with class "contract-block" is a unit the
 // PDF export never splits across pages (see ContractToolbar).
-export function ContractDocument({ contract }: { contract: Contract }) {
+// `signer` = what the signer typed on a staff contract (ID card no., address) — passed only to people allowed to see it.
+export function ContractDocument({ contract, signer }: { contract: Contract; signer?: { idNo?: string; address?: string } }) {
   const { parties } = contract;
   const signed = contract.status === "signed";
+  const roles = roleLabels(contract.kind);
+  const other = signer ? { ...parties.client, taxId: signer.idNo || parties.client.taxId, address: signer.address || parties.client.address } : parties.client;
+  // the hiring side is listed first
+  const first = contract.kind === "client" ? { role: roles.counterparty, p: other } : { role: roles.us, p: parties.seller };
+  const second = contract.kind === "client" ? { role: roles.us, p: parties.seller } : { role: roles.counterparty, p: other };
 
   return (
     <div
@@ -44,10 +50,10 @@ export function ContractDocument({ contract }: { contract: Contract }) {
         <h1 className="my-4 text-center text-xl font-bold">{contract.title}</h1>
         <p className="mb-3 whitespace-pre-wrap">{contract.intro}</p>
         <div className="space-y-3">
-          <Party role="ผู้ว่าจ้าง" p={parties.client} />
-          <p className="text-gray-700">(ซึ่งต่อไปในสัญญานี้จะเรียกว่า “ผู้ว่าจ้าง”) ฝ่ายหนึ่ง กับ</p>
-          <Party role="ผู้รับจ้าง" p={parties.seller} />
-          <p className="text-gray-700">(ซึ่งต่อไปในสัญญานี้จะเรียกว่า “ผู้รับจ้าง”) อีกฝ่ายหนึ่ง</p>
+          <Party role={first.role} p={first.p} />
+          <p className="text-gray-700">(ซึ่งต่อไปในสัญญานี้จะเรียกว่า “{first.role}”) ฝ่ายหนึ่ง กับ</p>
+          <Party role={second.role} p={second.p} />
+          <p className="text-gray-700">(ซึ่งต่อไปในสัญญานี้จะเรียกว่า “{second.role}”) อีกฝ่ายหนึ่ง</p>
           <p>คู่สัญญาทั้งสองฝ่ายตกลงทำสัญญากันโดยมีข้อความและเงื่อนไขดังต่อไปนี้:</p>
         </div>
       </div>
@@ -70,7 +76,7 @@ export function ContractDocument({ contract }: { contract: Contract }) {
               )}
             </div>
             <div className="border-t border-gray-400 pt-1.5">
-              <p>ลงชื่อ (ผู้ว่าจ้าง)</p>
+              <p>ลงชื่อ ({roles.counterparty})</p>
               <p className="font-medium">( {contract.clientSignerName || parties.client.name || "............................"} )</p>
               <p className="text-xs text-gray-500">
                 วันที่: {signed && contract.clientSignedAt ? thaiLongDate(contract.clientSignedAt) : "............. / ............. / ............."}
@@ -85,7 +91,7 @@ export function ContractDocument({ contract }: { contract: Contract }) {
               )}
             </div>
             <div className="border-t border-gray-400 pt-1.5">
-              <p>ลงชื่อ (ผู้รับจ้าง)</p>
+              <p>ลงชื่อ ({roles.us})</p>
               <p className="font-medium">( {parties.seller.name || "............................"} )</p>
               <p className="text-xs text-gray-500">วันที่: {thaiLongDate(contract.signDate)}</p>
             </div>
@@ -93,7 +99,7 @@ export function ContractDocument({ contract }: { contract: Contract }) {
         </div>
         {signed && contract.clientSignedAt && (
           <p className="mt-5 rounded-lg bg-gray-50 px-3 py-2 text-center text-[11px] text-gray-500">
-            ผู้ว่าจ้างลงนามอิเล็กทรอนิกส์เมื่อ {stamp(contract.clientSignedAt)} น.
+            {roles.counterparty}ลงนามอิเล็กทรอนิกส์เมื่อ {stamp(contract.clientSignedAt)} น.
             {contract.contentHash ? ` · รหัสตรวจสอบเอกสาร ${contract.contentHash.slice(0, 16)}` : ""}
           </p>
         )}

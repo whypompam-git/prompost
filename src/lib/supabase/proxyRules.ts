@@ -32,7 +32,10 @@ const TABLES = new Set([
   "client_packages",
   "clients",
   "content_sets",
+  "contract_payments",
+  "contract_signer_info",
   "contract_template",
+  "contract_templates",
   "contracts",
   "doc_counters", // read-only: numbers are issued through the next_doc_no rpc
   "invoices",
@@ -216,6 +219,19 @@ export function authorizeProxyRequest(input: {
   }
 
   if (table === "line_channels" && !isOwner) return deny(403, "owner only");
+
+  // contracts with team members / outsource (and what they typed when signing) are the owner's only;
+  // everyone else is pinned to client contracts
+  if ((table === "contract_signer_info" || table === "contract_payments" || table === "contract_templates") && !isOwner) return deny(403, "owner only");
+  if (table === "contract_signer_info" && write) return deny(403, "written when the contract is signed");
+  if (table === "contracts" && !isOwner) {
+    if (method === "POST") {
+      for (const row of bodyRows(input.body)) if (row.kind !== undefined && row.kind !== "client") return deny(403, "staff contracts are owner-only");
+    } else {
+      params.set("kind", "eq.client");
+      search = `?${params.toString()}`;
+    }
+  }
   if (table === "doc_counters" && write) return deny(403, "use the next_doc_no rpc");
 
   if (FINANCIAL_TABLES.has(table) && write && !canWriteFinance) {

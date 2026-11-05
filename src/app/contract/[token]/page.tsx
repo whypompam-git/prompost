@@ -5,6 +5,7 @@ import { ContractToolbar } from "@/components/contracts/ContractToolbar";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { CONTRACT_COLUMNS, fromContractRow } from "@/lib/supabase/queries";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { withViewableSignatures } from "@/lib/contractServer";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,12 @@ export default async function ContractSharePage({ params }: { params: { token: s
   const { data } = await supabase.from("contracts").select(CONTRACT_COLUMNS).eq("share_token", params.token).maybeSingle();
   // drafts are not shared yet
   if (!data || data.status === "draft") notFound();
-  const contract = fromContractRow(data);
+  const contract = await withViewableSignatures(fromContractRow(data));
 
-  const { data: client } = await supabase.from("clients").select("portal_enabled").eq("id", contract.clientId).maybeSingle();
-  if (client && client.portal_enabled === false) return <LinkRevoked />;
+  if (contract.clientId) {
+    const { data: client } = await supabase.from("clients").select("portal_enabled").eq("id", contract.clientId).maybeSingle();
+    if (client && client.portal_enabled === false) return <LinkRevoked />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -25,7 +28,7 @@ export default async function ContractSharePage({ params }: { params: { token: s
       <div className="py-6">
         <ContractDocument contract={contract} />
         {contract.status === "sent" && (
-          <ContractSignForm shareToken={contract.shareToken} defaultName="" />
+          <ContractSignForm shareToken={contract.shareToken} defaultName={contract.kind === "client" ? "" : contract.parties.client.name} kind={contract.kind} />
         )}
         {contract.status === "signed" && (
           <p className="mx-auto mt-4 w-[210mm] max-w-full px-4 text-center text-sm text-emerald-600">

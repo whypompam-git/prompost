@@ -8,8 +8,8 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClauseEditor } from "@/components/contracts/ClauseEditor";
-import { findPlaceholders } from "@/lib/contractTemplate";
-import { getContract, setContractStatus, updateContractRow } from "@/lib/supabase/queries";
+import { KIND_LABEL, findPlaceholders, roleLabels } from "@/lib/contractTemplate";
+import { getContract, setContractEstampRef, setContractStatus, updateContractRow } from "@/lib/supabase/queries";
 import type { Contract, ContractParty } from "@/lib/types";
 
 const field =
@@ -35,10 +35,14 @@ export default function ContractEditorPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [estamp, setEstamp] = useState("");
 
   useEffect(() => {
     getContract(params.id)
-      .then(setContract)
+      .then((c) => {
+        setContract(c);
+        setEstamp(c?.estampRef ?? "");
+      })
       .catch((err) => {
         console.error(err);
         window.alert(`โหลดสัญญาไม่สำเร็จ: ${err instanceof Error ? err.message : String(err)}`);
@@ -79,7 +83,7 @@ export default function ContractEditorPage() {
     if (!contract) return;
     const left = findPlaceholders([contract.intro, contract.closing, ...contract.clauses.flatMap((c) => [c.heading, c.body])]);
     if (left.length > 0 && !window.confirm(`ยังมีช่องที่ไม่ได้กรอก ${left.length} จุด:\n${left.slice(0, 6).join("\n")}\n\nส่งให้ลูกค้าเซ็นทั้งอย่างนี้เลยไหม?`)) return;
-    if (!window.confirm("ส่งสัญญาให้ลูกค้าเซ็น? หลังลูกค้าเซ็นแล้วจะแก้ไขสัญญาไม่ได้")) return;
+    if (!window.confirm(`ส่งสัญญาให้${contract.kind === "client" ? "ลูกค้า" : "ผู้รับจ้าง"}เซ็น? หลังเซ็นแล้วจะแก้ไขสัญญาไม่ได้`)) return;
     setSaving(true);
     try {
       await persist(contract);
@@ -125,23 +129,45 @@ export default function ContractEditorPage() {
     return (
       <>
         <Topbar back="/documents" title={contract.contractNo} subtitle="ลงนามแล้ว — แก้ไขไม่ได้" />
-        <div className="p-6">
+        <div className="space-y-4 p-6">
           <Link href={`/print/contract/${contract.id}`} className="text-sm font-medium text-brand-600 hover:underline">
             เปิดดูสัญญาที่ลงนามแล้ว
           </Link>
+          <Card className="max-w-md space-y-2">
+            <p className="text-sm font-medium text-gray-700">อากรแสตมป์ (e-Stamp)</p>
+            <p className="text-xs text-gray-400">สัญญาจ้างทำของต้องเสียอากรประมาณ 1 บาท ต่อทุก 1,000 บาท (≈ {Math.ceil(contract.totalAmount / 1000)} บาท) ชำระที่ระบบ e-Stamp ของกรมสรรพากร แล้วจดเลขอ้างอิงไว้ที่นี่</p>
+            <div className="flex gap-2">
+              <input value={estamp} onChange={(e) => setEstamp(e.target.value)} placeholder="เลขอ้างอิง e-Stamp" className={field} />
+              <button
+                onClick={async () => {
+                  try {
+                    await setContractEstampRef(contract.id, estamp);
+                    window.alert("บันทึกแล้ว");
+                  } catch (err) {
+                    window.alert(`บันทึกไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+                  }
+                }}
+                className="shrink-0 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+              >
+                บันทึก
+              </button>
+            </div>
+          </Card>
         </div>
       </>
     );
   }
 
   const patch = (p: Partial<Contract>) => setContract({ ...contract, ...p });
+  const roles = roleLabels(contract.kind);
+  const who = contract.kind === "client" ? "ลูกค้า" : "ผู้รับจ้าง";
 
   return (
     <>
       <Topbar
         back="/documents"
         title={contract.contractNo}
-        subtitle={contract.status === "sent" ? "ส่งให้ลูกค้าเซ็นแล้ว — รอลงนาม" : "ร่าง — ยังไม่ส่งให้ลูกค้า"}
+        subtitle={`สัญญา${KIND_LABEL[contract.kind]} · ${contract.status === "sent" ? `ส่งให้${who}เซ็นแล้ว — รอลงนาม` : `ร่าง — ยังไม่ส่งให้${who}`}`}
       />
       <div className="flex-1 space-y-4 p-4 sm:p-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -156,13 +182,13 @@ export default function ContractEditorPage() {
           {contract.status === "draft" ? (
             <button onClick={handleSend} disabled={saving} className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40">
               <Send size={15} />
-              ส่งให้ลูกค้าเซ็น
+              ส่งให้{who}เซ็น
             </button>
           ) : (
             <>
               <button onClick={copyLink} className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600">
                 {copied ? <Check size={15} /> : <Copy size={15} />}
-                {copied ? "คัดลอกแล้ว" : "คัดลอกลิงก์ให้ลูกค้าเซ็น"}
+                {copied ? "คัดลอกแล้ว" : `คัดลอกลิงก์ให้${who}เซ็น`}
               </button>
               <button onClick={handleUnsend} className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50">
                 <Undo2 size={15} />
@@ -191,8 +217,8 @@ export default function ContractEditorPage() {
         </Card>
 
         <Card className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <PartyFields title="ผู้ว่าจ้าง (ลูกค้า)" party={contract.parties.client} onChange={(p) => patch({ parties: { ...contract.parties, client: p } })} />
-          <PartyFields title="ผู้รับจ้าง" party={contract.parties.seller} onChange={(p) => patch({ parties: { ...contract.parties, seller: p } })} />
+          <PartyFields title={`${roles.counterparty}${contract.kind === "client" ? " (ลูกค้า)" : " — เลขบัตร/ที่อยู่ให้ผู้รับจ้างกรอกตอนเซ็น"}`} party={contract.parties.client} onChange={(p) => patch({ parties: { ...contract.parties, client: p } })} />
+          <PartyFields title={`${roles.us} (เรา)`} party={contract.parties.seller} onChange={(p) => patch({ parties: { ...contract.parties, seller: p } })} />
         </Card>
 
         <Card>
