@@ -8,6 +8,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClauseEditor } from "@/components/contracts/ClauseEditor";
+import { ContractStaffPanel } from "@/components/contracts/ContractStaffPanel";
 import { KIND_LABEL, findPlaceholders, roleLabels } from "@/lib/contractTemplate";
 import { createContractFromTemplate, getContract, setContractEstampRef, setContractStatus, updateContractRow } from "@/lib/supabase/queries";
 import { renewalValues } from "@/lib/contractRenewal";
@@ -154,6 +155,7 @@ export default function ContractEditorPage() {
             </button>
             {contract.endDate && <span className="text-xs text-gray-500">สิ้นสุด {contract.endDate}</span>}
           </div>
+          {contract.kind !== "client" && <ContractStaffPanel contract={contract} />}
           <Card className="max-w-md space-y-2">
             <p className="text-sm font-medium text-gray-700">อากรแสตมป์ (e-Stamp)</p>
             <p className="text-xs text-gray-400">สัญญาจ้างทำของต้องเสียอากรประมาณ 1 บาท ต่อทุก 1,000 บาท (≈ {Math.ceil(contract.totalAmount / 1000)} บาท) ชำระที่ระบบ e-Stamp ของกรมสรรพากร แล้วจดเลขอ้างอิงไว้ที่นี่</p>

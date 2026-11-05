@@ -229,6 +229,7 @@ export function MyWork({ name }: { name: string }) {
   const [error, setError] = useState("");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [filter, setFilter] = useState<MyBucket | "all" | null>(null); // null = not chosen yet → best default
+  const [contract, setContract] = useState<{ kind: string; contractNo: string; target: number; done: number; shootTarget?: number; shootDays?: number } | null>(null);
 
   async function load() {
     try {
@@ -236,6 +237,7 @@ export function MyWork({ name }: { name: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       setTasks(data.tasks);
+      setContract(data.contract ?? null);
       setError("");
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดไม่สำเร็จ");
@@ -285,6 +287,21 @@ export function MyWork({ name }: { name: string }) {
           </button>
         </div>
       </header>
+
+      {contract && contract.target > 0 && (
+        <div className="mx-auto max-w-3xl px-4 pt-4">
+          <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-700 shadow-card">
+            <p className="text-xs text-gray-400">สัญญา {contract.contractNo}</p>
+            <p className="font-medium">
+              {contract.kind === "freelance" ? "สัญญารอบนี้" : "เดือนนี้"} ผ่านแล้ว {contract.done} / {contract.target} คลิป
+              {contract.kind === "monthly" && contract.shootTarget ? ` · ลงถ่าย ${contract.shootDays ?? 0} / ${contract.shootTarget} วัน` : ""}
+            </p>
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
+              <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.min(100, Math.round((contract.done / contract.target) * 100))}%` }} />
+            </div>
+          </div>
+        </div>
+      )}
 
       <nav className="mx-auto flex max-w-3xl gap-2 px-4 pt-4">
         {([["list", "งานของฉัน", ListChecks], ["calendar", "ปฏิทิน", CalendarDays]] as const).map(([key, label, Icon]) => (

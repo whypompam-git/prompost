@@ -18,6 +18,8 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "contracts", columns: "kind, staff_id, term_months, payment_mode, terms, clip_count, price_per_clip, estamp_ref", migration: "0043" },
   { table: "contract_templates", columns: "kind, content", migration: "0043" },
   { table: "agency_settings", columns: "business_type, owner_name", migration: "0043" },
+  { table: "contract_payments", columns: "id, contract_id, amount, net, receipt_token, payee_signed_at", migration: "0043" },
+  { table: "tasks", columns: "contract_id", migration: "0043" },
   { table: "teams", columns: "id, name, sort_order", migration: "0031" },
   { table: "staff", columns: "team_id", migration: "0031" },
   { table: "tasks", columns: "shot_by, shot_team_id, revision_count, revision_brief", migration: "0032" },

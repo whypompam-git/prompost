@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   "/invoice",
   "/receipt",
   "/mc-pack/", // public MC proposal link for a client
+  "/voucher/", // payee signs a payment voucher (token link)
   "/contract/", // public share + sign page (note the slash: /contracts/* is staff-only)
   "/manifest.json",
   "/sw.js",

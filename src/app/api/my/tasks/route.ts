@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireMe } from "@/lib/myWork";
 import { MY_STAGES, type MyTask } from "@/lib/myWorkTypes";
+import { freelanceProgress, monthlyProgress } from "@/lib/contractProgress";
+import { bangkokDay } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
 
@@ -42,5 +44,37 @@ export async function GET(request: NextRequest) {
       revisionBrief: r.revision_brief,
     };
   });
-  return NextResponse.json({ me: me.name, tasks });
+  // the caller's current signed contract: how far along it is (counts only, no money)
+  let contract: { kind: string; contractNo: string; target: number; done: number; shootTarget?: number; shootDays?: number; month?: string } | null = null;
+  const { data: cs } = await db
+    .from("contracts")
+    .select("id, kind, contract_no, clip_count, terms, client_signed_at")
+    .eq("staff_id", me.staffId)
+    .eq("status", "signed")
+    .order("client_signed_at", { ascending: false })
+    .limit(5);
+  const today = bangkokDay(new Date());
+  const freelance = (cs ?? []).find((c) => c.kind === "freelance");
+  const monthly = (cs ?? []).find((c) => c.kind === "monthly");
+  if (freelance) {
+    const { data: linked } = await db.from("tasks").select("type, contract_id").eq("contract_id", freelance.id);
+    const p = freelanceProgress(freelance.id, (linked ?? []).map((t) => ({ contractId: t.contract_id, type: t.type })));
+    contract = { kind: "freelance", contractNo: freelance.contract_no, target: freelance.clip_count ?? 0, done: p.passed };
+  } else if (monthly) {
+    const month = today.slice(0, 7);
+    const [{ data: mt }, { data: qs }] = await Promise.all([
+      db.from("tasks").select("type, editor_id, shot_by, edit_date, scheduled_date").or(`editor_id.eq.${me.staffId},shot_by.eq.${me.staffId}`).gte("edit_date", `${month}-01`).limit(500),
+      db.from("queues").select("crew, shoot_date").contains("crew", [me.staffId]).gte("shoot_date", `${month}-01`),
+    ]);
+    const p = monthlyProgress(
+      me.staffId,
+      month,
+      (mt ?? []).map((t) => ({ editorId: t.editor_id, shotBy: t.shot_by, type: t.type, editDate: t.edit_date, scheduledDate: t.scheduled_date })),
+      (qs ?? []).map((q) => ({ crew: q.crew ?? [], shootDate: q.shoot_date })),
+      today,
+    );
+    const terms = (monthly.terms ?? {}) as { clipsPerMonth?: number; shootDaysPerMonth?: number };
+    contract = { kind: "monthly", contractNo: monthly.contract_no, target: terms.clipsPerMonth ?? 0, done: p.clipsPassed, shootTarget: terms.shootDaysPerMonth ?? 0, shootDays: p.shootDays, month };
+  }
+  return NextResponse.json({ me: me.name, tasks, contract });
 }

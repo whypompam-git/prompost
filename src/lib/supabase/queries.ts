@@ -2288,3 +2288,78 @@ export async function listAiPlaybookVersions(key: string): Promise<AiPlaybookVer
   if (error) throw error;
   return (data as { id: string; content: string; saved_at: string }[]).map((r) => ({ id: r.id, content: r.content, savedAt: r.saved_at }));
 }
+
+// ── Contract progress & payment vouchers (owner-only through the proxy) ──
+export type ContractPayment = {
+  id: string;
+  contractId: string;
+  period?: string;
+  description: string;
+  amount: number;
+  withholding: number;
+  net: number;
+  paidAt?: string;
+  receiptToken: string;
+  payeeSignerName?: string;
+  payeeSignedAt?: string;
+  createdAt: string;
+};
+
+type ContractPaymentRow = {
+  id: string; contract_id: string; period: string | null; description: string; amount: number; withholding: number; net: number;
+  paid_at: string | null; receipt_token: string; payee_signer_name: string | null; payee_signed_at: string | null; created_at: string;
+};
+const PAYMENT_COLUMNS = "id, contract_id, period, description, amount, withholding, net, paid_at, receipt_token, payee_signer_name, payee_signed_at, created_at";
+const fromPaymentRow = (r: ContractPaymentRow): ContractPayment => ({
+  id: r.id, contractId: r.contract_id, period: r.period ?? undefined, description: r.description, amount: Number(r.amount),
+  withholding: Number(r.withholding), net: Number(r.net), paidAt: r.paid_at ?? undefined, receiptToken: r.receipt_token,
+  payeeSignerName: r.payee_signer_name ?? undefined, payeeSignedAt: r.payee_signed_at ?? undefined, createdAt: r.created_at,
+});
+
+export async function listContractPayments(contractId: string): Promise<ContractPayment[]> {
+  const { data, error } = await supabase().from("contract_payments").select(PAYMENT_COLUMNS).eq("contract_id", contractId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as ContractPaymentRow[]).map(fromPaymentRow);
+}
+
+// a voucher is also an expense in accounting
+export async function createContractPayment(v: { contractId: string; payeeName: string; period?: string; description: string; amount: number; withholding: number; paidAt: string }): Promise<ContractPayment> {
+  const net = Math.round((v.amount - v.withholding) * 100) / 100;
+  const tx = await createTransactionRow({
+    type: "expense",
+    category: "ค่าจ้างทีมงาน",
+    amount: net,
+    description: `${v.payeeName} · ${v.description}`,
+    occurredAt: v.paidAt,
+  });
+  const { data, error } = await supabase()
+    .from("contract_payments")
+    .insert({ contract_id: v.contractId, period: v.period || null, description: v.description, amount: v.amount, withholding: v.withholding, net, paid_at: v.paidAt, transaction_id: tx.id })
+    .select(PAYMENT_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromPaymentRow(data as ContractPaymentRow);
+}
+
+export type ProgressSource = {
+  tasks: { contractId: string | null; editorId: string | null; shotBy: string | null; type: string; editDate: string | null; scheduledDate: string | null; title: string }[];
+  queues: { crew: string[]; shootDate: string | null }[];
+};
+
+export async function loadContractProgressSource(c: Contract): Promise<ProgressSource> {
+  if (!c.staffId) return { tasks: [], queues: [] };
+  const db = supabase();
+  const [{ data: ts, error }, { data: qs }] = await Promise.all([
+    db
+      .from("tasks")
+      .select("title, type, contract_id, editor_id, shot_by, edit_date, scheduled_date")
+      .or(`contract_id.eq.${c.id},editor_id.eq.${c.staffId},shot_by.eq.${c.staffId}`)
+      .limit(2000),
+    db.from("queues").select("crew, shoot_date").contains("crew", [c.staffId]),
+  ]);
+  if (error) throw error;
+  return {
+    tasks: (ts ?? []).map((t) => ({ title: t.title, type: t.type, contractId: t.contract_id, editorId: t.editor_id, shotBy: t.shot_by, editDate: t.edit_date, scheduledDate: t.scheduled_date })),
+    queues: (qs ?? []).map((q) => ({ crew: q.crew ?? [], shootDate: q.shoot_date })),
+  };
+}
