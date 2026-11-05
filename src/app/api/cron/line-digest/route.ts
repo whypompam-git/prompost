@@ -3,6 +3,31 @@ import { NextResponse } from "next/server";
 import { bangkokDay, bangkokHour, channelDue } from "@/lib/alerts";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildDigestText, lineTokenSet, pushLine } from "@/lib/lineDigest";
+import { expiryReminders } from "@/lib/contractRenewal";
+import { CONTRACT_COLUMNS, fromContractRow } from "@/lib/supabase/queries";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Contracts nearing their end → the owner's bell (never the team LINE groups:
+// staff contracts are owner-only). One notification per contract per stage.
+async function remindContractExpiry(db: SupabaseClient, today: string): Promise<number> {
+  const { data: rows, error } = await db.from("contracts").select(CONTRACT_COLUMNS).eq("status", "signed").not("end_date", "is", null);
+  if (error || !rows?.length) return 0;
+  const contracts = rows.map(fromContractRow);
+  const renewed = new Set(contracts.map((c) => c.renewedFrom).filter((x): x is string => !!x));
+  const due = expiryReminders(contracts, renewed, today);
+  if (!due.length) return 0;
+  const { data: owners } = await db.from("staff").select("id").eq("role", "owner").eq("is_active", true);
+  let made = 0;
+  for (const d of due) {
+    for (const o of owners ?? []) {
+      const { data: seen } = await db.from("notifications").select("id").eq("recipient_id", o.id).eq("kind", "contract_expiry").eq("title", d.title).limit(1);
+      if (seen?.length) continue;
+      await db.from("notifications").insert({ recipient_id: o.id, kind: "contract_expiry", client_id: d.clientId ?? null, title: d.title });
+      made++;
+    }
+  }
+  return made;
+}
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +52,7 @@ export async function GET(request: Request) {
     const dry = new URL(request.url).searchParams.get("dry") === "1";
     const now = new Date();
     const db = createAdminClient();
+    if (!dry) await remindContractExpiry(db, bangkokDay(now)).catch((err) => console.error("contract reminders", err));
     const cols = "id, name, group_id, send_hour, topics, team_id, enabled, last_sent_on";
     let { data: channels, error: chErr } = await db.from("line_channels").select(cols);
     // No channels yet: turn the old single-group setup (LINE_TO) into a real channel

@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Check, Copy, Eye, Save, Send, Undo2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClauseEditor } from "@/components/contracts/ClauseEditor";
 import { KIND_LABEL, findPlaceholders, roleLabels } from "@/lib/contractTemplate";
-import { getContract, setContractEstampRef, setContractStatus, updateContractRow } from "@/lib/supabase/queries";
+import { createContractFromTemplate, getContract, setContractEstampRef, setContractStatus, updateContractRow } from "@/lib/supabase/queries";
+import { renewalValues } from "@/lib/contractRenewal";
+import { bangkokDay } from "@/lib/alerts";
 import type { Contract, ContractParty } from "@/lib/types";
 
 const field =
@@ -31,6 +33,7 @@ function PartyFields({ title, party, onChange }: { title: string; party: Contrac
 
 export default function ContractEditorPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -103,6 +106,18 @@ export default function ContractEditorPage() {
     setContract({ ...contract, status: "draft" });
   }
 
+  async function renew() {
+    if (!contract) return;
+    const v = renewalValues(contract, bangkokDay(new Date()));
+    if (!window.confirm(`สร้างร่างสัญญาฉบับต่อไปจากเงื่อนไขเดิม${v.startDate ? ` (เริ่ม ${v.startDate})` : ""}? แก้ไขได้ก่อนส่งเซ็น`)) return;
+    try {
+      const created = await createContractFromTemplate(v);
+      router.push(`/contracts/${created.id}`);
+    } catch (err) {
+      window.alert(`สร้างไม่สำเร็จ${err instanceof Error ? `: ${err.message}` : ""}`);
+    }
+  }
+
   async function copyLink() {
     if (!contract) return;
     await navigator.clipboard.writeText(`${window.location.origin}/contract/${contract.shareToken}`);
@@ -130,9 +145,15 @@ export default function ContractEditorPage() {
       <>
         <Topbar back="/documents" title={contract.contractNo} subtitle="ลงนามแล้ว — แก้ไขไม่ได้" />
         <div className="space-y-4 p-6">
-          <Link href={`/print/contract/${contract.id}`} className="text-sm font-medium text-brand-600 hover:underline">
-            เปิดดูสัญญาที่ลงนามแล้ว
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href={`/print/contract/${contract.id}`} className="text-sm font-medium text-brand-600 hover:underline">
+              เปิดดูสัญญาที่ลงนามแล้ว
+            </Link>
+            <button onClick={renew} className="rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600">
+              ต่อสัญญา (สร้างฉบับใหม่จากเงื่อนไขเดิม)
+            </button>
+            {contract.endDate && <span className="text-xs text-gray-500">สิ้นสุด {contract.endDate}</span>}
+          </div>
           <Card className="max-w-md space-y-2">
             <p className="text-sm font-medium text-gray-700">อากรแสตมป์ (e-Stamp)</p>
             <p className="text-xs text-gray-400">สัญญาจ้างทำของต้องเสียอากรประมาณ 1 บาท ต่อทุก 1,000 บาท (≈ {Math.ceil(contract.totalAmount / 1000)} บาท) ชำระที่ระบบ e-Stamp ของกรมสรรพากร แล้วจดเลขอ้างอิงไว้ที่นี่</p>
