@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import { CalendarDays, CheckCheck, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
+import { CalendarDays, CheckCheck, Printer, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import { DIFFICULTY } from "@/components/dashboard/TaskTable";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
@@ -167,6 +167,9 @@ export function ClientTaskBoard({
           <button onClick={() => setAssignFor([...selected])} className="rounded-lg bg-brand-500 px-3 py-1 text-xs font-medium text-white hover:bg-brand-600">
             จัดเข้าคิว…
           </button>
+          <a href={`/print/scripts?ids=${[...selected].join(",")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-brand-300 bg-white px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">
+            <Printer size={12} /> พิมพ์สคริปต์ (A4 + QR)
+          </a>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-xs text-gray-500 hover:underline">
             ล้างที่เลือก
           </button>
@@ -201,6 +204,9 @@ export function ClientTaskBoard({
                   )}
                   <span className="text-xs text-gray-400">ถ่ายแล้ว/เลยขั้นถ่าย {shot}/{g.tasks.length}</span>
                   <span className="ml-auto flex gap-1">
+                    <a href={`/print/scripts?ids=${g.tasks.map((x) => x.id).join(",")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                      <Printer size={12} /> พิมพ์ทั้งคิว
+                    </a>
                     <button onClick={() => markQueueShot(g)} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
                       <CheckCheck size={12} /> ถ่ายแล้วทั้งคิว
                     </button>

@@ -1,5 +1,7 @@
 "use client";
 
+import { clientLinkPath } from "@/lib/slug";
+import { ExternalLink } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -142,6 +144,19 @@ export default function ClientContentDashboardPage() {
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-gray-700">รายการงาน</h2>
             <div className="flex items-center gap-2">
+              {client.portalEnabled ? (
+                <a
+                  href={clientLinkPath(client)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <ExternalLink size={15} />
+                  ดูหน้าลูกค้า
+                </a>
+              ) : (
+                <span className="rounded-lg bg-rose-50 px-3 py-2 text-xs font-medium text-rose-600">ลิงก์ลูกค้าถูกยกเลิก</span>
+              )}
               <button
                 onClick={() => setBulkOpen(true)}
                 className="flex items-center gap-1.5 rounded-lg border border-brand-200 bg-brand-50 px-3.5 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100"

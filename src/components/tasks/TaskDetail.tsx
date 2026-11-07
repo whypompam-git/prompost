@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ImagePlus, Pencil, Save, Trash2, X } from "lucide-react";
+import { ArrowLeft, ImagePlus, Pencil, Printer, Save, Trash2, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -171,6 +171,15 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
             กลับ
           </button>
           <div className="flex gap-2">
+            <a
+              href={`/print/scripts?ids=${task.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3.5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Printer size={15} />
+              พิมพ์สคริปต์
+            </a>
             {mode === "content" && (
               <Link
                 href={`/tasks/${task.id}/edit`}
