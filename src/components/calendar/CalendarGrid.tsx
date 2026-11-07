@@ -9,11 +9,11 @@ import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
 import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";
 import { cn } from "@/lib/utils";
 
-const GROUP_COLOR: Record<ChipGroup, ColorStem> = { shoot: "sky", edit: "orange", send: "rose", other: "gray" };
+const GROUP_COLOR: Record<ChipGroup, ColorStem> = { plan: "violet", shoot: "sky", edit: "orange", other: "gray" };
 const LEGEND: { group: ChipGroup; label: string }[] = [
+  { group: "plan", label: "Plan" },
   { group: "shoot", label: "ถ่าย (ตามคิว)" },
-  { group: "edit", label: "ตัดต่อ/QC" },
-  { group: "send", label: "ส่งงานให้ลูกค้า" },
+  { group: "edit", label: "ตัดต่อ/ส่งงาน (Deadline = วันตัดต่อ)" },
   { group: "other", label: "งานอื่นๆ" },
 ];
 const WEEKDAYS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];
@@ -27,14 +27,17 @@ export function CalendarGrid({
   month,
   detailed = false,
   onAddTask,
+  onMoveChip,
 }: {
   days: Date[];
   chips: CalendarChip[];
   month?: Date; // days outside this month are dimmed
   detailed?: boolean; // week view: show crew names under each chip
   onAddTask?: (date: string) => void;
+  onMoveChip?: (chip: CalendarChip, date: string) => void; // drag a chip onto another day
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [overDay, setOverDay] = useState("");
 
   return (
     <div>
@@ -57,7 +60,21 @@ export function CalendarGrid({
               return (
                 <div
                   key={iso}
+                  id={`day-${iso}`}
+                  onDragOver={onMoveChip ? (e) => { e.preventDefault(); setOverDay(iso); } : undefined}
+                  onDragLeave={() => setOverDay((d) => (d === iso ? "" : d))}
+                  onDrop={
+                    onMoveChip
+                      ? (e) => {
+                          e.preventDefault();
+                          setOverDay("");
+                          const chip = chips.find((c) => c.key === e.dataTransfer.getData("text/chip"));
+                          if (chip && chip.date !== iso) onMoveChip(chip, iso);
+                        }
+                      : undefined
+                  }
                   className={cn(
+                    overDay === iso && "ring-2 ring-inset ring-brand-300",
                     "group min-h-[104px] border-b border-r border-gray-100 p-1.5",
                     detailed && "min-h-[260px]",
                     isToday(day) && "bg-brand-50/40",
@@ -88,6 +105,8 @@ export function CalendarGrid({
                       <Link
                         key={chip.key}
                         href={chip.href}
+                        draggable={!!onMoveChip}
+                        onDragStart={(e) => e.dataTransfer.setData("text/chip", chip.key)}
                         title={`${chip.label}${chip.group !== "other" ? ` · ${chip.count} คลิป` : ""}${chip.crew.length ? ` · ${chip.crew.join(", ")}` : ""}`}
                         className={cn("flex min-w-0 flex-col rounded-md px-1.5 py-1 text-[11px] font-medium leading-tight hover:brightness-95", pillClass(GROUP_COLOR[chip.group]))}
                       >
@@ -118,7 +137,7 @@ export function CalendarGrid({
         </div>
       </div>
       <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
-        <span className="text-gray-400">งาน Plan ไม่แสดงในปฏิทิน · งานถ่ายจะขึ้นเมื่อจัดเข้าคิวและใส่วันถ่ายแล้ว</span>
+        <span className="text-gray-400">ลากการ์ดไปวางวันอื่นเพื่อเปลี่ยนวันที่</span>
         {LEGEND.map((l) => (
           <div key={l.group} className="flex items-center gap-1.5">
             <span className={cn("h-2 w-2 rounded-full", PALETTE[GROUP_COLOR[l.group]].solid)} />

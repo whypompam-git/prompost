@@ -1,8 +1,8 @@
 "use client";
 
 import { Trash2, X } from "lucide-react";
-import { STAGES } from "@/lib/workflow";
-import type { Client, Staff, Task } from "@/lib/types";
+import { STAGES, statusLabel } from "@/lib/workflow";
+import type { Client, ContentCategory, Staff, Task, TaskStatus } from "@/lib/types";
 
 const sel =
   "rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs font-medium text-gray-700 focus:outline-none";
@@ -43,6 +43,46 @@ export function BulkActionBar({
           ส่ง
           <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ dueDate: e.target.value })} />
         </label>
+        <label className="flex items-center gap-1 text-xs text-gray-500">
+          วันตัดต่อ
+          <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ editDate: e.target.value })} />
+        </label>
+        <label className="flex items-center gap-1 text-xs text-gray-500">
+          วันโพส
+          <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ postDate: e.target.value })} />
+        </label>
+        <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ status: e.target.value as TaskStatus })}>
+          <option value="">เปลี่ยนสถานะ…</option>
+          {(["todo", "in_progress", "review", "done", "waiting"] as TaskStatus[]).map((st) => (
+            <option key={st} value={st}>
+              {statusLabel("other", st)}
+            </option>
+          ))}
+        </select>
+        <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ contentCategory: e.target.value as ContentCategory })}>
+          <option value="">เปลี่ยนหมวด…</option>
+          <option value="mass">Mass</option>
+          <option value="royalty">Royalty</option>
+          <option value="sell">Sell</option>
+        </select>
+        <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ editorId: e.target.value === "none" ? null : e.target.value })}>
+          <option value="">เปลี่ยนผู้ตัดต่อ…</option>
+          <option value="none">ไม่ระบุ</option>
+          {staff.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+        <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ shotById: e.target.value === "none" ? null : e.target.value })}>
+          <option value="">เปลี่ยนคนถ่าย…</option>
+          <option value="none">ไม่ระบุ</option>
+          {staff.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
         <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ clientId: e.target.value })}>
           <option value="">เปลี่ยนลูกค้า…</option>
           {clients.map((c) => (

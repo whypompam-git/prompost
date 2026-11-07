@@ -8,11 +8,11 @@ const staff = [{ id: "s1", name: "นุ่น" }, { id: "s2", name: "กาย"
 const queues: Queue[] = [{ id: "q1", clientId: "c1", name: "คิว1", shootDate: "2026-11-05", crew: ["s1", "s2"] }];
 const task = (o: Partial<Task>): Task => ({ id: Math.random().toString(), clientId: "c1", title: "t", type: "shoot", status: "todo", assigneeId: null, scheduledDate: "2026-10-01", dueDate: "2026-11-12", ...o }) as Task;
 
-test("plan clips never appear; shoot clips group into one chip per queue", () => {
+test("shoot clips group into one chip per queue; plan clips get their own chip", () => {
   const tasks = [
     ...Array.from({ length: 10 }, () => task({ queueId: "q1" })),
     task({ type: "plan", status: "waiting" }),
-    task({ type: "shoot" }), // no queue yet -> not on the calendar
+    task({ type: "shoot", scheduledDate: "" }), // no queue and no date -> not on the calendar
   ];
   const chips = buildCalendarChips({ tasks, queues, clients, staff });
   const shoot = chips.filter((c) => c.group === "shoot");
@@ -22,8 +22,9 @@ test("plan clips never appear; shoot clips group into one chip per queue", () =>
   assert.deepEqual(shoot[0].crew, ["นุ่น", "กาย"]);
   assert.equal(shoot[0].date, "2026-11-05");
   assert.equal(shoot[0].href, "/clients/c1?stage=shoot&queue=q1");
-  // the delivery chip sits on the due date, regardless of the shoot day
-  assert.equal(chips.filter((c) => c.group === "send")[0].count, 10);
+  assert.equal(shoot[0].taskIds.length, 10);
+  assert.equal(chips.filter((c) => c.group === "plan").length, 1);
+  assert.equal(chips.some((c) => (c.group as string) === "send"), false);
 });
 
 test("edit/QC group by edit date (วันตัดต่อ); delivery chips use the due date", () => {
@@ -40,8 +41,6 @@ test("edit/QC group by edit date (วันตัดต่อ); delivery chips u
   assert.equal(edit.count, 2);
   assert.deepEqual(edit.crew.sort(), ["กาย", "นุ่น"]);
   assert.equal(chips.filter((c) => c.group === "edit").length, 2);
-  assert.equal(chips.find((c) => c.group === "send")?.label, "ส่งงาน คิว1-OYOKO");
-  assert.equal(chips.find((c) => c.group === "send" && c.date === "2026-11-12")!.count, 5);
   assert.equal(chips.some((c) => c.label.includes("Post")), false);
 });
 

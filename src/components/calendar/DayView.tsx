@@ -7,7 +7,7 @@ import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";
 import type { Client } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const GROUP_COLOR: Record<ChipGroup, ColorStem> = { shoot: "sky", edit: "orange", send: "rose", other: "gray" };
+const GROUP_COLOR: Record<ChipGroup, ColorStem> = { plan: "violet", shoot: "sky", edit: "orange", other: "gray" };
 
 // One day = the summary chips of that day, grouped by client.
 export function DayView({
