@@ -233,7 +233,7 @@ export function checkHook(script: string, terms: string[] = []): { level: Level;
   return { level, chars, message: issues.length ? issues.join(" · ") : `Hook ${chars} ตัวอักษร` };
 }
 
-const CTA_VERBS = ["ทัก", "กด", "จอง", "สั่ง", "ติดตาม", "บันทึก", "แชร์", "คอมเมนต์", "โทร", "แอด", "สมัคร", "มาที่", "มาลอง", "แวะ", "ส่งต่อ", "ลองดู", "คลิก", "นัด", "ถามมา", "inbox", "dm", "line"];
+const CTA_VERBS = ["ทัก", "กด", "จอง", "สั่ง", "ติดตาม", "บันทึก", "แชร์", "คอมเมนต์", "โทร", "แอด", "สมัคร", "มาที่", "มาลอง", "แวะ", "ส่งต่อ", "ส่งคลิป", "แท็ก", "ลองดู", "คลิก", "นัด", "ถามมา", "inbox", "dm", "line"];
 const CTA_CHANNELS = ["ไลน์", "line", "inbox", "อินบ็อกซ์", "dm", "แชท", "โทร", "เบอร์", "หน้าร้าน", "ลิงก์", "ลิงค์", "คอมเมนต์", "แอด", "ไบโอ", "bio", "ตะกร้า"];
 
 export function checkCta(script: string, opts: { sell?: boolean } = {}): { level: Level; cta: string; message: string } {
