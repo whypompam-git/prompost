@@ -45,29 +45,12 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
     revision_brief: string | null;
   }[];
 
-  const { total, groups } = summarizeStages(taskList);
-  const TONES: Record<string, "gray" | "emerald" | "sky" | "amber" | "violet" | "rose"> = {
-    plan: "violet",
-    shoot: "sky",
-    edit: "amber",
-    pending: "rose",
-    approved: "emerald",
-    posted: "emerald",
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
       <div className="mx-auto max-w-2xl space-y-6">
         <PortalHeader title={`แดชบอร์ดของ ${client.name}`} />
 
         <PortalTabs basePath={basePath} active="dashboard" />
-
-        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-          <StatTile label="คลิปทั้งหมด" value={total} tone="gray" />
-          {groups.map((g) => (
-            <StatTile key={g.key} label={g.label} value={g.count} tone={TONES[g.key] ?? "gray"} />
-          ))}
-        </div>
 
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">

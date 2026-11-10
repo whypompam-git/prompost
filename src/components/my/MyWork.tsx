@@ -20,7 +20,8 @@ const SECTIONS: { key: MyBucket; title: string; hint?: string; tone: string; ope
 ];
 
 const fmt = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString("th-TH", { day: "numeric", month: "short" }) : "—");
-const todayIso = () => new Date().toISOString().slice(0, 10);
+// Bangkok calendar day (UTC would show yesterday until 07:00)
+const todayIso = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Bangkok" }).format(new Date());
 const withScheme = (u: string) => (/^https?:\/\//i.test(u) ? u : `https://${u}`);
 
 function Deadline({ label, date }: { label: string; date?: string | null }) {

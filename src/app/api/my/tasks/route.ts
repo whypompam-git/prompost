@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
   const db = createAdminClient();
   const { data, error } = await db
     .from("tasks")
-    .select("id, title, type, status, edit_date, script_text, shots, equipment, notes, footage_url, ref_link, final_url, revision_count, revision_brief, clients(name)")
+    .select("id, title, type, status, edit_date, due_date, script_text, shots, equipment, notes, footage_url, ref_link, final_url, revision_count, revision_brief, clients(name)")
     .eq("editor_id", me.staffId)
     .in("type", [...MY_STAGES])
     .order("edit_date", { ascending: true, nullsFirst: false })
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       type: r.type,
       status: r.status,
       clientName: (c as { name: string } | null)?.name ?? "",
-      editDate: r.edit_date, // delivery date (due_date) is the main team's business and is never sent here
+      editDate: r.edit_date ?? r.due_date, // the one deadline an editor sees; falls back to the due date so clips without an edit date still show
       scriptText: r.script_text,
       shots: r.shots ?? [],
       equipment: r.equipment ?? [],

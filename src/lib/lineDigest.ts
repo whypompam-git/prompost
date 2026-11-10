@@ -19,7 +19,7 @@ export async function buildDigestText(
   const [clients, staff, tasks, invoices, rounds, receipts, leave, quotes, txs] = await Promise.all([
     db.from("clients").select("id, name"),
     db.from("staff").select("id, name").eq("is_active", true),
-    db.from("tasks").select("id, title, client_id, assignee_id, status, due_date").neq("status", "done").lte("due_date", addDays(today, 1)),
+    db.from("tasks").select("id, title, client_id, assignee_id, status, due_date, type, edit_date").neq("status", "waiting").or("status.neq.done,type.eq.shoot"),
     db.from("invoices").select("id, invoice_no, client_id, status, due_date, created_at, items, vat_percent, wht_percent").eq("status", "unpaid"),
     db.from("client_packages").select("id, client_id, package_id, amount, assigned_at, packages(name)"),
     db.from("receipts").select("id, client_id, client_package_id, amount, created_at"),
@@ -53,7 +53,7 @@ export async function buildDigestText(
     graceDays: GRACE_DAYS,
     clients: clients.data!.map((c) => ({ id: c.id, name: c.name })),
     staff: staff.data!.map((s) => ({ id: s.id, name: s.name })),
-    tasks: tasks.data!.filter((t) => !teamMembers || (t.assignee_id && teamMembers.has(t.assignee_id))).map((t) => ({ id: t.id, title: t.title, clientId: t.client_id, assigneeId: t.assignee_id, status: t.status, dueDate: t.due_date })),
+    tasks: tasks.data!.filter((t) => !teamMembers || (t.assignee_id && teamMembers.has(t.assignee_id))).map((t) => ({ id: t.id, title: t.title, clientId: t.client_id, assigneeId: t.assignee_id, status: t.status, dueDate: t.due_date, type: t.type, editDate: t.edit_date })),
     invoices: invoices.data!.map((i) => ({
       id: i.id,
       invoiceNo: i.invoice_no,

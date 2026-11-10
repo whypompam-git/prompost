@@ -6,7 +6,7 @@ export type AlertInput = {
   graceDays: number;
   clients: { id: string; name: string }[];
   staff: { id: string; name: string }[];
-  tasks: { id: string; title: string; clientId: string; assigneeId: string | null; status: string; dueDate: string }[];
+  tasks: { id: string; title: string; clientId: string; assigneeId: string | null; status: string; dueDate: string; type?: string; editDate?: string | null }[];
   invoices: { id: string; invoiceNo: string; clientId: string; status: string; dueDate?: string; createdAt: string; total: number }[];
   rounds: { id: string; clientId: string; packageName: string; amount: number; assignedAt: string }[];
   receipts: { clientPackageId?: string; amount: number }[];
@@ -62,14 +62,17 @@ export function buildDigest(i: AlertInput): Digest {
   }
   overduePayments.sort((a, b) => b.days - a.days);
 
-  // "waiting" = Plan / Pending, in the client's hands — not overdue work for the team
-  const open = i.tasks.filter((t) => t.status !== "done" && t.status !== "waiting");
+  // "waiting" = Plan / Pending, in the client's hands — not overdue work for the team.
+  // A shot clip marked Done is still the team's job until its footage is uploaded and it moves on.
+  const open = i.tasks.filter((t) => t.status !== "waiting" && (t.status !== "done" || t.type === "shoot"));
+  // the delivery deadline of a clip being edited is its edit date (due date is the fallback)
+  const deadline = (t: AlertInput["tasks"][number]) => ((t.type === "edit" || t.type === "qc") && t.editDate ? t.editDate : t.dueDate);
   const row = (t: AlertInput["tasks"][number]) => ({ title: t.title, client: client(t.clientId), assignee: staff(t.assigneeId) });
   return {
     overduePayments,
-    tasksOverdue: open.filter((t) => t.dueDate < i.today).sort((a, b) => a.dueDate.localeCompare(b.dueDate)).map((t) => ({ ...row(t), days: daysBetween(t.dueDate, i.today) })),
-    tasksToday: open.filter((t) => t.dueDate === i.today).map(row),
-    tasksTomorrow: open.filter((t) => t.dueDate === tomorrow).map(row),
+    tasksOverdue: open.filter((t) => deadline(t) < i.today).sort((a, b) => deadline(a).localeCompare(deadline(b))).map((t) => ({ ...row(t), days: daysBetween(deadline(t), i.today) })),
+    tasksToday: open.filter((t) => deadline(t) === i.today).map(row),
+    tasksTomorrow: open.filter((t) => deadline(t) === tomorrow).map(row),
     pendingLeave: i.leave.filter((l) => l.status === "pending").map((l) => ({ staff: staff(l.staffId), from: l.dateFrom, to: l.dateTo })),
   };
 }

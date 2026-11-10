@@ -3,10 +3,9 @@
 import { useState } from "react";
 import { Camera, ChevronDown, Download, ExternalLink, ListChecks, Pencil, ScrollText } from "lucide-react";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
-import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ScriptText } from "@/components/ui/ScriptText";
 import type { TaskStatus, TaskType } from "@/lib/types";
-import { stageInfo } from "@/lib/workflow";
+import { clientState } from "@/lib/portalLabels";
 import { cn } from "@/lib/utils";
 
 
@@ -131,7 +130,7 @@ export function PortalTaskCard({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-gray-800">{title}</p>
           <p className="text-xs text-gray-400">
-            {stageInfo(stage)?.label ?? stage}
+            {clientState({ type: stage, revisionCount: rounds }).hint}
             {rounds > 0 && ` · แก้รอบที่ ${rounds}`}
           </p>
           {equipment.length > 0 && (
@@ -142,7 +141,22 @@ export function PortalTaskCard({
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <StatusBadge status={stageStatus} stage={stage} />
+          {(() => {
+            const st = clientState({ type: stage, revisionCount: rounds });
+            return (
+              <span
+                className={cn(
+                  "rounded-full px-2.5 py-1 text-xs font-medium",
+                  st.tone === "action" && "bg-rose-100 text-rose-700",
+                  st.tone === "wait" && "bg-amber-100 text-amber-700",
+                  st.tone === "done" && "bg-emerald-100 text-emerald-700",
+                  st.tone === "muted" && "bg-gray-100 text-gray-500",
+                )}
+              >
+                {st.label}
+              </span>
+            );
+          })()}
           {expandable && (
             <ChevronDown size={15} className={cn("text-gray-400 transition", open && "rotate-180")} />
           )}

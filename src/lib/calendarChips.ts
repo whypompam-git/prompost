@@ -36,7 +36,8 @@ function placements(t: Task, queues: Map<string, Queue>): { group: ChipGroup; da
       break;
     case "edit":
     case "qc":
-      out.push({ group: "edit", date: t.editDate ?? undefined });
+      // the delivery deadline is the edit date; clips without one yet fall back to their due date so none go missing
+      out.push({ group: "edit", date: t.editDate ?? t.dueDate ?? undefined });
       break;
     case "other":
       if (t.status !== "done") out.push({ group: "other", date: t.scheduledDate });

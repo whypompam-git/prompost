@@ -32,13 +32,13 @@ test("edit/QC group by edit date (วันตัดต่อ); delivery chips u
     task({ type: "edit", queueId: "q1", assigneeId: "s1", editDate: "2026-11-12" }),
     task({ type: "qc", status: "review", queueId: "q1", assigneeId: "s2", editDate: "2026-11-12" }),
     task({ type: "edit", queueId: "q1", editDate: "2026-11-20" }),
-    task({ type: "edit", queueId: "q1" }), // no edit date -> no edit chip
+    task({ type: "edit", queueId: "q1" }), // no edit date -> falls back to the due date
     task({ type: "pending", status: "waiting", queueId: "q1" }),
     task({ type: "posted", status: "done", queueId: "q1" }),
   ];
   const chips = buildCalendarChips({ tasks, queues, clients, staff });
   const edit = chips.find((c) => c.group === "edit" && c.date === "2026-11-12")!;
-  assert.equal(edit.count, 2);
+  assert.equal(edit.count, 3); // the clip with no edit date falls back to its due date (same day here)
   assert.deepEqual(edit.crew.sort(), ["กาย", "นุ่น"]);
   assert.equal(chips.filter((c) => c.group === "edit").length, 2);
   assert.equal(chips.some((c) => c.label.includes("Post")), false);
@@ -51,4 +51,9 @@ test("misc tasks stay as single chips on their own date; finished ones are hidde
   });
   assert.equal(chips.length, 1);
   assert.equal(chips[0].label, "ประชุม");
+});
+
+test("edit clips without an edit date fall back to the due date instead of vanishing", () => {
+  const chips = buildCalendarChips({ tasks: [task({ type: "edit", queueId: "q1", editDate: null, dueDate: "2026-11-15" })], queues, clients, staff });
+  assert.equal(chips.find((c) => c.group === "edit")?.date, "2026-11-15");
 });

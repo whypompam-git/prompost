@@ -5,6 +5,7 @@ import { ArrowDownAZ, ArrowUpAZ } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PortalTaskCard } from "@/components/portal/PortalTaskCard";
 import type { TaskStatus, TaskType } from "@/lib/types";
+import { CLIENT_FILTERS, clientOrder } from "@/lib/portalLabels";
 import { cn } from "@/lib/utils";
 
 export type PortalTask = {
@@ -32,26 +33,17 @@ const OPTIONS: { key: SortKey; label: string }[] = [
   { key: "status", label: "สถานะ" },
 ];
 
-// What the client cares about, in their words
-const FILTERS: { key: string; label: string; hint: string; match: (t: PortalTask) => boolean }[] = [
-  { key: "all", label: "ทั้งหมด", hint: "", match: () => true },
-  { key: "plan", label: "Plan", hint: "คอนเทนต์ที่ต้องเลือก ใช้ / แก้ / ไม่ใช้", match: (t) => t.type === "plan" },
-  { key: "check", label: "ตรวจ", hint: "คลิปที่รอลูกค้าตรวจ", match: (t) => t.type === "pending" },
-  { key: "revised", label: "สั่งแก้แล้ว", hint: "ลูกค้าสั่งแก้ ทีมกำลังแก้", match: (t) => (t.revision_count ?? 0) > 0 && (t.type === "edit" || t.type === "qc") },
-  { key: "final", label: "Final", hint: "กำลังผลิต / ตัดต่อ", match: (t) => t.type === "shoot" || t.type === "edit" || t.type === "qc" },
-  { key: "approved", label: "ผ่านแล้ว", hint: "อนุมัติแล้ว รอโพส", match: (t) => t.type === "approved" },
-  { key: "posted", label: "โพสแล้ว", hint: "", match: (t) => t.type === "posted" },
-];
-
 export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clientKey: string }) {
   const [sortKey, setSortKey] = useState<SortKey>("default");
   const [desc, setDesc] = useState(false);
   const [filter, setFilter] = useState("all");
-  const counts = useMemo(() => Object.fromEntries(FILTERS.map((f) => [f.key, tasks.filter(f.match).length])), [tasks]);
+  const counts = useMemo(() => Object.fromEntries(CLIENT_FILTERS.map((f) => [f.key, tasks.filter((t) => f.match({ type: t.type, revisionCount: t.revision_count })).length])), [tasks]);
 
   const sorted = useMemo(() => {
-    const base = tasks.filter(FILTERS.find((f) => f.key === filter)?.match ?? (() => true));
-    if (sortKey === "default") return base;
+    const m = CLIENT_FILTERS.find((f) => f.key === filter)?.match ?? (() => true);
+    const base = tasks.filter((t) => m({ type: t.type, revisionCount: t.revision_count }));
+    // default: what needs the client first
+    if (sortKey === "default") return [...base].sort((a, b) => clientOrder({ type: a.type, revisionCount: a.revision_count }) - clientOrder({ type: b.type, revisionCount: b.revision_count }));
     const list = [...base].sort((a, b) =>
       sortKey === "name"
         ? // numeric-aware so "คลิป 2" comes before "คลิป 10"
@@ -72,12 +64,19 @@ export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clie
   return (
     <>
       <div className="mb-3 flex flex-wrap gap-1.5">
-        {FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0 || f.key === filter).map((f) => (
+        {(counts.check > 0 || counts.plan > 0) && (
+          <p className="mb-1 w-full rounded-xl bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
+            {counts.check > 0 && `มี ${counts.check} คลิปรอคุณตรวจ`}
+            {counts.check > 0 && counts.plan > 0 && " · "}
+            {counts.plan > 0 && `มี ${counts.plan} แผนคอนเทนต์รอคุณเลือก`}
+            <span className="font-normal"> — กดที่การ์ดเพื่อดูและตอบกลับ</span>
+          </p>
+        )}
+        {CLIENT_FILTERS.filter((f) => f.key === "all" || counts[f.key] > 0 || f.key === filter).map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
-            title={f.hint}
-            className={cn(
+                        className={cn(
               "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium",
               filter === f.key ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600",
               f.key === "check" && filter !== f.key && counts.check > 0 && "border-rose-300 bg-rose-50 text-rose-700",
