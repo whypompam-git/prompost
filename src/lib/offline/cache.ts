@@ -6,7 +6,23 @@
 
 const PREFIX = "prompost:cache:";
 
-export async function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+// Identical requests made at the same moment (the page and the bell both load the
+// same lists on arrival) share one network call. Only IN-FLIGHT calls are shared —
+// once it settles the entry is dropped, so nothing is ever served stale.
+const inflight = new Map<string, Promise<unknown>>();
+export function dedupe<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const running = inflight.get(key) as Promise<T> | undefined;
+  if (running) return running;
+  const p = fetcher().finally(() => inflight.delete(key));
+  inflight.set(key, p);
+  return p;
+}
+
+export function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  return dedupe(`cached:${key}`, () => cachedFetchOnce(key, fetcher));
+}
+
+async function cachedFetchOnce<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   try {
     const data = await fetcher();
     try {

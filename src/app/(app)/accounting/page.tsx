@@ -59,16 +59,22 @@ export default function AccountingPage() {
   const [createdQuote, setCreatedQuote] = useState<{ id: string; no: string; kind: "quotation" | "invoice" } | null>(null);
 
   useEffect(() => {
-    Promise.all([listTransactions(), listClients(), listQuotations(), listClientPackages().catch(() => [] as ClientPackage[]), listPackages().catch(() => [] as Package[]), listReceipts().catch(() => [] as Receipt[])])
-      .then(([t, c, q, cp, pk, rc]) => {
-        setRounds(cp);
-        setPackages(pk);
-        setReceipts(rc);
+    // the page opens as soon as transactions + clients are in; the rest fills in behind it
+    let live = true;
+    Promise.all([listTransactions(), listClients()])
+      .then(([t, c]) => {
+        if (!live) return;
         setTransactions(t);
         setClients(c);
-        setQuotations(q);
       })
-      .finally(() => setLoading(false));
+      .finally(() => live && setLoading(false));
+    listQuotations().then((q) => live && setQuotations(q)).catch(() => {});
+    listClientPackages().then((cp) => live && setRounds(cp)).catch(() => {});
+    listPackages().then((pk) => live && setPackages(pk)).catch(() => {});
+    listReceipts().then((rc) => live && setReceipts(rc)).catch(() => {});
+    return () => {
+      live = false;
+    };
   }, []);
 
   const visible = useMemo(() => {

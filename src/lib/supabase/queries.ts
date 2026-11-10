@@ -1,5 +1,5 @@
 import { createClient } from "./client";
-import { cachedFetch } from "@/lib/offline/cache";
+import { cachedFetch, dedupe } from "@/lib/offline/cache";
 import { defaultStatusFor } from "@/lib/workflow";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
@@ -791,7 +791,11 @@ const fromQuotationRow = (r: QuotationRow): Quotation => ({
   clientPackageId: r.client_package_id ?? undefined,
 });
 
-export async function listQuotations(): Promise<Quotation[]> {
+export function listQuotations(): Promise<Quotation[]> {
+  return dedupe("listQuotations", listQuotationsRaw);
+}
+
+async function listQuotationsRaw(): Promise<Quotation[]> {
   const { data, error } = await supabase()
     .from("quotations")
     .select(QUOTATION_COLUMNS)
@@ -960,7 +964,11 @@ const fromReceiptRow = (r: ReceiptRow): Receipt => ({
   shareToken: r.share_token,
 });
 
-export async function listReceipts(): Promise<Receipt[]> {
+export function listReceipts(): Promise<Receipt[]> {
+  return dedupe("listReceipts", listReceiptsRaw);
+}
+
+async function listReceiptsRaw(): Promise<Receipt[]> {
   const { data, error } = await supabase()
     .from("receipts")
     .select(RECEIPT_COLUMNS)
@@ -1086,7 +1094,11 @@ const fromInvoiceRow = (r: InvoiceRow): Invoice => ({
   shareToken: r.share_token,
 });
 
-export async function listInvoices(): Promise<Invoice[]> {
+export function listInvoices(): Promise<Invoice[]> {
+  return dedupe("listInvoices", listInvoicesRaw);
+}
+
+async function listInvoicesRaw(): Promise<Invoice[]> {
   const { data, error } = await supabase()
     .from("invoices")
     .select(INVOICE_COLUMNS)
@@ -1256,7 +1268,11 @@ const fromTransactionRow = (r: TransactionRow): Transaction => ({
   clientId: r.client_id ?? undefined,
 });
 
-export async function listTransactions(): Promise<Transaction[]> {
+export function listTransactions(): Promise<Transaction[]> {
+  return dedupe("listTransactions", listTransactionsRaw);
+}
+
+async function listTransactionsRaw(): Promise<Transaction[]> {
   const { data, error } = await supabase()
     .from("transactions")
     .select("id, type, category, amount, description, slip_url, occurred_at, occurred_time, receipt_id, client_id")
@@ -1381,7 +1397,11 @@ const fromPackageRow = (r: PackageRow): Package => ({
   clipCount: r.clip_count,
 });
 
-export async function listPackages(): Promise<Package[]> {
+export function listPackages(): Promise<Package[]> {
+  return dedupe("listPackages", listPackagesRaw);
+}
+
+async function listPackagesRaw(): Promise<Package[]> {
   const { data, error } = await supabase()
     .from("packages")
     .select(PACKAGE_COLUMNS)
@@ -1444,7 +1464,11 @@ const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
   amount: r.amount,
 });
 
-export async function listClientPackages(): Promise<ClientPackage[]> {
+export function listClientPackages(): Promise<ClientPackage[]> {
+  return dedupe("listClientPackages", listClientPackagesRaw);
+}
+
+async function listClientPackagesRaw(): Promise<ClientPackage[]> {
   const { data, error } = await supabase()
     .from("client_packages")
     .select("id, client_id, package_id, assigned_at, amount")
