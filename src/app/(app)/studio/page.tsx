@@ -8,7 +8,9 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { contextGaps } from "@/lib/aiContext";
 import {
+  checkCta,
   checkFacts,
+  checkHook,
   checkKeywords,
   checkLength,
   checkVariety,
@@ -21,7 +23,7 @@ import { listClientContext, listClients, listTasksForClient } from "@/lib/supaba
 import type { Client, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-type Draft = { id: string; title: string; category: "" | "mass" | "royalty" | "sell"; script: string };
+type Draft = { id: string; title: string; category: "" | "mass" | "royalty" | "sell"; script: string; note?: string };
 type Tab = "new" | "audit";
 
 const LEVEL_STYLE: Record<Level, string> = { pass: "text-emerald-600", warn: "text-amber-600", fail: "text-rose-600" };
@@ -100,11 +102,15 @@ export default function StudioPage() {
   const variety = useMemo(() => checkVariety(items, others), [items, others]);
 
   const report = (it: { id: string; script: string }) => {
+    const sell = drafts.find((d) => d.id === it.id)?.category === "sell" || withScript.find((t) => t.id === it.id)?.contentCategory === "sell";
+    const hookTerms = [client?.name ?? "", ...phrases.flatMap((p) => p.split(/\s+/).filter((w) => w.length >= 3))];
+    const hook = checkHook(it.script, hookTerms);
+    const cta = checkCta(it.script, { sell });
     const len = checkLength(it.script);
     const kw = checkKeywords(it.script, phrases);
     const facts = checkFacts(it.script, contextText);
     const v = variety[it.id];
-    return { len, kw, facts, v, level: worst([len.level, kw.level, v?.level ?? "pass", facts.level]) };
+    return { len, kw, facts, v, hook, cta, level: worst([len.level, hook.level, cta.level, kw.level, v?.level ?? "pass", facts.level]) };
   };
 
   async function generate() {
@@ -114,8 +120,18 @@ export default function StudioPage() {
       const res = await fetch("/api/studio/generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientId, ...gen }) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? String(res.status));
-      setDrafts((p) => [...p, ...data.clips.map((c: { title: string; category: string; script: string }) => ({ id: newId(), title: c.title, category: c.category as Draft["category"], script: c.script }))]);
-      setMessage(`AI สร้าง ${data.clips.length} คลิป · ค่าใช้จ่ายรอบนี้ ≈ ${data.costThb} บาท · วันนี้รวม ${data.spentToday.toFixed(2)}/${data.cap} บาท — ตรวจแล้วค่อยลงระบบ`);
+      setDrafts((p) => [
+        ...p,
+        ...data.clips.map((c: { title: string; category: string; script: string; hookOptions?: string[]; hookReason?: string; topic?: { angle: string }; pattern?: { cta?: string } }) => ({
+          id: newId(),
+          title: c.title,
+          category: c.category as Draft["category"],
+          script: c.script,
+          note: [c.topic?.angle && `มุมเรื่อง: ${c.topic.angle}`, c.pattern?.cta && `CTA ที่กำหนด: ${c.pattern.cta}`, c.hookOptions?.length && `Hook ทางเลือก: ${c.hookOptions.join(" / ")}`, c.hookReason && `เลือกเพราะ: ${c.hookReason}`].filter(Boolean).join("\n"),
+        })),
+      ]);
+      const warn = data.warnings?.length ? ` · ⚠️ ${data.warnings.join("; ")}` : "";
+      setMessage(`AI สร้าง ${data.clips.length} คลิป · ค่าใช้จ่ายรอบนี้ ≈ ${data.costThb} บาท · วันนี้รวม ${data.spentToday.toFixed(2)}/${data.cap} บาท${warn} — ตรวจแล้วค่อยลงระบบ`);
     } catch (e) {
       setMessage(`ผิดพลาด: ${e instanceof Error ? e.message : "ลองใหม่"}`);
     } finally {
@@ -188,6 +204,8 @@ export default function StudioPage() {
     );
     return (
       <div className="space-y-1 rounded-lg bg-gray-50 p-2.5">
+        {row(r.hook.level, "Hook", r.hook.message)}
+        {row(r.cta.level, "CTA", r.cta.message)}
         {row(r.len.level, "ความยาว", r.len.message)}
         {row(r.kw.level, "คีย์เวิร์ด", r.kw.message)}
         {row(r.v?.level ?? "pass", "ไม่วน", r.v?.message ?? "—")}
@@ -284,6 +302,7 @@ export default function StudioPage() {
                       </div>
                       <textarea value={d.script} onChange={(e) => setDrafts((p) => p.map((x) => (x.id === d.id ? { ...x, script: e.target.value } : x)))} rows={9} className="w-full rounded-lg border border-gray-200 px-3 py-2 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-brand-300" />
                       <Checks it={{ id: d.id, script: d.script }} />
+                      {d.note && <p className="whitespace-pre-line rounded-lg bg-violet-50 px-3 py-2 text-xs text-violet-800">{d.note}</p>}
                     </Card>
                   );
                 })}

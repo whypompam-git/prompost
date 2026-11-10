@@ -3,10 +3,10 @@ import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/sessi
 import { isUuid } from "@/lib/aiApi";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bangkokDay } from "@/lib/alerts";
-import { parseSellingLines } from "@/lib/scriptChecks";
-import { assignPatterns } from "@/lib/ai/patterns";
-import { CLIPS_TOOL, buildStable, buildVariable, parseClips, type StudioMode } from "@/lib/ai/promptBuilder";
-import { MissingKeyError, callClaude, costThb, type ModelTier } from "@/lib/ai/anthropic";
+import { digestScript, parseSellingLines, textSimilarity } from "@/lib/scriptChecks";
+import { assignCtas, assignPatterns } from "@/lib/ai/patterns";
+import { CLIPS_TOOL, TOPICS_TOOL, buildStable, buildTopicsPrompt, buildVariable, parseClips, parseTopics, type StudioMode, type TopicPlan } from "@/lib/ai/promptBuilder";
+import { MissingKeyError, callClaude, costThb, type ModelTier, type Usage } from "@/lib/ai/anthropic";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -45,24 +45,55 @@ export async function POST(request: NextRequest) {
     db.from("clients").select("id, name").eq("id", body.clientId).maybeSingle(),
     db.from("client_context").select("key, content").eq("client_id", body.clientId),
     db.from("ai_playbooks").select("key, title, content").order("key"),
-    db.from("tasks").select("title").eq("client_id", body.clientId).order("created_at"),
+    db.from("tasks").select("title, script_text").eq("client_id", body.clientId).order("created_at"),
     db.from("ai_runs").select("id").eq("client_id", body.clientId).eq("status", "ok"),
   ]);
   if (!client) return NextResponse.json({ error: "ไม่พบลูกค้า" }, { status: 404 });
   const context = Object.fromEntries((ctxRows ?? []).map((r) => [r.key as string, r.content as string]));
   const playbooks = (books ?? []) as { key: string; title: string; content: string }[];
 
-  const patterns = assignPatterns(count, (runs ?? []).length * 3);
-  const stable = buildStable(playbooks, context, (tasks ?? []).map((t) => t.title as string));
-  const variable = buildVariable(mode, { instruction, patterns, category, sellingLines: parseSellingLines(context.selling_lines ?? "") });
+  const offset = (runs ?? []).length * 3;
+  const ctas = assignCtas(count, category, offset);
+  const patterns = assignPatterns(count, offset).map((p, i) => ({ ...p, cta: ctas[i] }));
+  const recent = (tasks ?? []).map((t) => digestScript(t.title as string, (t.script_text as string | null) ?? ""));
+  const stable = buildStable(playbooks, context, recent);
+  const sellingLines = parseSellingLines(context.selling_lines ?? "");
 
   const base = { client_id: client.id, kind: mode, prompt: instruction, params: { count, category: category ?? null, tier, patterns }, model: tier, created_by: claims.staffId };
   try {
+    let cost = 0;
+    let tokensIn = 0;
+    let tokensOut = 0;
+    const add = (t: ModelTier, u: Usage) => {
+      cost += costThb(t, u);
+      tokensIn += (u.input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0);
+      tokensOut += u.output_tokens ?? 0;
+    };
+
+    // full scripts: first lock a distinct TOPIC for every clip with the cheap model, then write them
+    let topics: TopicPlan[] | undefined;
+    const warnings: string[] = [];
+    if (mode === "script") {
+      const first = await callClaude({ tier: "cheap", stable, variable: buildTopicsPrompt({ instruction, patterns, category, sellingLines }), tool: TOPICS_TOOL, maxTokens: 4000 });
+      add("cheap", first.usage);
+      topics = parseTopics(first.input);
+      if (topics.length < count) return NextResponse.json({ error: "วางหัวข้อไม่ครบ ลองใหม่อีกครั้ง" }, { status: 502 });
+      topics = topics.slice(0, count);
+      // topics that are too alike (to each other or to earlier clips) are reported, not hidden
+      topics.forEach((t, i) => {
+        for (let j = 0; j < i; j++) if (textSimilarity(t.angle, topics![j].angle) > 0.5) warnings.push(`หัวข้อ ${i + 1} คล้ายหัวข้อ ${j + 1}`);
+        const old = (tasks ?? []).find((x) => textSimilarity(t.angle, x.title as string) > 0.6);
+        if (old) warnings.push(`หัวข้อ ${i + 1} คล้ายคลิปเดิม "${old.title}"`);
+      });
+    }
+
+    const variable = buildVariable(mode, { instruction, patterns, category, sellingLines, topics });
     const { input, usage } = await callClaude({ tier, stable, variable, tool: CLIPS_TOOL, maxTokens: mode === "ideas" ? 6000 : 16000 });
-    const clips = parseClips(input).map((c, i) => ({ ...c, category: c.category || category || "", pattern: patterns[i] }));
-    const cost = costThb(tier, usage);
-    await db.from("ai_runs").insert({ ...base, output: { clips }, tokens_in: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0), tokens_out: usage.output_tokens ?? 0, cost_thb: cost, status: "ok" });
-    return NextResponse.json({ clips, costThb: cost, spentToday: spent + cost, cap });
+    add(tier, usage);
+    const clips = parseClips(input).map((c, i) => ({ ...c, category: c.category || category || "", pattern: patterns[i], topic: topics?.[i] }));
+    cost = Math.round(cost * 100) / 100;
+    await db.from("ai_runs").insert({ ...base, params: { ...base.params, topics }, output: { clips, warnings }, tokens_in: tokensIn, tokens_out: tokensOut, cost_thb: cost, status: "ok" });
+    return NextResponse.json({ clips, warnings, costThb: cost, spentToday: spent + cost, cap });
   } catch (e) {
     const message = e instanceof Error ? e.message : "ผิดพลาด";
     await db.from("ai_runs").insert({ ...base, output: { error: message }, status: "error" });

@@ -183,3 +183,77 @@ export function nextTitleNumber(existingTitles: string[], queue: string): string
 }
 
 export const worst = (levels: Level[]): Level => (levels.includes("fail") ? "fail" : levels.includes("warn") ? "warn" : "pass");
+
+// ---- hook & CTA -----------------------------------------------------------
+// the closing call to action: the spoken text after the CTA heading when present, else the last spoken line
+export function extractCta(script: string): string {
+  const lines = script.split("\n");
+  const at = lines.findIndex((l) => /CTA/i.test(l.trim().slice(0, 20)) && !l.trim().startsWith("🗣"));
+  if (at >= 0) {
+    const spoken = lines.slice(at + 1).filter((l) => l.trim().startsWith("🗣")).map((l) => l.replace(/^\s*🗣\s*(พูด:|พูด)?/, "").trim());
+    if (spoken.length) return spoken.join(" ");
+  }
+  const all = extractSpeech(script).lines;
+  return all.length ? all[all.length - 1] : "";
+}
+
+export function digestScript(title: string, script: string): { title: string; hook: string; cta: string } {
+  return { title, hook: extractSpeech(script).hook.slice(0, 90), cta: extractCta(script).slice(0, 90) };
+}
+
+// openers that say nothing — the viewer swipes away
+export const GENERIC_OPENERS = ["รู้ไหมว่า", "รู้หรือไม่", "วันนี้มา", "วันนี้จะมา", "สวัสดี", "ใครที่กำลัง", "ในคลิปนี้", "มาดูกัน", "ทุกคนเคย", "เคยไหม", "คุณเคยสงสัย"];
+const HOOK_SOFT = 45; // ≈ 3–4 s of speech
+const HOOK_HARD = 70;
+
+export function checkHook(script: string, terms: string[] = []): { level: Level; chars: number; message: string } {
+  const { hook } = extractSpeech(script);
+  if (!hook) return { level: "fail", chars: 0, message: "ไม่พบ Hook (บรรทัดขึ้นต้น A)" };
+  const chars = clean(hook).length;
+  const h = norm(hook);
+  const issues: string[] = [];
+  let level: Level = "pass";
+  if (chars > HOOK_HARD) {
+    level = "fail";
+    issues.push(`ยาวไป ${chars} ตัวอักษร (ควร ≤ ${HOOK_SOFT}, ≈3 วิ)`);
+  } else if (chars > HOOK_SOFT) {
+    level = "warn";
+    issues.push(`ค่อนข้างยาว ${chars} ตัวอักษร (ควร ≤ ${HOOK_SOFT})`);
+  }
+  const generic = GENERIC_OPENERS.find((g) => h.startsWith(norm(g)));
+  if (generic) {
+    if (level !== "fail") level = "warn";
+    issues.push(`เปิดแบบกว้าง ๆ ("${generic}…") ไม่ดึงคนดู`);
+  }
+  const specific = /\d/.test(hook) || terms.some((t) => t.length >= 2 && h.includes(norm(t)));
+  if (!specific && terms.length > 0) {
+    if (level === "pass") level = "warn";
+    issues.push("ไม่มีสิ่งเฉพาะของลูกค้า/ตัวเลข — ฟังแล้วเป็นของใครก็ได้");
+  }
+  return { level, chars, message: issues.length ? issues.join(" · ") : `Hook ${chars} ตัวอักษร` };
+}
+
+const CTA_VERBS = ["ทัก", "กด", "จอง", "สั่ง", "ติดตาม", "บันทึก", "แชร์", "คอมเมนต์", "โทร", "แอด", "สมัคร", "มาที่", "มาลอง", "แวะ", "ส่งต่อ", "ลองดู", "คลิก", "นัด", "ถามมา", "inbox", "dm", "line"];
+const CTA_CHANNELS = ["ไลน์", "line", "inbox", "อินบ็อกซ์", "dm", "แชท", "โทร", "เบอร์", "หน้าร้าน", "ลิงก์", "ลิงค์", "คอมเมนต์", "แอด", "ไบโอ", "bio", "ตะกร้า"];
+
+export function checkCta(script: string, opts: { sell?: boolean } = {}): { level: Level; cta: string; message: string } {
+  const cta = extractCta(script);
+  if (!cta) return { level: "fail", cta, message: "ไม่พบ CTA ท้ายคลิป" };
+  const c = norm(cta);
+  const verbs = CTA_VERBS.filter((v) => c.includes(norm(v)));
+  if (verbs.length === 0) return { level: "fail", cta, message: `CTA ไม่มีคำสั่งให้ทำ ("${cta.slice(0, 40)}…") — ต้องบอกว่าให้ทำอะไร` };
+  if (opts.sell && !CTA_CHANNELS.some((v) => c.includes(norm(v)))) return { level: "warn", cta, message: "คลิปขาย แต่ CTA ไม่บอกช่องทาง (ทักไลน์/โทร/หน้าร้าน…)" };
+  if (verbs.length >= 4) return { level: "warn", cta, message: "CTA หลายอย่างพร้อมกัน — ควรให้ทำอย่างเดียว" };
+  return { level: "pass", cta, message: "CTA ชัด" };
+}
+
+// how alike two short texts are (character trigrams) — spots repeated topics
+export function textSimilarity(a: string, b: string): number {
+  const grams = (s: string) => {
+    const t = norm(s);
+    const set = new Set<string>();
+    for (let i = 0; i + 3 <= t.length; i++) set.add(t.slice(i, i + 3));
+    return set;
+  };
+  return jaccard(grams(a), grams(b));
+}

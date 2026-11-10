@@ -1,3 +1,4 @@
+import { checkCta, checkHook, extractCta, textSimilarity } from "../src/lib/scriptChecks.ts";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { checkFacts, checkKeywords, checkLength, checkVariety, extractSpeech, nextTitleNumber, parseSellingLines } from "../src/lib/scriptChecks.ts";
@@ -67,4 +68,21 @@ test("next title number follows the queue", () => {
   assert.equal(nextTitleNumber(["3.01 ก", "3.02 ข", "2.09 ค"], "3"), "3.03");
   assert.equal(nextTitleNumber([], "4"), "4.01");
   assert.equal(nextTitleNumber(["1. เก่า"], "1"), "1.01");
+});
+
+const clip = (hook: string, cta: string) => `A) ${hook}\n【① Body】\n🗣 เนื้อหา\n【⑤ CTA · 0:52–1:00】\n🗣 ${cta}`;
+
+test("hook: generic opener, too long and not specific are flagged", () => {
+  assert.equal(checkHook(clip("ขนมครกเจ้านี้ ไม่เหนียว 3 วัน", "x"), ["ขนมครก"]).level, "pass");
+  assert.equal(checkHook(clip("รู้ไหมว่าการกินขนมมีประโยชน์", "x"), ["ขนมครก"]).level, "warn");
+  assert.equal(checkHook(clip("ก".repeat(80), "x")).level, "fail");
+  assert.equal(checkHook(clip("วันนี้อากาศดีมากเลยนะ", "x"), ["ขนมครก"]).level, "warn");
+});
+
+test("cta: needs a clear instruction; selling clips need a channel", () => {
+  assert.equal(extractCta(clip("h", "ทักไลน์มาจองเลย")), "ทักไลน์มาจองเลย");
+  assert.equal(checkCta(clip("h", "ทักไลน์มาจองเลย"), { sell: true }).level, "pass");
+  assert.equal(checkCta(clip("h", "ขอบคุณที่ดูนะคะ")).level, "fail");
+  assert.equal(checkCta(clip("h", "จองเลยวันนี้"), { sell: true }).level, "warn");
+  assert.ok(textSimilarity("ลูกค้าไม่กล้าถามราคา", "ลูกค้าไม่กล้าถามราคา") > 0.9);
 });
