@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronLeft, ChevronRight, Maximize2, Minus, PartyPopper, Plus, X } from "lucide-react";
 import { ScriptText } from "@/components/ui/ScriptText";
 import { cn } from "@/lib/utils";
@@ -105,8 +106,8 @@ export function PortalPlanDeck({ clientKey, cards }: { clientKey: string; cards:
       </article>
 
       {actions}
-      {reading && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+      {reading && createPortal(
+        <div className="fixed inset-0 z-[60] flex flex-col bg-white">
           <div className="flex items-center gap-2 border-b border-gray-100 px-3 pb-2 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button onClick={() => setReading(false)} className="rounded-full p-2 text-gray-500 hover:bg-gray-100" aria-label="ปิด"><X size={22} /></button>
             <div className="min-w-0 flex-1">
@@ -125,7 +126,8 @@ export function PortalPlanDeck({ clientKey, cards }: { clientKey: string; cards:
           <div className="border-t border-gray-100 bg-gray-50 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
             <div className="mx-auto max-w-2xl">{actions}</div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
