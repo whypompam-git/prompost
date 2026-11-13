@@ -27,7 +27,7 @@ function Avatar({ item, size }: { item: Pick<FeedItem, "logo" | "clientName" | "
   const stem = (item.clientColor in PALETTE ? item.clientColor : "orange") as ColorStem;
   return item.logo ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={item.logo} alt="" className={cn("rounded-full bg-white object-contain", size)} />
+    <img src={item.logo} alt="" className={cn("rounded-full bg-white object-cover", size)} />
   ) : (
     <span className={cn("flex items-center justify-center rounded-full text-xs font-bold text-white", PALETTE[stem].solid, size)}>{initials(item.clientName)}</span>
   );

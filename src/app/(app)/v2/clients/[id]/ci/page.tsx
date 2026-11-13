@@ -80,7 +80,7 @@ export default function V2ClientCi() {
           <div className="flex items-center gap-3">
             <span className="block h-20 w-20 overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              {ci.logoUrl && <img src={ci.logoUrl} alt="" className="h-full w-full object-contain p-1.5" />}
+              {ci.logoUrl && <img src={ci.logoUrl} alt="" className="h-full w-full object-cover" />}
             </span>
             <button onClick={() => logoRef.current?.click()} className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
               <ImagePlus size={15} /> {uploading ? "กำลังอัปโหลด…" : ci.logoUrl ? "เปลี่ยนโลโก้" : "อัปโหลดโลโก้"}

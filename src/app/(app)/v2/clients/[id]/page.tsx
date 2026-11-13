@@ -31,7 +31,7 @@ export default function V2ClientHome() {
           <span className="block h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
             {logo ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={logo} alt="" className="h-full w-full object-contain p-1.5" />
+              <img src={logo} alt="" className="h-full w-full object-cover" />
             ) : (
               <span className={cn("flex h-full w-full items-center justify-center text-lg font-bold text-white", PALETTE[color].solid)}>{initials(client.name)}</span>
             )}

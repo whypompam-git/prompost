@@ -21,10 +21,10 @@ const stem = (c?: string): ColorStem => (c && c in PALETTE ? (c as ColorStem) : 
 export function ClientTile({ href, name, logo, color, alert }: { href: string; name: string; logo?: string; color?: string; alert?: boolean }) {
   return (
     <Link href={href} className="group flex flex-col items-center gap-1.5 rounded-2xl p-1.5 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
-      <span className="relative block aspect-square w-full max-w-[110px] overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card transition group-hover:shadow-md group-active:scale-95">
+      <span className="relative block aspect-square w-full max-w-[110px] overflow-hidden rounded-2xl bg-white shadow-card transition group-hover:shadow-md group-active:scale-95">
         {logo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-full w-full object-contain p-2" />
+          <img src={logo} alt="" className="h-full w-full object-cover" />
         ) : (
           <span className={cn("flex h-full w-full items-center justify-center text-2xl font-bold text-white", PALETTE[stem(color)].solid)}>{initials(name)}</span>
         )}
