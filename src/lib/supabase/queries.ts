@@ -482,6 +482,21 @@ export async function listTasks(): Promise<Task[]> {
   });
 }
 
+// Every clip WITHOUT the heavy text fields (script, notes, shot list, equipment):
+// about a quarter of the size of listTasks. For screens that only place clips
+// on a calendar / board / count them — script fields come back empty.
+const TASK_LITE_COLUMNS = TASK_COLUMNS.split(",")
+  .map((c) => c.trim())
+  .filter((c) => !["script_text", "notes", "shots", "equipment"].includes(c))
+  .join(", ");
+export async function listTasksLite(): Promise<Task[]> {
+  return dedupe("listTasksLite", async () => {
+    const { data, error } = await supabase().from("tasks").select(TASK_LITE_COLUMNS).order("scheduled_date", { ascending: true });
+    if (error) throw error;
+    return (data as unknown as TaskRow[]).map((r) => fromTaskRow({ ...r, script_text: null, notes: null, shots: [], equipment: [] }));
+  });
+}
+
 // One client's clips only (the client page used to download every client's tasks).
 export async function listTasksForClient(clientId: string): Promise<Task[]> {
   const { data, error } = await supabase().from("tasks").select(TASK_COLUMNS).eq("client_id", clientId).order("scheduled_date", { ascending: true });

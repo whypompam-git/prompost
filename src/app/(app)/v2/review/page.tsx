@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckCircle2, Download, Inbox, Upload, X } from "lucide-react";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listClients, listTasks } from "@/lib/supabase/queries";
+import { listClients, listTasksLite } from "@/lib/supabase/queries";
 import type { Client, Task } from "@/lib/types";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/components/v2/ReviewFeed";
@@ -220,7 +220,7 @@ function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUploaded:
   const [all, setAll] = useState(false);
   const [q, setQ] = useState("");
   useEffect(() => {
-    Promise.all([listTasks(), listClients()]).then(([t, c]) => {
+    Promise.all([listTasksLite(), listClients()]).then(([t, c]) => {
       setTasks(t.filter((x) => x.type === "edit" || x.type === "qc"));
       setClients(c);
     });

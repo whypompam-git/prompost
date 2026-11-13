@@ -22,7 +22,7 @@ import { YearView } from "@/components/calendar/YearView";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { buildCalendarChips } from "@/lib/calendarChips";
-import { createTaskRow, listClients, listQueues, listStaff, listTasks, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
+import { createTaskRow, listClients, listQueues, listStaff, listTasksLite, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
 import type { CalendarChip } from "@/lib/calendarChips";
 import type { Client, Queue, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -53,7 +53,7 @@ export function CalendarView() {
   }, []);
 
   useEffect(() => {
-    Promise.all([listTasks(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[])])
+    Promise.all([listTasksLite(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[])])
       .then(([t, c, s, q]) => {
         setQueues(q);
         setTasks(t);

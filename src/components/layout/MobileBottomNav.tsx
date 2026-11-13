@@ -37,11 +37,11 @@ export function MobileBottomNav() {
       {TABS.map((t) => (
         <Tab key={t.href} t={t} />
       ))}
-      {/* tap = new note (the list is one "back" away from any note) */}
+      {/* notes page (new note button is at its top) */}
       <button
-        onClick={() => router.push("/v2/notes/new")}
+        onClick={() => router.push("/v2/notes")}
         className={cn("flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-medium", notesActive ? "text-brand-600" : "text-brand-500")}
-        aria-label="โน้ตใหม่"
+        aria-label="โน้ต"
       >
         <PlusCircle size={28} />
         โน้ต

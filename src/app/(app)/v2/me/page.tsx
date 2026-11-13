@@ -8,7 +8,7 @@ import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientTile } from "@/components/v2/AppGrid";
 import { LEGACY_ITEMS, allowed } from "@/components/layout/navItems";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listClientLogos, listClients, listStaff, listTasks, updateOwnProfile } from "@/lib/supabase/queries";
+import { listClientLogos, listClients, listStaff, listTasksLite, updateOwnProfile } from "@/lib/supabase/queries";
 import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { driveThumb } from "@/lib/drive";
@@ -55,7 +55,7 @@ export default function V2MePage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    Promise.all([listStaff(), listTasks(), listClients(), listClientLogos().catch(() => ({}) as Record<string, string>)])
+    Promise.all([listStaff(), listTasksLite(), listClients(), listClientLogos().catch(() => ({}) as Record<string, string>)])
       .then(([s, t, c, l]) => {
         setMe(s.find((x) => x.id === auth.staffId) ?? null);
         setTasks(t);

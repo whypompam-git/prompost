@@ -44,7 +44,7 @@ export default function V2ClientHome() {
 
         <AppGrid>
           <FeatureTile href={`/clients/${id}`} label="คอนเทนต์" icon={Clapperboard} color="orange" />
-          <FeatureTile href={`/clients/${id}?stage=shoot`} label="การถ่าย" icon={Camera} color="sky" />
+          <FeatureTile href={`/v2/clients/${id}/shoot`} label="การถ่าย" icon={Camera} color="sky" />
           <FeatureTile href={`/v2/clients/${id}/ci`} label="CI Brand" icon={Palette} color="pink" />
           <FeatureTile href={`/clients/${id}/info`} label="ข้อมูลลูกค้า" icon={Info} color="gray" />
           {canStudio && <FeatureTile href={`/clients/${id}/context`} label="บริบท AI" icon={Sparkles} color="violet" />}

@@ -94,11 +94,20 @@ export default function V2ClientCi() {
           </div>
         </Section>
 
-        <Section title="สีแบรนด์" hint="ชื่อสี + รหัส เช่น ส้มหลัก #F97316">
+        <Section title="สีแบรนด์" hint="แตะช่องสีเพื่อเลือกจากพาเลท (ลาก/RGB) หรือพิมพ์รหัส เช่น #F97316">
           <div className="space-y-2">
             {ci.colors.map((c, i) => (
               <div key={i} className="flex items-center gap-2">
-                <span className="h-9 w-9 shrink-0 rounded-lg border border-gray-200" style={{ background: HEX.test(c.hex) ? (c.hex.startsWith("#") ? c.hex : `#${c.hex}`) : "transparent" }} />
+                {/* tap the swatch for the colour picker (drag / RGB), or type the code beside it */}
+                <label className="relative h-10 w-10 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-gray-200" style={{ background: HEX.test(c.hex) ? (c.hex.startsWith("#") ? c.hex : `#${c.hex}`) : "conic-gradient(red, yellow, lime, aqua, blue, magenta, red)" }} title="เลือกสี">
+                  <input
+                    type="color"
+                    value={HEX.test(c.hex) ? (c.hex.startsWith("#") ? c.hex : `#${c.hex}`).toLowerCase() : "#f97316"}
+                    onChange={(e) => patch({ colors: ci.colors.map((x, j) => (j === i ? { ...x, hex: e.target.value.toUpperCase() } : x)) })}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    aria-label="เลือกสีจากพาเลท"
+                  />
+                </label>
                 <input value={c.name} onChange={(e) => patch({ colors: ci.colors.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} placeholder="ชื่อสี" className={field} />
                 <input value={c.hex} onChange={(e) => patch({ colors: ci.colors.map((x, j) => (j === i ? { ...x, hex: e.target.value } : x)) })} placeholder="#000000" className={`${field} w-32 font-mono`} />
                 <button onClick={() => patch({ colors: ci.colors.filter((_, j) => j !== i) })} className="rounded-full p-1.5 text-gray-400 hover:text-rose-600" aria-label="ลบสี">
@@ -106,7 +115,7 @@ export default function V2ClientCi() {
                 </button>
               </div>
             ))}
-            <button onClick={() => patch({ colors: [...ci.colors, { name: "", hex: "" }] })} className="flex items-center gap-1 text-sm font-medium text-brand-600">
+            <button onClick={() => patch({ colors: [...ci.colors, { name: "", hex: "#F97316" }] })} className="flex items-center gap-1 text-sm font-medium text-brand-600">
               <Plus size={14} /> เพิ่มสี
             </button>
           </div>

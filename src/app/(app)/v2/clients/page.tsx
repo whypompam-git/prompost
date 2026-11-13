@@ -5,7 +5,7 @@ import { Search } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
-import { listClientLogos, listClients, listTasks } from "@/lib/supabase/queries";
+import { listClientLogos, listClients, listTasksLite } from "@/lib/supabase/queries";
 import type { Client, Task } from "@/lib/types";
 
 // New UI: clients as a grid of app icons — just logo + name; everything else is inside.
@@ -24,7 +24,7 @@ export default function V2ClientsPage() {
       })
       .finally(() => setLoading(false));
     // the red dots fill in after the grid shows
-    listTasks().then(setTasks).catch(() => {});
+    listTasksLite().then(setTasks).catch(() => {});
   }, []);
 
   // red dot = the client sent something back or is waiting to check a clip

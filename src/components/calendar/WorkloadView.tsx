@@ -10,7 +10,7 @@ import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { bangkokDay } from "@/lib/alerts";
 import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
-import { listClients, listQueues, listStaff, listTasks, listTeams, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
+import { listClients, listQueues, listStaff, listTasksLite, listTeams, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
 import type { Client, Queue, Staff, Task, Team } from "@/lib/types";
 import { buildWorkBoard, type CardKind, type WorkCard } from "@/lib/workload";
 import { cn } from "@/lib/utils";
@@ -85,11 +85,10 @@ export function WorkloadView() {
   const [personFilter, setPersonFilter] = useState("");
   const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false);
-  const [tab, setTab] = useState("");
   const [over, setOver] = useState("");
 
   useEffect(() => {
-    Promise.all([listTasks(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[]), listTeams().catch(() => [] as Team[])])
+    Promise.all([listTasksLite(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[]), listTeams().catch(() => [] as Team[])])
       .then(([t, c, s, q, tm]) => {
         setTasks(t);
         setClients(c);
@@ -148,7 +147,6 @@ export function WorkloadView() {
     if (col === today) return "วันนี้";
     return format(new Date(col), "EEE d MMM", { locale: th });
   };
-  const activeTab = board.columns.includes(tab) ? tab : board.columns.find((c) => c === today) ?? board.columns[0];
   const waiting = board.waiting.filter((w) => !clientFilter.length || clientFilter.includes(w.clientId));
 
   if (loading) return <LoadingView />;
@@ -192,22 +190,22 @@ export function WorkloadView() {
       </div>
       <p className="text-[11px] text-gray-400">ลากการ์ดไปวางวันอื่นเพื่อย้ายวัน · บนมือถือกดไอคอนนาฬิกาบนการ์ดแล้วเลือกวัน · การ์ดถ่ายในคิวจะย้ายวันถ่ายของทั้งคิว</p>
 
-      {/* desktop: people × days, one table per section */}
+      {/* people × days, one table per section — same on phone and desktop (scrolls sideways on a phone) */}
       {SECTIONS.map((sec) => {
         const rows = rowsFor(sec.kinds);
         return (
-          <section key={sec.key} className="hidden md:block">
+          <section key={sec.key}>
             <h2 className={cn("mb-2 text-sm font-semibold", sec.key === "shoot" ? "text-sky-700" : "text-orange-700")}>{sec.title}</h2>
             <div className="overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-card">
-              <table className="w-full min-w-[900px] border-separate border-spacing-0 text-left">
+              <table className="w-full min-w-[760px] border-separate border-spacing-0 text-left sm:min-w-[900px]">
                 <thead>
                   <tr>
-                    <th className="sticky left-0 z-10 w-36 border-b border-r border-gray-100 bg-white px-3 py-2.5 text-xs font-medium text-gray-400">คน</th>
+                    <th className="sticky left-0 z-10 w-24 border-b border-r border-gray-100 bg-white px-2 py-2.5 text-xs font-medium text-gray-400 sm:w-36 sm:px-3">คน</th>
                     {board.columns.map((col) => (
                       <th
                         key={col}
                         className={cn(
-                          "min-w-[150px] border-b border-gray-100 px-2 py-2.5 text-xs font-semibold",
+                          "min-w-[120px] border-b border-gray-100 px-2 py-2.5 text-xs font-semibold sm:min-w-[150px]",
                           col === "overdue" ? "bg-rose-50/60 text-rose-600" : col === today ? "bg-brand-50/60 text-brand-700" : "text-gray-600",
                         )}
                       >
@@ -219,7 +217,7 @@ export function WorkloadView() {
                 <tbody>
                   {rows.map((r) => (
                     <tr key={r.id}>
-                      <td className="sticky left-0 z-10 border-b border-r border-gray-100 bg-white px-3 py-2 align-top">
+                      <td className="sticky left-0 z-10 border-b border-r border-gray-100 bg-white px-2 py-2 align-top sm:px-3">
                         <div className="flex items-center gap-2">
                           <Avatar r={r} size="h-7 w-7 text-xs" />
                           <span className="truncate text-sm font-medium text-gray-800">{r.name}</span>
@@ -272,51 +270,6 @@ export function WorkloadView() {
           </section>
         );
       })}
-
-      {/* phone: one day at a time, shooting then editing */}
-      <div className="md:hidden">
-        <div className="-mx-1 mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
-          {board.columns.map((col) => {
-            const n = board.cards.filter((c) => c.column === col).length;
-            return (
-              <button
-                key={col}
-                onClick={() => setTab(col)}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium",
-                  activeTab === col ? "border-brand-500 bg-brand-500 text-white" : col === "overdue" && n > 0 ? "border-rose-200 bg-rose-50 text-rose-600" : "border-gray-200 bg-white text-gray-600",
-                )}
-              >
-                {columnLabel(col)} {n > 0 && <span className="opacity-70">({n})</span>}
-              </button>
-            );
-          })}
-        </div>
-        {SECTIONS.map((sec) => {
-          const rows = rowsFor(sec.kinds).filter((r) => cardsAt(sec.kinds, r.id, activeTab).length > 0);
-          return (
-            <section key={sec.key} className="mb-4">
-              <h2 className={cn("mb-2 text-sm font-semibold", sec.key === "shoot" ? "text-sky-700" : "text-orange-700")}>{sec.title}</h2>
-              <div className="space-y-3">
-                {rows.map((r) => (
-                  <div key={r.id} className="rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
-                    <div className="mb-2 flex items-center gap-2">
-                      <Avatar r={r} size="h-6 w-6 text-[11px]" />
-                      <span className="text-sm font-semibold text-gray-800">{r.name}</span>
-                    </div>
-                    <div className="flex flex-col gap-1.5">
-                      {cardsAt(sec.kinds, r.id, activeTab).map((c) => (
-                        <Card key={c.key} card={c} clientName={clientName(c.clientId)} today={today} onMove={moveCard} />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                {rows.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-5 text-center text-sm text-gray-400">ไม่มีงาน{sec.key === "shoot" ? "ถ่าย" : "ตัดต่อ"}วันนี้</p>}
-              </div>
-            </section>
-          );
-        })}
-      </div>
 
       {waiting.length > 0 && (
         <section>

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CheckCircle2, Download, Heart, MessageCircle, Palette, Send, X } from "lucide-react";
+import { Check, CheckCircle2, Download, Gauge, Heart, MessageCircle, Palette, Send, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { initials } from "@/components/v2/AppGrid";
@@ -64,15 +64,14 @@ type Handlers = {
   onUploaded?: () => void;
 };
 
-// One full-screen clip, TikTok style. Hold = 2× speed. Tap the bottom area for the
+// One full-screen clip, TikTok style. Speed button 1×–2×. Tap the bottom area for the
 // scrub bar; comments show as dots on it. The right rail depends on who watches.
 function Slide({ item, active, variant, index, total, h }: { item: FeedItem; active: boolean; variant: FeedVariant; index: number; total: number; h: Handlers }) {
   const video = useRef<HTMLVideoElement>(null);
-  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [paused, setPaused] = useState(false);
-  const [fast, setFast] = useState(false);
+  const [speed, setSpeed] = useState(1);
   const [scrub, setScrub] = useState(false);
   const [panel, setPanel] = useState<"none" | "comments" | "confirm">("none");
   const [draft, setDraft] = useState("");
@@ -106,17 +105,19 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
     setTime(s);
   }
 
-  const stopFast = () => {
-    if (holdTimer.current) clearTimeout(holdTimer.current);
-    if (video.current) video.current.playbackRate = 1;
-    setFast(false);
-  };
+  // playback speed button (holding to speed up fought the browser's zoom / text selection)
+  const SPEEDS = [1, 1.25, 1.5, 2];
+  function nextSpeed() {
+    const n = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
+    setSpeed(n);
+    if (video.current) video.current.playbackRate = n;
+  }
 
   const canWrite = variant !== "editor" && Boolean(h.onComment);
   const reviseLabel = variant === "client" ? `ส่งให้แก้ (${open.length} ข้อ)` : `ส่งกลับให้แก้ (${open.length} ข้อ)`;
 
   return (
-    <section className="relative h-full w-full snap-start snap-always overflow-hidden bg-black">
+    <section className="relative h-full w-full touch-manipulation select-none snap-start snap-always overflow-hidden bg-black [-webkit-touch-callout:none]">
       {item.draft.url ? (
         <video
           ref={video}
@@ -138,25 +139,17 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
             if (v.paused) v.play().catch(() => {});
             else v.pause();
           }}
-          onPointerDown={() => {
-            holdTimer.current = setTimeout(() => {
-              if (video.current) video.current.playbackRate = 2;
-              setFast(true);
-            }, 350);
-          }}
-          onPointerUp={stopFast}
-          onPointerLeave={stopFast}
+          onLoadedData={(e) => (e.currentTarget.playbackRate = speed)}
         />
       ) : (
         <p className="absolute inset-0 flex items-center justify-center text-sm text-white/70">โหลดวิดีโอไม่ได้</p>
       )}
 
       {total > 1 && <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-medium text-white">คลิปที่ {index + 1} / {total}</span>}
-      {fast && <span className="absolute left-1/2 top-16 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">2× เร็วขึ้น</span>}
       {paused && panel === "none" && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl text-white/80">▶</span>}
 
       {/* right rail */}
-      <div className="absolute bottom-28 right-2 flex flex-col items-center gap-5 text-white">
+      <div className="absolute bottom-32 right-2 z-20 flex flex-col items-center gap-5 text-white">
         {variant === "team" ? (
           <Link href={`/v2/clients/${item.clientId}/ci`} aria-label="CI Brand ของลูกค้า">
             <Avatar item={item} size="h-12 w-12 border-2 border-white" />
@@ -178,6 +171,10 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
         <button onClick={showComments} className="relative flex flex-col items-center gap-1" aria-label="คอมเมนต์">
           <MessageCircle size={30} className="drop-shadow" />
           <span className="text-[11px] font-semibold">{variant === "editor" ? `${open.length} ข้อ` : open.length || "คอมเมนต์"}</span>
+        </button>
+        <button onClick={nextSpeed} className="flex flex-col items-center gap-1" aria-label="ความเร็ว">
+          <Gauge size={28} className="drop-shadow" />
+          <span className="text-[11px] font-semibold">{speed}×</span>
         </button>
         {variant === "team" && item.draft.downloadUrl && (
           <a href={item.draft.downloadUrl} className="flex flex-col items-center gap-1" aria-label="ดาวน์โหลด">

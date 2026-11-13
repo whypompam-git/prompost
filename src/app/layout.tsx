@@ -25,8 +25,14 @@ export const metadata: Metadata = {
   },
 };
 
+// no pinch / double-tap zoom: the app is used like a phone app (also stops iOS
+// zooming in when an input gets focus)
 export const viewport = {
   themeColor: "#f97316",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
