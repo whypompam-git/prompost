@@ -9,6 +9,31 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 // Contracts nearing their end → the owner's bell (never the team LINE groups:
 // staff contracts are owner-only). One notification per contract per stage.
+// Draft videos of clips that were deleted: the database rows go with the clip,
+// the files in storage don't — remove them. Files are stored as <client>/<task>/<file>;
+// only folders whose clip no longer exists are touched.
+async function removeOrphanDrafts(db: SupabaseClient): Promise<number> {
+  const { data: clientDirs } = await db.storage.from("drafts").list("", { limit: 1000 });
+  let removed = 0;
+  for (const c of clientDirs ?? []) {
+    const { data: taskDirs } = await db.storage.from("drafts").list(c.name, { limit: 1000 });
+    const ids = (taskDirs ?? []).map((t) => t.name).filter((n) => /^[0-9a-f-]{36}$/i.test(n));
+    if (!ids.length) continue;
+    const { data: alive, error } = await db.from("tasks").select("id").in("id", ids);
+    if (error) continue; // never delete on a failed lookup
+    const keep = new Set((alive ?? []).map((t) => t.id as string));
+    for (const t of ids.filter((id) => !keep.has(id))) {
+      const { data: files } = await db.storage.from("drafts").list(`${c.name}/${t}`, { limit: 1000 });
+      const paths = (files ?? []).map((f) => `${c.name}/${t}/${f.name}`);
+      if (paths.length) {
+        await db.storage.from("drafts").remove(paths);
+        removed += paths.length;
+      }
+    }
+  }
+  return removed;
+}
+
 async function remindContractExpiry(db: SupabaseClient, today: string): Promise<number> {
   const { data: rows, error } = await db.from("contracts").select(CONTRACT_COLUMNS).eq("status", "signed").not("end_date", "is", null);
   if (error || !rows?.length) return 0;
@@ -53,6 +78,8 @@ export async function GET(request: Request) {
     const now = new Date();
     const db = createAdminClient();
     if (!dry) await remindContractExpiry(db, bangkokDay(now)).catch((err) => console.error("contract reminders", err));
+    // once a day (03:00 Bangkok): clear draft files left behind by deleted clips
+    if (!dry && bangkokHour(now) === 3) await removeOrphanDrafts(db).catch((err) => console.error("orphan drafts", err));
     const cols = "id, name, group_id, send_hour, topics, team_id, enabled, last_sent_on";
     let { data: channels, error: chErr } = await db.from("line_channels").select(cols);
     // No channels yet: turn the old single-group setup (LINE_TO) into a real channel

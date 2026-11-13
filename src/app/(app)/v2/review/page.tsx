@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, Inbox } from "lucide-react";
+import { CheckCircle2, Download, Inbox, Upload, X } from "lucide-react";
+import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { listClients, listTasks } from "@/lib/supabase/queries";
+import type { Client, Task } from "@/lib/types";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/components/v2/ReviewFeed";
 import { getTask } from "@/lib/supabase/queries";
@@ -21,6 +25,7 @@ export default function V2ReviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -94,6 +99,9 @@ export default function V2ReviewPage() {
       <div className="shrink-0 space-y-2 bg-white px-3 pb-2 pt-3">
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold text-gray-900">ตรวจงาน</h1>
+          <button onClick={() => setUploadOpen(true)} className="flex items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-white">
+            <Upload size={13} /> อัปดราฟ
+          </button>
           <div className="ml-auto grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
             <button onClick={() => setTab("review")} className={cn("rounded-md px-3 py-1.5", tab === "review" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>
               รอ QC ({items.length})
@@ -146,6 +154,7 @@ export default function V2ReviewPage() {
         ) : (
           <DeliverList items={deliver} onDone={(id) => setDeliver((p) => p.filter((x) => x.taskId !== id))} />
         )}
+        {uploadOpen && <UploadSheet onClose={() => setUploadOpen(false)} onUploaded={load} />}
         {toast && <span className="absolute left-1/2 top-4 z-20 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-900 shadow-lg">{toast}</span>}
       </div>
     </div>
@@ -199,6 +208,59 @@ function DeliverList({ items, onDone }: { items: DeliverItem[]; onDone: (taskId:
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// "อัปดราฟ" for the in-house team: pick a clip that is in editing (mine first) and upload.
+function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
+  const auth = useAuth();
+  const [tasks, setTasks] = useState<Task[] | null>(null);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [all, setAll] = useState(false);
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    Promise.all([listTasks(), listClients()]).then(([t, c]) => {
+      setTasks(t.filter((x) => x.type === "edit" || x.type === "qc"));
+      setClients(c);
+    });
+  }, []);
+  const name = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
+  const mine = (t: Task) => t.editorId === auth.staffId || (!t.editorId && t.assigneeId === auth.staffId);
+  const list = (tasks ?? [])
+    .filter((t) => all || mine(t))
+    .filter((t) => !q.trim() || `${t.title} ${name(t.clientId)}`.toLowerCase().includes(q.trim().toLowerCase()))
+    .sort((a, b) => (a.editDate ?? "").localeCompare(b.editDate ?? ""));
+  return (
+    <div className="absolute inset-0 z-30 flex items-end bg-black/50" onClick={onClose}>
+      <div className="flex max-h-[85%] w-full flex-col rounded-t-2xl bg-white" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+          <p className="text-sm font-semibold text-gray-900">อัปดราฟ — เลือกคลิป</p>
+          <button onClick={onClose} className="rounded-full p-1 text-gray-400" aria-label="ปิด"><X size={18} /></button>
+        </div>
+        <div className="space-y-2 px-4 py-3">
+          <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+            <button onClick={() => setAll(false)} className={cn("rounded-md py-1.5", !all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>คลิปที่ฉันตัด</button>
+            <button onClick={() => setAll(true)} className={cn("rounded-md py-1.5", all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>ทุกคลิปที่กำลังตัด</button>
+          </div>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาชื่อคลิป / ลูกค้า" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
+        </div>
+        <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto px-4 pb-6">
+          {tasks === null && <p className="py-6 text-center text-sm text-gray-400">กำลังโหลด…</p>}
+          {tasks !== null && list.length === 0 && (
+            <p className="py-6 text-center text-sm text-gray-400">{all ? "ไม่มีคลิปที่อยู่ขั้นตัดต่อ" : "ยังไม่มีคลิปที่ตั้งคุณเป็นคนตัด — ลองดู “ทุกคลิปที่กำลังตัด”"}</p>
+          )}
+          {list.map((t) => (
+            <div key={t.id} className="space-y-1.5 py-3">
+              <p className="text-sm font-semibold text-gray-900">{name(t.clientId)} <span className="font-normal text-gray-600">· {t.title}</span></p>
+              <p className="text-[11px] text-gray-400">{t.type === "qc" ? "อยู่ที่ QC แล้ว (อัปเวอร์ชันใหม่ได้)" : "กำลังตัดต่อ"}{t.editDate ? ` · Deadline ${t.editDate}` : ""}{(t.revisionCount ?? 0) > 0 ? ` · แก้รอบที่ ${t.revisionCount}` : ""}</p>
+              <div className="flex flex-wrap items-center gap-2">
+                <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปดราฟ + ส่ง QC" : "อัปเวอร์ชันใหม่"} onDone={() => { onUploaded(); onClose(); }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
