@@ -1,12 +1,11 @@
 import { notFound } from "next/navigation";
-import { Film } from "lucide-react";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { PortalHeader } from "@/components/portal/PortalHeader";
 import { PortalTabs } from "@/components/portal/PortalTabs";
 import { PortalReviewFeed } from "@/components/portal/PortalReviewFeed";
 import { PortalPlanDeck } from "@/components/portal/PortalPlanDeck";
 import { loadPortalClient } from "@/lib/portalData";
-import { driveThumb } from "@/lib/drive";
+import { DriveGrid } from "@/components/portal/DriveGrid";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Client-link tabs other than home and info.
@@ -68,37 +67,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
         {files.length === 0 ? (
           <p className="mx-4 rounded-2xl bg-white p-10 text-center text-sm text-gray-400 shadow-card">ยังไม่มีคลิปที่อนุมัติแล้ว</p>
         ) : (
-          <div className="grid grid-cols-3 gap-0.5 sm:grid-cols-4">
-            {files.map((t) => {
-              const thumb = t.cover_url || driveThumb(t.final_url);
-              const href = t.final_url ? (t.final_url.startsWith("http") ? t.final_url : `https://${t.final_url}`) : undefined;
-              const Tile = (
-                <>
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-gray-300">
-                      <Film size={26} />
-                    </span>
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 pb-1.5 pt-6">
-                    <span className="block truncate text-[10px] font-medium text-white">{t.title}</span>
-                    <span className="block text-[10px] text-white/70">{t.type === "posted" ? "โพสแล้ว" : href ? "แตะเพื่อเปิดไฟล์" : "กำลังเตรียมไฟล์"}</span>
-                  </span>
-                </>
-              );
-              return href ? (
-                <a key={t.id} href={href} target="_blank" rel="noreferrer" className="relative block aspect-[9/16] overflow-hidden bg-gray-200">
-                  {Tile}
-                </a>
-              ) : (
-                <div key={t.id} className="relative aspect-[9/16] overflow-hidden bg-gray-200">
-                  {Tile}
-                </div>
-              );
-            })}
-          </div>
+          <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined }))} />
         )}
       </div>
       <PortalTabs basePath={basePath} active="files" badges={portal.badges} />

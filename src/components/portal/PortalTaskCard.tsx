@@ -318,7 +318,10 @@ export function PortalTaskCard({
                 </div>
               </div>
             ) : hasScript ? (
-              <ScriptText text={script} className="rounded-lg bg-white p-3 text-sm text-gray-700" />
+              <>
+                {stage === "plan" && <p className="mb-1.5 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] text-amber-800">สคริปต์นี้เป็นโครงร่าง ปรับเปลี่ยนได้ตามหน้างานตอนถ่ายจริง</p>}
+                <ScriptText text={script} className="rounded-lg bg-white p-3 text-sm text-gray-700" />
+              </>
             ) : (
               <p className="rounded-lg bg-white p-3 text-sm text-gray-400">ยังไม่มีสคริปต์</p>
             )}

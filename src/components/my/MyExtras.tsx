@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, CheckCircle2, ExternalLink, Film, FileSignature, Inbox, Palette, X } from "lucide-react";
 import { ReviewFeed, type FeedItem, type FeedComment } from "@/components/v2/ReviewFeed";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
-import { driveThumb } from "@/lib/drive";
+import { DriveGrid } from "@/components/portal/DriveGrid";
 import type { MyTask } from "@/lib/myWorkTypes";
 import { cn } from "@/lib/utils";
 
@@ -252,30 +252,8 @@ export function MyProfile({ contract, inProgress }: { contract: { contractNo: st
       {p.done.length === 0 ? (
         <p className="py-8 text-center text-sm text-gray-400">ยังไม่มีงานที่ลูกค้าอนุมัติ</p>
       ) : (
-        <div className="-mx-4 grid grid-cols-3 gap-0.5 sm:mx-0">
-          {p.done.map((t) => {
-            const thumb = t.coverUrl || driveThumb(t.finalUrl);
-            const href = t.finalUrl ? (t.finalUrl.startsWith("http") ? t.finalUrl : `https://${t.finalUrl}`) : undefined;
-            const inner = (
-              <>
-                {thumb ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumb} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center text-gray-300"><Film size={26} /></span>
-                )}
-                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1.5 pt-6">
-                  <span className="block truncate text-[10px] font-semibold text-white">{t.clientName}</span>
-                  <span className="block truncate text-[10px] text-white/80">{t.title}</span>
-                </span>
-              </>
-            );
-            return href ? (
-              <a key={t.id} href={href} target="_blank" rel="noreferrer" className="relative block aspect-[9/16] overflow-hidden bg-gray-100">{inner}</a>
-            ) : (
-              <div key={t.id} className="relative aspect-[9/16] overflow-hidden bg-gray-100">{inner}</div>
-            );
-          })}
+        <div className="-mx-4 sm:mx-0">
+          <DriveGrid clips={p.done.map((t) => ({ id: t.id, title: t.title, subtitle: t.clientName, finalUrl: t.finalUrl, coverUrl: t.coverUrl }))} />
         </div>
       )}
     </div>

@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { listClientLogos, listClients, listStaff, listTasksLite, updateOwnProfile } from "@/lib/supabase/queries";
 import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { driveThumb } from "@/lib/drive";
+import { DriveGrid } from "@/components/portal/DriveGrid";
 
 const MAX = 256;
 function resizeToDataUrl(file: File): Promise<string> {
@@ -154,28 +154,7 @@ export default function V2MePage() {
         mineDone.length === 0 ? (
           <p className="py-12 text-center text-sm text-gray-400">ยังไม่มีงานที่เสร็จ</p>
         ) : (
-          <div className="grid grid-cols-3 gap-0.5 sm:grid-cols-4 lg:grid-cols-6">
-            {mineDone.map((t) => {
-              const thumb = t.coverUrl || driveThumb(t.finalUrl);
-              const href = t.finalUrl ? (t.finalUrl.startsWith("http") ? t.finalUrl : `https://${t.finalUrl}`) : `/tasks/${t.id}`;
-              return (
-                <a key={t.id} href={href} target={t.finalUrl ? "_blank" : undefined} rel="noreferrer" className="group relative block aspect-[9/16] overflow-hidden bg-gray-100">
-                  {thumb ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={thumb} alt="" className="h-full w-full object-cover" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-gray-300">
-                      <Film size={26} />
-                    </span>
-                  )}
-                  <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1.5 pt-6 text-left">
-                    <span className="block truncate text-[10px] font-semibold text-white">{clientName(t.clientId)}</span>
-                    <span className="block truncate text-[10px] text-white/80">{t.title}</span>
-                  </span>
-                </a>
-              );
-            })}
-          </div>
+          <DriveGrid clips={mineDone.map((t) => ({ id: t.id, title: t.title, subtitle: clientName(t.clientId), finalUrl: t.finalUrl ?? null, coverUrl: t.coverUrl ?? null }))} />
         )
       ) : myClients.length === 0 ? (
         <p className="py-12 text-center text-sm text-gray-400">ยังไม่มีลูกค้าที่คุณเป็นผู้ดูแล</p>
