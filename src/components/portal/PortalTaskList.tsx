@@ -22,6 +22,7 @@ export type PortalTask = {
   shots: string[] | null;
   revision_count?: number | null;
   revision_brief?: string | null;
+  draft_url?: string | null; // signed link to the latest draft video (clips waiting for the client)
 };
 
 type SortKey = "default" | "name" | "status";
@@ -123,6 +124,7 @@ export function PortalTaskList({ tasks, clientKey }: { tasks: PortalTask[]; clie
             shots={task.shots ?? []}
             revisionCount={task.revision_count ?? 0}
             revisionBrief={task.revision_brief ?? null}
+            draftUrl={task.draft_url ?? null}
           />
         ))}
         {sorted.length === 0 && (

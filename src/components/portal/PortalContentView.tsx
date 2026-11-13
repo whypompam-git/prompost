@@ -5,10 +5,9 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { findPortalClient } from "@/lib/portalClient";
 import { PortalTabs } from "@/components/portal/PortalTabs";
-import { StatTile } from "@/components/portal/StatTile";
 import { createAdminClient as createClient } from "@/lib/supabase/admin";
+import { signedDraftUrl } from "@/lib/draftsServer";
 import type { TaskStatus, TaskType } from "@/lib/types";
-import { summarizeStages } from "@/lib/workflow";
 
 // Public client portal — reached via an unguessable token, no login required.
 // Currently reads through the anon key with open RLS (no policies yet — see
@@ -45,6 +44,20 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
     revision_brief: string | null;
   }[];
 
+  // clips waiting for the client to check play their latest draft right in the card
+  const pendingIds = taskList.filter((t) => t.type === "pending").map((t) => t.id);
+  const draftUrls: Record<string, string> = {};
+  if (pendingIds.length) {
+    const { data: drafts } = await supabase.from("task_drafts").select("task_id, version, path").in("task_id", pendingIds).is("removed_at", null).order("version", { ascending: false });
+    const seen = new Set<string>();
+    for (const d of drafts ?? []) {
+      if (seen.has(d.task_id)) continue;
+      seen.add(d.task_id);
+      const url = await signedDraftUrl(d.path);
+      if (url) draftUrls[d.task_id] = url;
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-10">
       <div className="mx-auto max-w-2xl space-y-6">
@@ -57,7 +70,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
             <Film size={15} />
             รายการงาน/คลิป
           </h2>
-          <PortalTaskList tasks={taskList} clientKey={clientKey} />
+          <PortalTaskList tasks={taskList.map((t) => ({ ...t, draft_url: draftUrls[t.id] ?? null }))} clientKey={clientKey} />
         </section>
       </div>
     </div>

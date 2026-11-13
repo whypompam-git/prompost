@@ -12,6 +12,7 @@ import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { DIFFICULTY } from "@/components/dashboard/TaskTable";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { WorkflowPanel } from "@/components/tasks/WorkflowPanel";
+import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 import { saveTaskWithFlow } from "@/lib/taskFlow";
 import { enterStage, statusLabel, statusesFor } from "@/lib/workflow";
 import {
@@ -208,6 +209,14 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
         </div>
 
         <WorkflowPanel task={task} staff={staff} teams={teams} queues={queues} onPatch={patch} onReload={reloadTask} />
+
+        {(task.type === "edit" || task.type === "qc") && (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-card">
+            <span className="text-sm text-gray-600">ดราฟวิดีโอ:</span>
+            <DraftUploadButton taskId={task.id} label={task.type === "edit" ? "อัปโหลดดราฟ + ส่ง QC" : "อัปโหลดดราฟใหม่"} onDone={reloadTask} />
+            <a href="/v2/review" className="text-sm font-medium text-brand-600 hover:underline">ไปหน้าตรวจงาน →</a>
+          </div>
+        )}
 
         {mode === "edit" ? (
         <Card className="space-y-4">

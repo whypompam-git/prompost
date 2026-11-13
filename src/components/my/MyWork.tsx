@@ -11,6 +11,7 @@ import { ScriptText } from "@/components/ui/ScriptText";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 import { bucketOf, type MyBucket, type MyTask } from "@/lib/myWorkTypes";
 import { cn } from "@/lib/utils";
+import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 
 const SECTIONS: { key: MyBucket; title: string; hint?: string; tone: string; open: boolean }[] = [
   { key: "revise", title: "ต้องแก้", hint: "ถูกส่งกลับมาพร้อมบรีฟ", tone: "text-rose-600", open: true },
@@ -138,6 +139,9 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
 
       {editable && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
+          {/* main way: upload the draft video — the team reviews it in the system */}
+          <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปโหลดดราฟ + ส่งงาน" : "อัปโหลดดราฟใหม่"} onDone={onChange} className="w-full justify-center sm:w-auto" />
+          <span className="w-full text-[11px] text-gray-400 sm:w-auto">หรือวางลิงก์ Drive แล้วกดส่งงาน</span>
           <input
             value={finalDraft}
             onChange={(e) => setFinalDraft(e.target.value)}

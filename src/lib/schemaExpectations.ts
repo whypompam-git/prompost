@@ -19,6 +19,8 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "contract_templates", columns: "kind, content", migration: "0043" },
   { table: "notes", columns: "id, author_id, client_id, body, pinned, deleted_at", migration: "0046" },
   { table: "client_ci", columns: "client_id, logo_url, colors, fonts", migration: "0046" },
+  { table: "task_drafts", columns: "id, task_id, version, path, removed_at", migration: "0047" },
+  { table: "draft_comments", columns: "id, task_id, at_seconds, body, from_client, resolved_at", migration: "0047" },
   { table: "agency_settings", columns: "business_type, owner_name", migration: "0043" },
   { table: "contract_payments", columns: "id, contract_id, amount, net, receipt_token, payee_signed_at", migration: "0043" },
   { table: "tasks", columns: "contract_id", migration: "0043" },

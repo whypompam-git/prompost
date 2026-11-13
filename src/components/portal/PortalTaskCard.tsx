@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Camera, ChevronDown, Download, ExternalLink, ListChecks, Pencil, ScrollText } from "lucide-react";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
 import { ScriptText } from "@/components/ui/ScriptText";
@@ -24,6 +24,7 @@ export function PortalTaskCard({
   shots,
   revisionCount,
   revisionBrief,
+  draftUrl,
 }: {
   taskId: string;
   clientKey: string;
@@ -39,7 +40,10 @@ export function PortalTaskCard({
   shots: string[];
   revisionCount: number;
   revisionBrief: string | null;
+  draftUrl?: string | null;
 }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const stamp = (s: number) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   const [stage, setStage] = useState<string>(type);
   const [stageStatus, setStageStatus] = useState<TaskStatus>(status);
   const [rounds, setRounds] = useState(revisionCount);
@@ -163,6 +167,13 @@ export function PortalTaskCard({
         </div>
       </button>
 
+      {draftUrl && stage === "pending" && (
+        <div className="px-4 pb-3">
+          <video ref={videoRef} src={draftUrl} controls playsInline preload="metadata" className="mx-auto max-h-[70vh] w-full rounded-xl bg-black" />
+          <p className="mt-1 text-center text-[11px] text-gray-400">กด “แก้ไข” ระหว่างดู ระบบจะใส่วินาทีของคลิปตรงนั้นให้อัตโนมัติ</p>
+        </div>
+      )}
+
       {(waitingChoice || notice) && (
         <div className="space-y-2 px-4 pb-3">
           {notice && <p className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">{notice}</p>}
@@ -192,7 +203,19 @@ export function PortalTaskCard({
                     <button type="button" disabled={acting} onClick={() => choose("pass")} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
                       ผ่าน
                     </button>
-                    <button type="button" disabled={acting} onClick={() => setReviseOpen((v) => !v)} className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50">
+                    <button
+                      type="button"
+                      disabled={acting}
+                      onClick={() => {
+                        const v = videoRef.current;
+                        if (v && v.currentTime > 0) {
+                          v.pause();
+                          setBriefDraft((d) => `${d}${d && !d.endsWith("\n") ? "\n" : ""}${stamp(v.currentTime)} `);
+                          setReviseOpen(true);
+                        } else setReviseOpen((o) => !o);
+                      }}
+                      className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+                    >
                       แก้ไข
                     </button>
                   </>

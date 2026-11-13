@@ -2483,3 +2483,26 @@ export async function saveClientCi(ci: ClientCi, staffId: string): Promise<void>
     });
   if (error) throw error;
 }
+
+// ── Draft videos ─────────────────────────────────────────────────────────
+// Uploads a draft for a clip straight to the private "drafts" bucket (with
+// progress), then records it; a clip still in editing moves to QC.
+export async function uploadDraft(taskId: string, file: File, onProgress?: (pct: number) => void): Promise<void> {
+  const ext = (file.name.split(".").pop() ?? "mp4").toLowerCase();
+  const res = await fetch("/api/drafts/upload-url", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId, ext }) });
+  const sign = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(sign.error ?? `ขอลิงก์อัปโหลดไม่สำเร็จ (${res.status})`);
+  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", `${base}/storage/v1/object/upload/sign/drafts/${sign.path}?token=${encodeURIComponent(sign.token)}`);
+    xhr.setRequestHeader("Content-Type", file.type || "video/mp4");
+    xhr.setRequestHeader("x-upsert", "false");
+    xhr.upload.onprogress = (e) => e.lengthComputable && onProgress?.(Math.round((e.loaded / e.total) * 100));
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(xhr.status === 413 ? "ไฟล์ใหญ่เกินที่ระบบรับได้" : `อัปโหลดไม่สำเร็จ (${xhr.status})`)));
+    xhr.onerror = () => reject(new Error("อัปโหลดไม่สำเร็จ ตรวจสอบอินเทอร์เน็ต"));
+    xhr.send(file);
+  });
+  const done = await fetch("/api/drafts/uploaded", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId, path: sign.path, size: file.size }) });
+  if (!done.ok) throw new Error((await done.json().catch(() => ({}))).error ?? "บันทึกดราฟไม่สำเร็จ");
+}
