@@ -48,6 +48,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // a client's money page (new UI) needs the documents or accounting permission
+  if (/^\/v2\/clients\/[^/]+\/money/.test(pathname)) {
+    const live = await fetchLiveAccess(claims.staffId);
+    const ok = live?.active && (live.role === "owner" || live.permissions.documents || live.permissions.accounting);
+    if (!ok) return NextResponse.redirect(new URL("/v2/clients", request.url));
+  }
+
   const gate = pathname.startsWith("/accounting")
     ? "accounting"
     : pathname.startsWith("/documents") || pathname.startsWith("/contracts")

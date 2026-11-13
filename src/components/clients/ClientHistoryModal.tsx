@@ -7,6 +7,8 @@ import { Pencil, Send, Trash2, X } from "lucide-react";
 import {
   createClientNoteRow,
   listClientNotes,
+  listTeamNotes,
+  type TeamNote,
   listStaff,
   trashClientNoteRow,
   updateClientNoteRow,
@@ -38,6 +40,12 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
   }, []);
 
   const nameOf = (id?: string | null) => staff.find((s) => s.id === id)?.name;
+
+  // team notes (โน้ต) tagged with this client show here too
+  const [teamNotes, setTeamNotes] = useState<TeamNote[]>([]);
+  useEffect(() => {
+    listTeamNotes({ clientId: client.id }).then(setTeamNotes).catch(() => {});
+  }, [client.id]);
 
   useEffect(() => {
     listClientNotes(client.id)
@@ -183,7 +191,7 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                     {format(new Date(n.noteDate), "d MMM yyyy", { locale: th })}
                     {nameOf(n.talkedBy) && <span className="ml-2 font-medium text-gray-600">· คุยโดย {nameOf(n.talkedBy)}</span>}
                   </p>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100">
+                  <div className="flex gap-1 md:opacity-0 md:group-hover:opacity-100">
                     <button
                       onClick={() => setEditing({ id: n.id, note: n.note, noteDate: n.noteDate, talkedBy: n.talkedBy ?? "", images: n.images ?? [] })}
                       className="rounded-full p-1 text-gray-300 hover:bg-gray-200 hover:text-gray-600"
@@ -203,6 +211,22 @@ export function ClientHistoryModal({ client, onClose }: { client: Client; onClos
                 <NoteView text={n.note} images={n.images} />
               </div>
             ),
+          )}
+          {teamNotes.length > 0 && (
+            <div className="pt-2">
+              <p className="mb-1.5 text-xs font-semibold text-gray-500">โน้ตทีมที่ผูกกับลูกค้านี้</p>
+              <div className="space-y-2">
+                {teamNotes.map((n) => (
+                  <a key={n.id} href={`/v2/notes/${n.id}`} className="block rounded-lg border border-amber-100 bg-amber-50/60 p-3 hover:bg-amber-50">
+                    <p className="mb-1 text-xs text-gray-400">
+                      {format(new Date(n.updatedAt), "d MMM yyyy", { locale: th })}
+                      {nameOf(n.authorId) && <span className="ml-2 font-medium text-gray-600">· {nameOf(n.authorId)}</span>}
+                    </p>
+                    <NoteView text={n.body} images={n.images} />
+                  </a>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>

@@ -76,7 +76,15 @@ export default function StudioPage() {
   const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
-    listClients().then(setClients).finally(() => setLoading(false));
+    listClients()
+      .then((list) => {
+        setClients(list);
+        // opened from a client's page: /studio?client=<id>
+        const pre = new URLSearchParams(window.location.search).get("client");
+        if (pre && list.some((c) => c.id === pre)) pickClient(pre);
+      })
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function pickClient(id: string) {

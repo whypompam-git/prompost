@@ -1,0 +1,254 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  addDays,
+  addMonths,
+  addWeeks,
+  addYears,
+  eachDayOfInterval,
+  endOfMonth,
+  endOfWeek,
+  format,
+  startOfMonth,
+  startOfWeek,
+  startOfYear,
+} from "date-fns";
+import { th } from "date-fns/locale";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { CalendarGrid } from "@/components/calendar/CalendarGrid";
+import { DayView } from "@/components/calendar/DayView";
+import { YearView } from "@/components/calendar/YearView";
+import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
+import { LoadingView } from "@/components/ui/LoadingView";
+import { buildCalendarChips } from "@/lib/calendarChips";
+import { createTaskRow, listClients, listQueues, listStaff, listTasks, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
+import type { CalendarChip } from "@/lib/calendarChips";
+import type { Client, Queue, Staff, Task } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+type ModalState = "closed" | { create: { clientId?: string; date?: string } };
+type ViewKind = "day" | "week" | "month" | "year";
+
+const VIEW_OPTIONS: { value: ViewKind; label: string }[] = [
+  { value: "day", label: "วัน" },
+  { value: "week", label: "สัปดาห์" },
+  { value: "month", label: "เดือน" },
+  { value: "year", label: "ปี" },
+];
+
+// Calendar of shoots / edits per client. Used by the old /calendar page and the new /v2/calendar.
+export function CalendarView() {
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [staff, setStaff] = useState<Staff[]>([]);
+  const [queues, setQueues] = useState<Queue[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalState, setModalState] = useState<ModalState>("closed");
+  const [view, setView] = useState<ViewKind>("month");
+  const [anchor, setAnchor] = useState(() => new Date());
+  // phones: the month grid is too narrow to read — start on the week
+  useEffect(() => {
+    if (window.innerWidth < 768) setView("week");
+  }, []);
+
+  useEffect(() => {
+    Promise.all([listTasks(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[])])
+      .then(([t, c, s, q]) => {
+        setQueues(q);
+        setTasks(t);
+        setClients(c);
+        setStaff(s);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function handleSave(values: TaskFormValues) {
+    const created = await createTaskRow(values);
+    setTasks((prev) => [created, ...prev]);
+    setModalState("closed");
+  }
+
+  const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff }), [tasks, queues, clients, staff]);
+
+  // month view scrolls on and on: a few months back, more are added as you reach the end
+  const [monthsBack, setMonthsBack] = useState(1);
+  const [monthsAhead, setMonthsAhead] = useState(4);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const monthDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(startOfMonth(addMonths(anchor, -monthsBack)), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(addMonths(anchor, monthsAhead)), { weekStartsOn: 1 }),
+      }),
+    [anchor, monthsBack, monthsAhead],
+  );
+  // jump to the chosen month whenever it changes
+  useEffect(() => {
+    if (view !== "month" || loading) return;
+    setMonthsBack(1);
+    setMonthsAhead(4);
+    const id = requestAnimationFrame(() => document.getElementById(`day-${format(startOfMonth(anchor), "yyyy-MM-dd")}`)?.scrollIntoView({ block: "start" }));
+    return () => cancelAnimationFrame(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, loading, format(anchor, "yyyy-MM")]);
+  useEffect(() => {
+    const el = bottomRef.current;
+    if (view !== "month" || !el) return;
+    const io = new IntersectionObserver((e) => e[0].isIntersecting && setMonthsAhead((m) => m + 3), { rootMargin: "400px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [view, loading, monthsAhead]);
+
+  // dragging a chip to another day moves what it stands for
+  async function moveChip(chip: CalendarChip, date: string) {
+    const ids = new Set(chip.taskIds);
+    const snapshot = tasks;
+    const queue = chip.queueId ? queues.find((q) => q.id === chip.queueId) : undefined;
+    try {
+      if (chip.group === "shoot" && queue) {
+        setQueues((prev) => prev.map((q) => (q.id === queue.id ? { ...q, shootDate: date } : q)));
+        await saveQueue({ ...queue, shootDate: date });
+        return;
+      }
+      const patch = chip.group === "edit" ? { editDate: date } : { scheduledDate: date };
+      setTasks((prev) => prev.map((t) => (ids.has(t.id) ? { ...t, ...patch } : t)));
+      await Promise.all([...ids].map((id) => updateTaskRow(id, patch)));
+    } catch (err) {
+      console.error(err);
+      setTasks(snapshot);
+      if (queue) setQueues((prev) => prev.map((q) => (q.id === queue.id ? queue : q)));
+      window.alert("ย้ายวันไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+  const weekDays = useMemo(
+    () =>
+      eachDayOfInterval({
+        start: startOfWeek(anchor, { weekStartsOn: 1 }),
+        end: endOfWeek(anchor, { weekStartsOn: 1 }),
+      }),
+    [anchor],
+  );
+
+  function goPrev() {
+    setAnchor((d) =>
+      view === "day" ? addDays(d, -1) : view === "week" ? addWeeks(d, -1) : view === "month" ? addMonths(d, -1) : addYears(d, -1),
+    );
+  }
+  function goNext() {
+    setAnchor((d) =>
+      view === "day" ? addDays(d, 1) : view === "week" ? addWeeks(d, 1) : view === "month" ? addMonths(d, 1) : addYears(d, 1),
+    );
+  }
+
+  const periodLabel =
+    view === "day"
+      ? format(anchor, "d MMMM yyyy", { locale: th })
+      : view === "week"
+        ? `${format(weekDays[0], "d MMM", { locale: th })} – ${format(weekDays[6], "d MMM yyyy", { locale: th })}`
+        : view === "month"
+          ? format(anchor, "MMMM yyyy", { locale: th })
+          : format(anchor, "yyyy", { locale: th });
+
+  if (loading) {
+    return (
+      <>
+        <LoadingView />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <div className="flex overflow-hidden rounded-lg border border-gray-200">
+              {VIEW_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setView(opt.value)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium transition",
+                    view === opt.value ? "bg-brand-500 text-white" : "bg-white text-gray-600 hover:bg-gray-50",
+                  )}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <h2 className="mr-2 text-base font-semibold text-gray-900">{periodLabel}</h2>
+            <button
+              onClick={goPrev}
+              className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              onClick={() => setAnchor(new Date())}
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+            >
+              วันนี้
+            </button>
+            <button
+              onClick={goNext}
+              className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          <button
+            onClick={() => setModalState({ create: {} })}
+            className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-3.5 py-2 text-sm font-medium text-white hover:bg-brand-600"
+          >
+            <Plus size={16} />
+            เพิ่มงานใหม่
+          </button>
+        </div>
+
+        {view === "month" && (
+          <>
+            <CalendarGrid days={monthDays} chips={chips} onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} />
+            <div ref={bottomRef} className="py-4 text-center text-xs text-gray-400">กำลังโหลดเดือนถัดไป…</div>
+          </>
+        )}
+        {view === "week" && (
+          <CalendarGrid days={weekDays} chips={chips} detailed onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} />
+        )}
+        {view === "day" && (
+          <DayView
+            date={anchor}
+            chips={chips.filter((c) => c.date === format(anchor, "yyyy-MM-dd"))}
+            clients={clients}
+            onAddTask={(date) => setModalState({ create: { date } })}
+          />
+        )}
+        {view === "year" && (
+          <YearView
+            year={startOfYear(anchor)}
+            chips={chips}
+            onSelectDay={(day) => {
+              setAnchor(day);
+              setView("day");
+            }}
+          />
+        )}
+      </div>
+
+      {modalState !== "closed" && (
+        <TaskModal
+          clients={clients}
+          staff={staff}
+          defaultClientId={modalState.create.clientId}
+          defaultDate={modalState.create.date}
+          onClose={() => setModalState("closed")}
+          onSave={handleSave}
+        />
+      )}
+    </>
+  );
+}

@@ -2387,3 +2387,99 @@ export async function loadContractProgressSource(c: Contract): Promise<ProgressS
     queues: (qs ?? []).map((q) => ({ crew: q.crew ?? [], shootDate: q.shoot_date })),
   };
 }
+
+// ── Team notes (UI v2 "โน้ต") ─────────────────────────────────────────────
+export type TeamNote = { id: string; authorId: string; clientId: string | null; body: string; images: string[]; pinned: boolean; createdAt: string; updatedAt: string };
+type TeamNoteRow = { id: string; author_id: string; client_id: string | null; body: string; images: string[] | null; pinned: boolean; created_at: string; updated_at: string };
+const NOTE_COLUMNS = "id, author_id, client_id, body, images, pinned, created_at, updated_at";
+const fromNoteRow = (r: TeamNoteRow): TeamNote => ({ id: r.id, authorId: r.author_id, clientId: r.client_id, body: r.body, images: r.images ?? [], pinned: r.pinned, createdAt: r.created_at, updatedAt: r.updated_at });
+
+export async function listTeamNotes(opts: { authorId?: string; clientId?: string } = {}): Promise<TeamNote[]> {
+  let q = supabase().from("notes").select(NOTE_COLUMNS).is("deleted_at", null).order("updated_at", { ascending: false }).limit(500);
+  if (opts.authorId) q = q.eq("author_id", opts.authorId);
+  if (opts.clientId) q = q.eq("client_id", opts.clientId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data as TeamNoteRow[]).map(fromNoteRow);
+}
+
+export async function getTeamNote(id: string): Promise<TeamNote | null> {
+  const { data, error } = await supabase().from("notes").select(NOTE_COLUMNS).eq("id", id).is("deleted_at", null).maybeSingle();
+  if (error) throw error;
+  return data ? fromNoteRow(data as TeamNoteRow) : null;
+}
+
+export async function createTeamNote(authorId: string, values: { body?: string; clientId?: string | null } = {}): Promise<TeamNote> {
+  const { data, error } = await supabase()
+    .from("notes")
+    .insert({ author_id: authorId, body: values.body ?? "", client_id: values.clientId ?? null })
+    .select(NOTE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromNoteRow(data as TeamNoteRow);
+}
+
+export async function updateTeamNote(id: string, values: Partial<Pick<TeamNote, "body" | "clientId" | "images" | "pinned">>): Promise<void> {
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (values.body !== undefined) patch.body = values.body;
+  if (values.clientId !== undefined) patch.client_id = values.clientId;
+  if (values.images !== undefined) patch.images = values.images;
+  if (values.pinned !== undefined) patch.pinned = values.pinned;
+  const { error } = await supabase().from("notes").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function trashTeamNote(id: string): Promise<void> {
+  const { error } = await supabase().from("notes").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw error;
+}
+
+// ── Client CI brand sheet ────────────────────────────────────────────────
+export type ClientCi = {
+  clientId: string;
+  logoUrl: string;
+  colors: { name: string; hex: string }[];
+  fonts: { name: string; use: string }[];
+  subtitleStyle: string;
+  dont: string;
+  files: { label: string; url: string }[];
+  notes: string;
+  updatedAt?: string;
+};
+type ClientCiRow = { client_id: string; logo_url: string | null; colors: ClientCi["colors"] | null; fonts: ClientCi["fonts"] | null; subtitle_style: string; dont: string; files: ClientCi["files"] | null; notes: string; updated_at: string };
+const CI_COLUMNS = "client_id, logo_url, colors, fonts, subtitle_style, dont, files, notes, updated_at";
+const fromCiRow = (r: ClientCiRow): ClientCi => ({
+  clientId: r.client_id, logoUrl: r.logo_url ?? "", colors: r.colors ?? [], fonts: r.fonts ?? [], subtitleStyle: r.subtitle_style ?? "", dont: r.dont ?? "", files: r.files ?? [], notes: r.notes ?? "", updatedAt: r.updated_at,
+});
+export const emptyCi = (clientId: string): ClientCi => ({ clientId, logoUrl: "", colors: [], fonts: [], subtitleStyle: "", dont: "", files: [], notes: "" });
+
+export async function getClientCi(clientId: string): Promise<ClientCi> {
+  const { data, error } = await supabase().from("client_ci").select(CI_COLUMNS).eq("client_id", clientId).maybeSingle();
+  if (error) throw error;
+  return data ? fromCiRow(data as ClientCiRow) : emptyCi(clientId);
+}
+
+// logos for the client grid (one query)
+export async function listClientLogos(): Promise<Record<string, string>> {
+  const { data, error } = await supabase().from("client_ci").select("client_id, logo_url").not("logo_url", "is", null);
+  if (error) throw error;
+  return Object.fromEntries((data ?? []).filter((r) => r.logo_url).map((r) => [r.client_id as string, r.logo_url as string]));
+}
+
+export async function saveClientCi(ci: ClientCi, staffId: string): Promise<void> {
+  const { error } = await supabase()
+    .from("client_ci")
+    .upsert({
+      client_id: ci.clientId,
+      logo_url: ci.logoUrl || null,
+      colors: ci.colors.filter((c) => c.name.trim() || c.hex.trim()),
+      fonts: ci.fonts.filter((f) => f.name.trim()),
+      subtitle_style: ci.subtitleStyle,
+      dont: ci.dont,
+      files: ci.files.filter((f) => f.url.trim()),
+      notes: ci.notes,
+      updated_by: staffId,
+      updated_at: new Date().toISOString(),
+    });
+  if (error) throw error;
+}

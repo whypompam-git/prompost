@@ -184,3 +184,14 @@ test("staff contracts, signer info and payment vouchers are owner-only", () => {
   assert.equal(run(owner, "GET", "rest/v1/contract_signer_info", "?select=*").ok, true);
   assert.equal(run(owner, "POST", "rest/v1/contract_signer_info", "", { contract_id: "x" }).ok, false);
 });
+
+test("notes: everyone reads, writes are pinned to the author (owner edits any)", () => {
+  assert.equal(run(staff, "GET", "rest/v1/notes", "?select=*").ok, true);
+  assert.equal(run(staff, "POST", "rest/v1/notes", "", { author_id: "someone-else", body: "x" }).ok, false);
+  assert.equal(run(staff, "POST", "rest/v1/notes", "", { author_id: "staff-1", body: "x" }).ok, true);
+  const patch = run(staff, "PATCH", "rest/v1/notes", "?id=eq.n1", { body: "y" });
+  assert.ok(patch.ok && patch.search.includes("author_id=eq.staff-1"));
+  const ownerPatch = run(owner, "PATCH", "rest/v1/notes", "?id=eq.n1", { body: "y" });
+  assert.ok(ownerPatch.ok && !ownerPatch.search.includes("author_id"));
+  assert.equal(run(staff, "PATCH", "rest/v1/client_ci", "?client_id=eq.c1", { notes: "x" }).ok, true);
+});

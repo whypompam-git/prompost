@@ -27,6 +27,7 @@ const TABLES = new Set([
   "ai_playbook_versions",
   "ai_playbooks",
   "ai_runs",
+  "client_ci",
   "client_context",
   "client_notes",
   "client_packages",
@@ -44,6 +45,7 @@ const TABLES = new Set([
   "mc_packs",
   "mc_profiles",
   "mc_settings",
+  "notes",
   "notifications",
   "packages",
   "payroll_entries",
@@ -219,6 +221,17 @@ export function authorizeProxyRequest(input: {
   }
 
   if (table === "line_channels" && !isOwner) return deny(403, "owner only");
+
+  // team notes: everyone reads them; you write only your own (the owner may edit any)
+  if (table === "notes" && write) {
+    if (method === "POST") {
+      for (const row of bodyRows(input.body)) if (row.author_id !== access.staffId) return deny(403, "notes are created as yourself");
+    } else if (!isOwner) {
+      params.set("author_id", `eq.${access.staffId}`);
+      search = `?${params.toString()}`;
+    }
+    for (const row of bodyRows(input.body)) if (method === "PATCH" && "author_id" in row && row.author_id !== access.staffId && !isOwner) return deny(403, "cannot reassign a note");
+  }
 
   // contracts with team members / outsource (and what they typed when signing) are the owner's only;
   // everyone else is pinned to client contracts

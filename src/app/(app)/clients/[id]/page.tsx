@@ -1,7 +1,9 @@
 "use client";
 
 import { clientLinkPath } from "@/lib/slug";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Sparkles } from "lucide-react";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { format } from "date-fns";
@@ -34,6 +36,7 @@ import type { Client, Queue, Staff, Task } from "@/lib/types";
 
 export default function ClientContentDashboardPage() {
   const { typeLabel } = useTaskSettings();
+  const auth = useAuth();
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [client, setClient] = useState<Client | null>(null);
@@ -135,7 +138,7 @@ export default function ClientContentDashboardPage() {
 
   return (
     <>
-      <Topbar back="/clients" title={client.name} subtitle="รายงานคอนเทนต์" />
+      <Topbar back={`/v2/clients/${client.id}`} title={client.name} subtitle="คอนเทนต์" />
       <ClientSubNav clientId={client.id} />
       <div className="flex-1 space-y-6 p-6">
         <StageSummary tasks={tasks} onPick={setStagePick} active={stagePick} />
@@ -143,7 +146,16 @@ export default function ClientContentDashboardPage() {
         <div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-gray-700">รายการงาน</h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(auth.role === "owner" || auth.permissions.studio) && (
+                <Link
+                  href={`/studio?client=${client.id}`}
+                  className="flex items-center gap-1.5 rounded-lg bg-violet-50 px-3.5 py-2 text-sm font-medium text-violet-700 hover:bg-violet-100"
+                >
+                  <Sparkles size={15} />
+                  สร้างสคริปต์ด้วย AI
+                </Link>
+              )}
               {client.portalEnabled ? (
                 <a
                   href={clientLinkPath(client)}

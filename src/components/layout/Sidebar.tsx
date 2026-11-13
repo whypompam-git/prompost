@@ -20,6 +20,9 @@ import {
   FileText,
   PanelLeftClose,
   PanelLeftOpen,
+  LayoutGrid,
+  CalendarRange,
+  StickyNote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -39,6 +42,13 @@ const NAV_ITEMS = [
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "accounting" as const },
   { href: "/reports", label: "รายงาน", icon: BarChart3, permission: "financialTotals" as const },
   { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
+];
+
+// new UI pages, being tried out next to the old menu
+const V2_ITEMS = [
+  { href: "/v2/clients", label: "ลูกค้า (ใหม่)", icon: LayoutGrid },
+  { href: "/v2/calendar", label: "ปฏิทิน (ใหม่)", icon: CalendarRange },
+  { href: "/v2/notes", label: "โน้ต", icon: StickyNote },
 ];
 
 const COLLAPSE_KEY = "prompost:sidebar-collapsed";
@@ -84,12 +94,14 @@ export function Sidebar() {
       </div>
 
       <nav className={cn("flex-1 space-y-0.5 px-2 py-3", expanded && "lg:px-2")}>
-        {items.map((item) => {
+        <p className={cn("hidden px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400", expanded && "lg:block")}>หน้าใหม่ (ทดลอง)</p>
+        {[...V2_ITEMS, ...items].map((item, i) => {
           const active = pathname?.startsWith(item.href);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
+              style={i === V2_ITEMS.length ? { marginTop: 10 } : undefined}
               href={item.href}
               title={item.label}
               className={cn(
