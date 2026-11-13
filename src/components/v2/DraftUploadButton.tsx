@@ -5,6 +5,11 @@ import { Film, Upload } from "lucide-react";
 import { uploadDraft } from "@/lib/supabase/queries";
 import { cn } from "@/lib/utils";
 
+// Drafts are for checking on a phone — 1080p is plenty; the 4K master goes to Drive later.
+export const DRAFT_TIP = "ส่งออกดราฟเป็น 1080p · 30fps · H.264 · ประมาณ 10 Mbps (ไฟล์ราว 60–90 MB ต่อนาที) — ไฟล์ 4K ตัวจริงส่งทาง Drive หลังลูกค้าอนุมัติ";
+const WARN_MB = 200;
+const MAX_MB = 500;
+
 // Upload a draft video for a clip (editors). Goes straight to storage with a
 // progress bar; a clip still in editing then moves on to QC by itself.
 export function DraftUploadButton({ taskId, label = "อัปโหลดดราฟ", onDone, className }: { taskId: string; label?: string; onDone?: () => void; className?: string }) {
@@ -13,7 +18,17 @@ export function DraftUploadButton({ taskId, label = "อัปโหลดดร
 
   async function pick(file?: File) {
     if (!file) return;
-    if (!window.confirm(`อัปโหลด "${file.name}" (${(file.size / 1048576).toFixed(0)} MB) เป็นดราฟให้ทีมตรวจ?`)) return;
+    const mb = file.size / 1048576;
+    if (mb > MAX_MB) {
+      window.alert(`ไฟล์ใหญ่ ${mb.toFixed(0)} MB เกินที่ระบบรับได้ (${MAX_MB} MB)\n\n${DRAFT_TIP}`);
+      if (input.current) input.current.value = "";
+      return;
+    }
+    const big = mb > WARN_MB ? `\n\n⚠️ ไฟล์ค่อนข้างใหญ่ (เกิน ${WARN_MB} MB) จะอัปช้าและลูกค้าเปิดบนมือถือได้ช้า แนะนำ: ${DRAFT_TIP}\n\nยังต้องการอัปไฟล์นี้ต่อไหม?` : "";
+    if (!window.confirm(`อัปโหลด "${file.name}" (${mb.toFixed(0)} MB) เป็นดราฟให้ทีมตรวจ?${big}`)) {
+      if (input.current) input.current.value = "";
+      return;
+    }
     setPct(0);
     try {
       await uploadDraft(taskId, file, setPct);
@@ -41,6 +56,7 @@ export function DraftUploadButton({ taskId, label = "อัปโหลดดร
           {pct !== null ? `กำลังอัปโหลด ${pct}%` : label}
         </span>
       </button>
+      <span className="w-full text-[11px] leading-snug text-gray-400">💡 {DRAFT_TIP}</span>
       <input ref={input} type="file" accept="video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.m4v,.webm" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
     </>
   );
