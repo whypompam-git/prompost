@@ -165,7 +165,7 @@ export function NotificationBell() {
         id: `task:${t.id}:${t.dueDate}`,
         icon: "task",
         title: t.dueDate < today ? `เลยกำหนดส่ง: ${t.title}` : `ใกล้ถึงกำหนดส่ง: ${t.title}`,
-        detail: `${clientName(t.clientId)} · ส่ง ${t.dueDate}`,
+        detail: `${clientName(t.clientId)} · Deadline ${t.dueDate}`,
         href: `/tasks/${t.id}`,
       });
     }

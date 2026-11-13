@@ -78,7 +78,7 @@ function DashboardPageInner() {
   const saved = useMemo(readSavedFilters, []);
   const [clientFilter, setClientFilter] = useState<string[]>(saved.clients ?? []);
   const [staffFilter, setStaffFilter] = useState<string>(saved.staff ?? "");
-  const [sortBy, setSortBy] = useState<TaskSortKey>(saved.sortBy ?? "dueDate");
+  const [sortBy, setSortBy] = useState<TaskSortKey>(!saved.sortBy || saved.sortBy === "dueDate" ? "editDate" : saved.sortBy);
   const [sortDir, setSortDir] = useState<"asc" | "desc">(saved.sortDir ?? "asc");
   const [view, setView] = useState<"team" | "mine">(saved.view ?? "team");
   const [teamFilter, setTeamFilter] = useState<string>(saved.team ?? "");

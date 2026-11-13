@@ -38,14 +38,11 @@ test("same client/assignee/day edit clips merge into one counted card", () => {
   assert.equal(c.href, "/clients/c1?stage=edit");
 });
 
-test("delivery lands on the client manager's row at the delivery date and disappears after hand-off", () => {
-  const b = board([task({ dueDate: "2026-10-27" }), task({ type: "pending", status: "waiting", dueDate: "2026-10-27" })]);
-  const d = b.cards.filter((c) => c.kind === "delivery");
-  assert.equal(d.length, 1);
-  assert.deepEqual([d[0].rowId, d[0].column, d[0].title], ["boss", "2026-10-27", "ส่งงาน · 1 คลิป"]);
-  // no manager -> "none"
-  const b2 = board([task({ clientId: "c2", dueDate: "2026-10-27" })]);
-  assert.equal(b2.cards.find((c) => c.kind === "delivery")!.rowId, "none");
+test("no delivery cards; cards carry their clip ids and queue for drag-to-move", () => {
+  const b = board([task({ title: "A" }), task({ type: "shoot", queueId: "q1", editDate: null })]);
+  assert.equal(b.cards.some((c) => (c.kind as string) === "delivery"), false);
+  assert.equal(b.cards.find((c) => c.kind === "edit")!.taskIds.length, 1);
+  assert.equal(b.cards.find((c) => c.kind === "shoot")!.queueId, "q1");
 });
 
 test("past dates fall into 'overdue'; dates beyond the window are left out; Plan/posted never appear", () => {
@@ -58,7 +55,6 @@ test("past dates fall into 'overdue'; dates beyond the window are left out; Plan
   assert.equal(b.cards.filter((c) => c.kind === "edit").length, 1);
   assert.equal(b.cards.find((c) => c.kind === "edit")!.column, "overdue");
   assert.equal(b.waiting.find((w) => w.clientId === "c1")!.plan, 1);
-  assert.equal(b.cards.some((c) => c.kind === "delivery" && c.column !== "overdue" && c.column !== "2026-10-30"), false);
 });
 
 test("shoot clips without a queue/date are counted as waiting for a queue", () => {

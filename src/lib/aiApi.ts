@@ -20,7 +20,8 @@ export type NewTaskInput = {
   status?: string;
   category?: string | null;
   scheduledDate: string;
-  dueDate: string;
+  editDate?: string; // the deadline (วันตัดต่อ)
+  dueDate?: string; // older name for the same deadline
   script?: string | null;
   shots?: string[];
   equipment?: string[];
@@ -60,7 +61,9 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
     if (!TASK_STATUSES.includes(status) || (TASK_TYPES.includes(type) && !statusesFor(type).includes(status as never)))
       errors.push(`${w}: status ไม่ถูกต้องสำหรับ type ${type}`);
     if (t.category != null && !TASK_CATEGORIES.includes(t.category as string)) errors.push(`${w}: category ต้องเป็น mass|royalty|sell`);
-    if (!isDate(t.scheduledDate) || !isDate(t.dueDate)) errors.push(`${w}: scheduledDate/dueDate ต้องเป็น YYYY-MM-DD`);
+    // one deadline: editDate (older tools send dueDate — same thing)
+    const deadline = t.editDate ?? t.dueDate;
+    if (!isDate(t.scheduledDate) || !isDate(deadline)) errors.push(`${w}: scheduledDate/editDate ต้องเป็น YYYY-MM-DD`);
     if (t.postDate != null && !isDate(t.postDate)) errors.push(`${w}: postDate ต้องเป็น YYYY-MM-DD`);
     if (t.script != null && (typeof t.script !== "string" || t.script.length > 50_000)) errors.push(`${w}: script ยาวเกิน/ไม่ใช่ข้อความ`);
     if (t.notes != null && (typeof t.notes !== "string" || t.notes.length > 5_000)) errors.push(`${w}: notes ยาวเกิน/ไม่ใช่ข้อความ`);
@@ -74,7 +77,7 @@ export function validateNewTasks(input: unknown): { ok: true; rows: NewTaskRow[]
         status,
         assignee_id: null,
         scheduled_date: t.scheduledDate as string,
-        due_date: t.dueDate as string,
+        due_date: deadline as string,
         notes: (t.notes as string) || null,
         ref_link: (t.refLink as string) || null,
         content_category: (t.category as string) || null,

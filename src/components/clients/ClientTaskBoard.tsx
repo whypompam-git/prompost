@@ -319,22 +319,12 @@ export function ClientTaskBoard({
                         <td className="px-2 py-2">
                           <div className="flex flex-col gap-1 text-[10px] text-gray-400">
                             <label className="flex items-center gap-1">
-                              ตัด
+                              Deadline
                               <input
                                 type="date"
                                 value={t.editDate ?? ""}
                                 onChange={(e) => change(t, { editDate: e.target.value || null })}
-                                title="วันตัดต่อ"
-                                className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
-                              />
-                            </label>
-                            <label className="flex items-center gap-1">
-                              ส่ง
-                              <input
-                                type="date"
-                                value={t.dueDate}
-                                onChange={(e) => e.target.value && change(t, { dueDate: e.target.value })}
-                                title="วันส่ง"
+                                title="Deadline (วันตัดต่อ = ส่งลูกค้า)"
                                 className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
                               />
                             </label>

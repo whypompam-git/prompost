@@ -174,7 +174,7 @@ export function BulkTaskModal({
               <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)} className={field} />
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-medium text-gray-500">กำหนดส่ง</span>
+              <span className="mb-1 block text-xs font-medium text-gray-500">Deadline (วันตัดต่อ)</span>
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={field} />
             </label>
           </div>

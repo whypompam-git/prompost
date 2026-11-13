@@ -29,8 +29,7 @@ const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "title", label: "งาน" },
   { key: "client", label: "ลูกค้า" },
   { key: "scheduledDate", label: "วันถ่าย" },
-  { key: "editDate", label: "วันตัดต่อ" },
-  { key: "dueDate", label: "วันส่ง" },
+  { key: "editDate", label: "Deadline (ตัดต่อ)" },
   { key: "type", label: "ประเภท" },
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
@@ -277,7 +276,6 @@ export function TaskTable({
                   value={task.scheduledDate}
                   onChange={(v) => onUpdateTask(task.id, { scheduledDate: v })}
                 />
-                <PillDate prefix="ส่ง" value={task.dueDate} onChange={(v) => onUpdateTask(task.id, { dueDate: v })} />
               </div>
 
               <div className="flex flex-wrap items-center gap-1.5">
@@ -302,7 +300,7 @@ export function TaskTable({
                   options={assigneeOptions}
                   onChange={(v) => onUpdateAssignee(task.id, v)}
                 />
-                <PillDate prefix="ตัด" value={task.editDate} onChange={(v) => onUpdateTask(task.id, { editDate: v })} />
+                <PillDate prefix="Deadline" value={task.editDate} onChange={(v) => onUpdateTask(task.id, { editDate: v })} />
                 <PillSelect
                   label={staff.find((x) => x.id === task.editorId)?.name ?? "ไม่มี Editor"}
                   color={task.editorId ? stemFromBg(staff.find((x) => x.id === task.editorId)?.avatarColor) : "gray"}
@@ -385,9 +383,6 @@ export function TaskTable({
                   </td>
                   <td className="px-5 py-3">
                     <PillDate prefix="" value={task.editDate} onChange={(v) => onUpdateTask(task.id, { editDate: v })} />
-                  </td>
-                  <td className="px-5 py-3">
-                    <PillDate prefix="" value={task.dueDate} onChange={(v) => onUpdateTask(task.id, { dueDate: v })} />
                   </td>
                   <td className="px-5 py-3">
                     <PillSelect

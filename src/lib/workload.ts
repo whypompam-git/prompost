@@ -1,10 +1,9 @@
 // "สรุปงาน" board: who is doing what today and over the next days. Pure and
-// unit-tested. Three dates per clip: shoot (the queue's shoot date), edit
-// (tasks.edit_date — when editors work) and delivery (due_date — shown on the
-// client manager's row, not the editor's).
+// unit-tested. Two dates per clip: shoot (the queue's shoot date) and edit
+// (tasks.edit_date — the day editors finish it, which is also the client deadline).
 import type { Client, Queue, Staff, Task } from "./types.ts";
 
-export type CardKind = "shoot" | "edit" | "qc" | "other" | "delivery";
+export type CardKind = "shoot" | "edit" | "qc" | "other";
 
 export type WorkCard = {
   key: string;
@@ -15,9 +14,11 @@ export type WorkCard = {
   clientId: string;
   title: string; // small second line
   count: number;
-  deadline: string; // delivery deadline (earliest due date among the clips)
+  deadline: string; // earliest deadline (edit date) among the clips
   href: string;
   titles: string[];
+  taskIds: string[]; // clips in the card — dragging the card moves them
+  queueId?: string; // shoot cards: the queue whose date moves
 };
 
 export type WaitingSummary = {
@@ -57,7 +58,8 @@ export function buildWorkBoard(input: {
   const rowOf = (id?: string | null) => (id && staffIds.has(id) ? id : "none");
 
   const cards = new Map<string, WorkCard>();
-  const add = (key: string, base: Omit<WorkCard, "key" | "column" | "count" | "titles" | "deadline">, task: Task) => {
+  const deadlineOf = (t: Task) => t.editDate ?? t.dueDate;
+  const add = (key: string, base: Omit<WorkCard, "key" | "column" | "count" | "titles" | "deadline" | "taskIds">, task: Task) => {
     const col = column(base.date);
     if (!col) return;
     const k = `${key}|${col === "overdue" ? "overdue" : base.date}`;
@@ -65,9 +67,10 @@ export function buildWorkBoard(input: {
     if (card) {
       card.count += 1;
       card.titles.push(task.title);
-      if (task.dueDate < card.deadline) card.deadline = task.dueDate;
+      card.taskIds.push(task.id);
+      if (deadlineOf(task) < card.deadline) card.deadline = deadlineOf(task);
     } else {
-      cards.set(k, { ...base, key: k, column: col, count: 1, titles: [task.title], deadline: task.dueDate });
+      cards.set(k, { ...base, key: k, column: col, count: 1, titles: [task.title], deadline: deadlineOf(task), taskIds: [task.id] });
     }
   };
 
@@ -79,15 +82,9 @@ export function buildWorkBoard(input: {
   };
 
   for (const t of input.tasks) {
-    const client = clients.get(t.clientId);
     const clientHref = `/clients/${t.clientId}`;
     if (t.type === "plan") wait(t.clientId).plan += 1;
     else if (t.type === "pending") wait(t.clientId).pending += 1;
-
-    // ---- delivery: on the client manager's row, up to the hand-off to the client
-    if (["shoot", "edit", "qc"].includes(t.type) && t.dueDate) {
-      add(`deliver|${t.clientId}`, { kind: "delivery", rowId: rowOf(client?.managerId), date: t.dueDate, clientId: t.clientId, title: "ส่งงาน", href: `${clientHref}?stage=edit` }, t);
-    }
 
     // ---- work cards
     if (t.type === "shoot") {
@@ -97,7 +94,7 @@ export function buildWorkBoard(input: {
       } else if (t.status !== "done") {
         const owners = q.crew.length > 0 ? q.crew.map(rowOf) : ["none"];
         for (const owner of new Set(owners)) {
-          add(`shoot|${q.id}|${owner}`, { kind: "shoot", rowId: owner, date: q.shootDate, clientId: t.clientId, title: q.name, href: `${clientHref}?stage=shoot&queue=${q.id}` }, t);
+          add(`shoot|${q.id}|${owner}`, { kind: "shoot", rowId: owner, date: q.shootDate, clientId: t.clientId, title: q.name, href: `${clientHref}?stage=shoot&queue=${q.id}`, queueId: q.id }, t);
         }
       }
     } else if (t.type === "edit" || t.type === "qc") {
@@ -119,8 +116,6 @@ export function buildWorkBoard(input: {
       c.href = `/clients/${c.clientId}?stage=edit`;
     } else if (c.kind === "shoot") {
       c.title = `${c.title} · ${c.count} คลิป`;
-    } else if (c.kind === "delivery") {
-      c.title = `ส่งงาน · ${c.count} คลิป`;
     }
   }
 

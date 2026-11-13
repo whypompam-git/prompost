@@ -347,7 +347,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
             <div>
-              <label className={labelClass}>วันตัดต่อ (วันที่ทีมลงมือตัด)</label>
+              <label className={labelClass}>Deadline (วันตัดต่อ = ส่งลูกค้า)</label>
               <input
                 type="date"
                 value={task.editDate ?? ""}
@@ -361,15 +361,6 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 type="date"
                 value={task.scheduledDate}
                 onChange={(e) => patch({ scheduledDate: e.target.value })}
-                className={inputClass}
-              />
-            </div>
-            <div>
-              <label className={labelClass}>วันส่ง (ส่งลูกค้า)</label>
-              <input
-                type="date"
-                value={task.dueDate}
-                onChange={(e) => patch({ dueDate: e.target.value })}
                 className={inputClass}
               />
             </div>

@@ -40,11 +40,7 @@ export function BulkActionBar({
           <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ scheduledDate: e.target.value })} />
         </label>
         <label className="flex items-center gap-1 text-xs text-gray-500">
-          ส่ง
-          <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ dueDate: e.target.value })} />
-        </label>
-        <label className="flex items-center gap-1 text-xs text-gray-500">
-          วันตัดต่อ
+          Deadline
           <input type="date" className={sel} value="" onChange={(e) => e.target.value && onPatch({ editDate: e.target.value })} />
         </label>
         <label className="flex items-center gap-1 text-xs text-gray-500">
