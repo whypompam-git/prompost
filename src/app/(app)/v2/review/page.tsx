@@ -149,7 +149,7 @@ export default function V2ReviewPage() {
               <p className="max-w-xs text-center text-xs text-white/40">Editor อัปโหลดดราฟได้จากหน้างานของคลิป แล้วคลิปจะมาขึ้นที่นี่</p>
             </div>
           ) : (
-            <ReviewFeed items={shown} onPass={pass} onComment={comment} onRevise={revise} />
+            <ReviewFeed items={shown} variant="team" onPass={pass} onComment={comment} onRevise={revise} />
           )
         ) : (
           <DeliverList items={deliver} onDone={(id) => setDeliver((p) => p.filter((x) => x.taskId !== id))} />

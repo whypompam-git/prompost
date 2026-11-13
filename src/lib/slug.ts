@@ -18,10 +18,10 @@ export function slugify(input: string): string {
   return RESERVED_SLUGS.has(base) ? `${base}-co` : base;
 }
 
-const SLUG_PATH = /^\/([a-z0-9-]+)(\/info)?$/;
+const SLUG_PATH = /^\/([a-z0-9-]+)(\/(?:info|review|plan|files))?$/;
 
 // Public client-link paths (used by middleware): one segment that is not a
-// reserved app route, optionally followed by /info.
+// reserved app route, optionally followed by one of the client-link tabs.
 export function isClientSlugPath(pathname: string): boolean {
   const m = SLUG_PATH.exec(pathname);
   return !!m && !RESERVED_SLUGS.has(m[1]);

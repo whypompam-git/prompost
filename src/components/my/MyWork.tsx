@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { th } from "date-fns/locale";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListChecks, Loader2, LogOut, Send } from "lucide-react";
+import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListChecks, Loader2, LogOut, MessageSquareWarning, Palette, PlusCircle, Send, UserCircle2 } from "lucide-react";
+import { CiSheet, FixFeed, MyProfile, UploadSheet } from "@/components/my/MyExtras";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScriptText } from "@/components/ui/ScriptText";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -46,6 +47,7 @@ function LinkBtn({ label, url }: { label: string; url?: string | null }) {
 
 function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
   const [open, setOpen] = useState(false);
+  const [ci, setCi] = useState(false);
   const [busy, setBusy] = useState(false);
   const [finalDraft, setFinalDraft] = useState(t.finalUrl ?? "");
   const editable = t.type === "edit" || t.type === "qc";
@@ -112,6 +114,10 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
 
       <div className="mt-3 flex flex-wrap gap-2">
         <LinkBtn label="ฟุตเทจ" url={t.footageUrl} />
+        <button onClick={() => setCi(true)} className="flex items-center gap-1 rounded-lg border border-pink-200 bg-pink-50 px-3 py-1.5 text-xs font-medium text-pink-700 hover:bg-pink-100">
+          <Palette size={12} /> CI Brand
+        </button>
+        {ci && <CiSheet clientId={t.clientId} onClose={() => setCi(false)} />}
         <LinkBtn label="Ref" url={t.refLink} />
         <LinkBtn label="งานที่ส่ง (Final)" url={t.finalUrl} />
         <button onClick={() => setOpen((v) => !v)} className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">
@@ -232,7 +238,8 @@ export function MyWork({ name }: { name: string }) {
   const router = useRouter();
   const [tasks, setTasks] = useState<MyTask[] | null>(null);
   const [error, setError] = useState("");
-  const [view, setView] = useState<"list" | "calendar">("list");
+  const [view, setView] = useState<"list" | "calendar" | "fix" | "me">("list");
+  const [uploadOpen, setUploadOpen] = useState(false);
   const [filter, setFilter] = useState<MyBucket | "all" | null>(null); // null = not chosen yet → best default
   const [contract, setContract] = useState<{ kind: string; contractNo: string; target: number; done: number; shootTarget?: number; shootDays?: number } | null>(null);
 
@@ -293,7 +300,7 @@ export function MyWork({ name }: { name: string }) {
         </div>
       </header>
 
-      {contract && contract.target > 0 && (
+      {view === "list" && contract && contract.target > 0 && (
         <div className="mx-auto max-w-3xl px-4 pt-4">
           <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm text-gray-700 shadow-card">
             <p className="text-xs text-gray-400">สัญญา {contract.contractNo}</p>
@@ -308,19 +315,19 @@ export function MyWork({ name }: { name: string }) {
         </div>
       )}
 
-      <nav className="mx-auto flex max-w-3xl gap-2 px-4 pt-4">
-        {([["list", "งานของฉัน", ListChecks], ["calendar", "ปฏิทิน", CalendarDays]] as const).map(([key, label, Icon]) => (
-          <button
-            key={key}
-            onClick={() => setView(key)}
-            className={cn("flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium", view === key ? "bg-brand-500 text-white" : "bg-white text-gray-600 border border-gray-200")}
-          >
-            <Icon size={15} /> {label}
-          </button>
-        ))}
-      </nav>
 
-      <main className="mx-auto max-w-3xl space-y-6 px-4 py-4">
+      {view === "fix" && (
+        <div className="h-[calc(100dvh-8rem)] bg-gray-950">
+          <FixFeed onUploaded={load} />
+        </div>
+      )}
+      {view === "me" && (
+        <div className="mx-auto max-w-3xl px-4 py-4">
+          <MyProfile contract={contract} inProgress={(tasks ?? []).filter((t) => t.type === "edit" || t.type === "qc").length} />
+        </div>
+      )}
+
+      <main className={cn("mx-auto max-w-3xl space-y-6 px-4 pb-24 pt-4", (view === "fix" || view === "me") && "hidden")}>
         {error && <p className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}
         {tasks === null && !error && <p className="py-10 text-center text-sm text-gray-400">กำลังโหลด…</p>}
         {tasks !== null && view === "list" && tasks.length === 0 && <p className="rounded-2xl border border-gray-100 bg-white p-10 text-center text-sm text-gray-400">ยังไม่มีงานที่มอบหมายให้คุณ</p>}
@@ -367,6 +374,38 @@ export function MyWork({ name }: { name: string }) {
           </>
         )}
       </main>
+
+      {uploadOpen && <UploadSheet tasks={tasks ?? []} onClose={() => setUploadOpen(false)} onDone={load} />}
+
+      {/* tab bar: งานของฉัน · ปฏิทิน · (+) อัปดราฟ · แก้งาน · โปรไฟล์ */}
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-3xl items-center justify-around">
+          {(
+            [
+              ["list", "งานของฉัน", ListChecks],
+              ["calendar", "ปฏิทิน", CalendarDays],
+            ] as const
+          ).map(([k, label, Icon]) => (
+            <button key={k} onClick={() => setView(k)} className={cn("flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", view === k ? "text-brand-600" : "text-gray-500")}>
+              <Icon size={22} />
+              {label}
+            </button>
+          ))}
+          <button onClick={() => setUploadOpen(true)} className="flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-medium text-brand-500" aria-label="อัปดราฟ">
+            <PlusCircle size={28} />
+            อัปดราฟ
+          </button>
+          <button onClick={() => setView("fix")} className={cn("relative flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", view === "fix" ? "text-brand-600" : "text-gray-500")}>
+            <MessageSquareWarning size={22} />
+            แก้งาน
+            {grouped.revise.length > 0 && <span className="absolute right-[24%] top-0.5 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[10px] font-bold leading-4 text-white">{grouped.revise.length}</span>}
+          </button>
+          <button onClick={() => setView("me")} className={cn("flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", view === "me" ? "text-brand-600" : "text-gray-500")}>
+            <UserCircle2 size={22} />
+            โปรไฟล์
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

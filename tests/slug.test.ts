@@ -10,3 +10,8 @@ test("staff-only routes are never treated as public client links", () => {
   assert.equal(isClientSlugPath("/asoramit/info"), true);
   assert.equal(slugify("MC"), "mc-co");
 });
+
+test("client-link tabs are public paths", () => {
+  for (const p of ["/asoramit/review", "/asoramit/plan", "/asoramit/files"]) assert.equal(isClientSlugPath(p), true, p);
+  assert.equal(isClientSlugPath("/asoramit/settings"), false);
+});

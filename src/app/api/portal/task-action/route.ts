@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/slug";
 import { applyClientAction, type ClientAction } from "@/lib/workflow";
 import { planNotifications, pushNotifications, type NotifyKind } from "@/lib/notify";
+import { alertTeamLine } from "@/lib/lineDigest";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,7 +21,14 @@ const KIND: Record<ClientAction, NotifyKind> = {
 // Needs an active link and a task that belongs to that client; the stage
 // rules (and the revision counter) are enforced here, never in the browser.
 export async function POST(request: Request) {
-  const { clientKey, taskId, action, brief } = await request.json().catch(() => ({}));
+  const { clientKey, taskId, action, brief, draftId, comments } = await request.json().catch(() => ({}));
+  // comments pinned to seconds of the draft (client feed): [{ atSeconds, body }]
+  const notes: { atSeconds: number | null; body: string }[] = Array.isArray(comments)
+    ? comments
+        .filter((c: unknown): c is { atSeconds?: unknown; body: string } => !!c && typeof (c as { body?: unknown }).body === "string" && (c as { body: string }).body.trim().length > 0)
+        .slice(0, 50)
+        .map((c) => ({ atSeconds: typeof c.atSeconds === "number" && c.atSeconds >= 0 && c.atSeconds < 36000 ? Math.round(c.atSeconds * 100) / 100 : null, body: c.body.trim().slice(0, 2000) }))
+    : [];
   if (
     typeof clientKey !== "string" ||
     typeof taskId !== "string" ||
@@ -74,6 +82,19 @@ export async function POST(request: Request) {
 
   if (result.needsBrief) {
     await db.from("task_revisions").insert({ task_id: task.id, round: result.revisionCount, brief: brief!.trim(), source: "client" });
+  }
+  // the client's timed comments go straight to the editor's list
+  if (action === "revise" && notes.length && task.type === "pending") {
+    const draft = typeof draftId === "string" && isUuid(draftId) ? draftId : null;
+    await db.from("draft_comments").insert(notes.map((n) => ({ task_id: task.id, draft_id: draft, from_client: true, at_seconds: n.atSeconds, body: n.body })));
+  }
+  // a client asking for changes also pings the team's LINE group, so someone can check the brief
+  if (action === "revise") {
+    const lines = notes.length ? notes.map((n) => `• ${n.body}`).join("\n") : (brief ?? "").trim();
+    await alertTeamLine(
+      db,
+      `✏️ ลูกค้าสั่งแก้ ${task.type === "plan" ? "แผนคอนเทนต์" : "งาน"}\n${client.name} · ${task.title}\nรอบที่ ${result.revisionCount}\n${lines}`.slice(0, 4000),
+    ).catch(() => 0);
   }
   try {
     await pushNotifications(

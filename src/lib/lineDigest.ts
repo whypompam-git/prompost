@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { addDays, buildDigest, bangkokDay, digestToText, filterDigest } from "@/lib/alerts";
 import { alertBilling } from "@/lib/billing";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -83,4 +84,22 @@ export async function pushLine(text: string, to = process.env.LINE_TO): Promise<
     body: JSON.stringify({ to, messages: [{ type: "text", text }] }),
   });
   if (!res.ok) throw new Error(`LINE ${res.status}: ${(await res.text()).slice(0, 200)}`);
+}
+
+// Instant alert to the team's LINE group(s) — every enabled channel that follows
+// the "tasks" topic. Never throws: the action that triggered it already happened.
+export async function alertTeamLine(db: SupabaseClient, text: string): Promise<number> {
+  if (!lineTokenSet()) return 0;
+  const { data } = await db.from("line_channels").select("group_id, topics, enabled").eq("enabled", true);
+  const groups = [...new Set((data ?? []).filter((c) => (c.topics ?? []).includes("tasks")).map((c) => c.group_id as string))];
+  let sent = 0;
+  for (const g of groups) {
+    try {
+      await pushLine(text.slice(0, 4900), g);
+      sent++;
+    } catch (err) {
+      console.error("LINE alert", err);
+    }
+  }
+  return sent;
 }

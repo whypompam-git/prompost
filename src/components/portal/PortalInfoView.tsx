@@ -6,6 +6,7 @@ import { PortalHeader } from "@/components/portal/PortalHeader";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { findPortalClient } from "@/lib/portalClient";
 import { PortalTabs } from "@/components/portal/PortalTabs";
+import { loadPortalClient } from "@/lib/portalData";
 import { BalanceSummary } from "@/components/billing/BalanceSummary";
 import { calcQuotationTotals } from "@/lib/accounting";
 import { createAdminClient as createClient } from "@/lib/supabase/admin";
@@ -52,6 +53,8 @@ export async function PortalInfoView({ clientKey, basePath }: { clientKey: strin
       .order("created_at", { ascending: false }),
   ]);
 
+  const portal = await loadPortalClient(clientKey);
+
   type ClientPackageRow = {
     id: string;
     assigned_at: string;
@@ -61,11 +64,10 @@ export async function PortalInfoView({ clientKey, basePath }: { clientKey: strin
   const packageOf = (cp: ClientPackageRow) => (Array.isArray(cp.packages) ? cp.packages[0] : cp.packages) ?? null;
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-10">
+    <div className="min-h-screen bg-gray-50 px-4 pb-28 pt-8">
+      <PortalTabs basePath={basePath} active="info" badges={portal?.badges} />
       <div className="mx-auto max-w-2xl space-y-6">
-        <PortalHeader title={`ข้อมูลลูกค้า ${client.name}`} />
-
-        <PortalTabs basePath={basePath} active="info" />
+        <PortalHeader title={client.name} logo={portal?.logo} subtitle="ข้อมูลลูกค้า" />
 
         <BalanceSummary
           billed={(invoices ?? []).reduce(
