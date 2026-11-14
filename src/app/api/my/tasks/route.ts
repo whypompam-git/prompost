@@ -45,6 +45,13 @@ export async function GET(request: NextRequest) {
       revisionBrief: r.revision_brief,
     };
   });
+  // approved clips whose draft is still here and have no Drive link yet: the editor delivers them
+  const waiting = tasks.filter((t) => t.type === "approved" && !t.finalUrl).map((t) => t.id);
+  if (waiting.length) {
+    const { data: ds } = await db.from("task_drafts").select("task_id").in("task_id", waiting).is("removed_at", null);
+    const has = new Set((ds ?? []).map((d) => d.task_id));
+    for (const t of tasks) if (has.has(t.id)) t.needsDrive = true;
+  }
   // the caller's current signed contract: how far along it is (counts only, no money)
   let contract: { kind: string; contractNo: string; target: number; done: number; shootTarget?: number; shootDays?: number; month?: string } | null = null;
   const { data: cs } = await db

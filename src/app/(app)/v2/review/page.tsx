@@ -161,11 +161,22 @@ export default function V2ReviewPage() {
   );
 }
 
-// Client-approved clips: download the draft, put the final on Drive, paste the link → the draft file is deleted.
-function DeliverList({ items, onDone }: { items: DeliverItem[]; onDone: (taskId: string) => void }) {
+// Client-approved clips: the clip's editor downloads the draft, puts the final on
+// Drive and pastes the link → the draft file is deleted. "ของฉัน" = clips I edited.
+function DeliverList({ items: all, onDone }: { items: DeliverItem[]; onDone: (taskId: string) => void }) {
+  const auth = useAuth();
   const [links, setLinks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
-  if (items.length === 0)
+  const mineCount = all.filter((i) => i.editorId === auth.staffId).length;
+  const [scope, setScope] = useState<"mine" | "all">(mineCount > 0 ? "mine" : "all");
+  const items = scope === "mine" ? all.filter((i) => i.editorId === auth.staffId) : all;
+  const scopeBar = (
+    <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+      <button onClick={() => setScope("mine")} className={cn("rounded-md py-1.5", scope === "mine" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>คลิปที่ฉันตัด ({mineCount})</button>
+      <button onClick={() => setScope("all")} className={cn("rounded-md py-1.5", scope === "all" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>ทั้งหมด ({all.length})</button>
+    </div>
+  );
+  if (all.length === 0)
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 text-white/70">
         <CheckCircle2 size={36} />
@@ -174,7 +185,9 @@ function DeliverList({ items, onDone }: { items: DeliverItem[]; onDone: (taskId:
     );
   return (
     <div className="h-full space-y-3 overflow-y-auto bg-gray-50 p-4">
-      <p className="text-xs text-gray-500">ลูกค้าอนุมัติแล้ว: โหลดไฟล์ → อัปเข้า Drive ของเรา → วางลิงก์ แล้วลูกค้าจะเห็นลิงก์ Final ทันที (ไฟล์ดราฟในระบบจะถูกลบ)</p>
+      <p className="text-xs text-gray-500">ลูกค้าอนุมัติแล้ว — <b>Editor ของคลิป</b>เป็นคนส่ง: โหลดไฟล์ → อัปเข้า Drive ของเรา → วางลิงก์ แล้วลูกค้าจะเห็นลิงก์ Final ทันที (ไฟล์ดราฟในระบบจะถูกลบ) · Outsource ส่งเองจากหน้างานของเขา</p>
+      {scopeBar}
+      {items.length === 0 && <p className="py-6 text-center text-sm text-gray-400">ไม่มีคลิปของคุณรอส่ง Drive</p>}
       {items.map((it) => (
         <div key={it.taskId} className="space-y-2 rounded-2xl border border-gray-100 bg-white p-3 shadow-card">
           <div className="flex items-center gap-2">
@@ -182,6 +195,7 @@ function DeliverList({ items, onDone }: { items: DeliverItem[]; onDone: (taskId:
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-gray-900">{it.clientName}</p>
               <p className="truncate text-xs text-gray-500">{it.title}</p>
+              <p className="truncate text-[11px] text-gray-400">Editor: {it.editorName || "ยังไม่ได้ตั้ง"}</p>
             </div>
             {it.draft.downloadUrl && (
               <a href={it.draft.downloadUrl} className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { GoalCard } from "@/components/my/GoalCard";
 import { Camera, CheckCircle2, ExternalLink, Film, FileSignature, Inbox, Palette, X } from "lucide-react";
 import { ReviewFeed, type FeedItem, type FeedComment } from "@/components/v2/ReviewFeed";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
@@ -225,6 +226,8 @@ export function MyProfile({ contract, inProgress }: { contract: { contractNo: st
         <p className="text-base font-semibold text-gray-900">{p.name}</p>
         {p.position && <p className="text-sm text-gray-500">{p.position}</p>}
       </div>
+
+      <GoalCard />
 
       {contract && contract.target > 0 && (
         <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-card">

@@ -12,6 +12,7 @@ import { listClientLogos, listClients, listStaff, listTasksLite, updateOwnProfil
 import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { DriveGrid } from "@/components/portal/DriveGrid";
+import { GoalCard } from "@/components/my/GoalCard";
 
 const MAX = 256;
 function resizeToDataUrl(file: File): Promise<string> {
@@ -139,6 +140,9 @@ export default function V2MePage() {
         <Link href="/profile" className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-100 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200">
           <Pencil size={14} /> แก้ไขโปรไฟล์
         </Link>
+        <div className="mt-3">
+          <GoalCard />
+        </div>
       </div>
 
       {/* tabs */}

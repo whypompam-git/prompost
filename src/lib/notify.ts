@@ -40,7 +40,7 @@ export function describeEvent(e: NotifyEvent): { title: string; body?: string } 
   const who = `${e.clientName} · ${e.taskTitle}`;
   switch (e.kind) {
     case "client_pass":
-      return { title: `ลูกค้าอนุมัติแล้ว: ${who}`, body: "สถานะ ผ่าน — รอโพส" };
+      return { title: `ลูกค้าอนุมัติแล้ว: ${who}`, body: "Editor ส่งไฟล์ Final ขึ้น Drive แล้ววางลิงก์ในระบบ" };
     case "client_revise":
       return { title: `ลูกค้าขอแก้ (รอบที่ ${e.round ?? 1}): ${who}`, body: e.brief ? ellipsis(e.brief) : undefined };
     case "client_use":
@@ -75,6 +75,8 @@ export function planNotifications(e: NotifyEvent, c: NotifyContext): PlannedNoti
     if (c.assigneeId) recipients.add(c.assigneeId);
     if (c.managerId) recipients.add(c.managerId);
   } else {
+    // approved by the client: the editor puts the final file on Drive
+    if (e.kind === "client_pass" && editor) recipients.add(editor);
     if (c.assigneeId) recipients.add(c.assigneeId);
     if (c.managerId) recipients.add(c.managerId);
   }

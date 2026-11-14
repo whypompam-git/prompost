@@ -9,4 +9,5 @@ test("clips are bucketed by what the editor has to do next", () => {
   assert.equal(bucketOf({ type: "pending", revisionCount: 0 }), "review");
   assert.equal(bucketOf({ type: "approved", revisionCount: 0 }), "done");
   assert.equal(bucketOf({ type: "posted", revisionCount: 3 }), "done");
+  assert.equal(bucketOf({ type: "approved", revisionCount: 0, needsDrive: true }), "deliver");
 });

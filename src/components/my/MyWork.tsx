@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { addMonths, eachDayOfInterval, endOfMonth, endOfWeek, format, isSameMonth, startOfMonth, startOfWeek } from "date-fns";
 import { th } from "date-fns/locale";
-import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, ExternalLink, ListChecks, Loader2, LogOut, MessageSquareWarning, Palette, PlusCircle, Send, UserCircle2 } from "lucide-react";
+import { CalendarDays, ChevronDown, Download, ChevronLeft, ChevronRight, ExternalLink, ListChecks, Loader2, LogOut, MessageSquareWarning, Palette, PlusCircle, Send, UserCircle2 } from "lucide-react";
 import { CiSheet, FixFeed, MyProfile, UploadSheet } from "@/components/my/MyExtras";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { ScriptText } from "@/components/ui/ScriptText";
@@ -16,6 +16,7 @@ import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 
 const SECTIONS: { key: MyBucket; title: string; hint?: string; tone: string; open: boolean }[] = [
   { key: "revise", title: "ต้องแก้", hint: "ถูกส่งกลับมาพร้อมบรีฟ", tone: "text-rose-600", open: true },
+  { key: "deliver", title: "ส่ง Drive", hint: "ลูกค้าอนุมัติแล้ว โหลดไฟล์ → อัปขึ้น Drive → วางลิงก์", tone: "text-sky-600", open: true },
   { key: "todo", title: "ต้องทำ", hint: "เรียงตามวันตัดต่อ", tone: "text-gray-800", open: true },
   { key: "review", title: "ส่งตรวจแล้ว", hint: "รอผู้รับผิดชอบ/ลูกค้าตรวจ", tone: "text-amber-600", open: true },
   { key: "done", title: "เสร็จแล้ว", tone: "text-emerald-600", open: false },
@@ -42,6 +43,49 @@ function LinkBtn({ label, url }: { label: string; url?: string | null }) {
     <a href={withScheme(url)} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100">
       <ExternalLink size={12} /> {label}
     </a>
+  );
+}
+
+// Approved by the client: download the draft, put the final file on Drive, paste the link.
+function DeliverBox({ t, onChange }: { t: MyTask; onChange: () => void }) {
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState<"" | "dl" | "send">("");
+  async function download() {
+    setBusy("dl");
+    try {
+      const res = await fetch(`/api/drafts/deliver?taskId=${t.id}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.downloadUrl) return window.alert(data.error ?? "ไม่พบไฟล์ดราฟ");
+      window.location.href = data.downloadUrl;
+    } finally {
+      setBusy("");
+    }
+  }
+  async function send() {
+    setBusy("send");
+    try {
+      const res = await fetch("/api/drafts/deliver", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: t.id, finalUrl: link }) });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) return window.alert(data.error ?? "บันทึกไม่สำเร็จ");
+      onChange();
+    } finally {
+      setBusy("");
+    }
+  }
+  return (
+    <div className="mt-3 space-y-2 rounded-xl border border-sky-100 bg-sky-50 p-3">
+      <p className="text-xs font-semibold text-sky-700">ลูกค้าอนุมัติแล้ว — ส่งไฟล์ Final ขึ้น Drive</p>
+      <p className="text-[11px] text-gray-500">1) โหลดไฟล์ 2) อัปขึ้น Drive ตั้งแชร์ "ทุกคนที่มีลิงก์ดูได้" 3) วางลิงก์แล้วกดส่ง — ลูกค้าจะเห็นลิงก์ทันที และไฟล์ดราฟในระบบจะถูกลบ</p>
+      <button onClick={download} disabled={busy !== ""} className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 disabled:opacity-50">
+        <Download size={13} /> {busy === "dl" ? "กำลังเตรียม…" : "โหลดไฟล์"}
+      </button>
+      <div className="flex gap-2">
+        <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="วางลิงก์ Google Drive ของไฟล์ Final" className="min-w-0 flex-1 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm" />
+        <button onClick={send} disabled={!link.trim() || busy !== ""} className="shrink-0 rounded-lg bg-brand-500 px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
+          {busy === "send" ? "…" : "ส่งลิงก์"}
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -142,6 +186,8 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
           )}
         </div>
       )}
+
+      {t.needsDrive && <DeliverBox t={t} onChange={onChange} />}
 
       {editable && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
@@ -263,7 +309,7 @@ export function MyWork({ name }: { name: string }) {
   }, []);
 
   const grouped = useMemo(() => {
-    const g: Record<MyBucket, MyTask[]> = { revise: [], todo: [], review: [], done: [] };
+    const g: Record<MyBucket, MyTask[]> = { revise: [], deliver: [], todo: [], review: [], done: [] };
     for (const t of tasks ?? []) g[bucketOf(t)].push(t);
     g.todo.sort((a, b) => (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999"));
     g.revise.sort((a, b) => (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999"));
@@ -272,7 +318,7 @@ export function MyWork({ name }: { name: string }) {
   }, [tasks]);
 
   // first visit: jump to what needs attention (sent-back work first, then to-do)
-  const active: MyBucket | "all" = filter ?? (grouped.revise.length > 0 ? "revise" : grouped.todo.length > 0 ? "todo" : "all");
+  const active: MyBucket | "all" = filter ?? (grouped.revise.length > 0 ? "revise" : grouped.deliver.length > 0 ? "deliver" : grouped.todo.length > 0 ? "todo" : "all");
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -350,6 +396,7 @@ export function MyWork({ name }: { name: string }) {
                     "shrink-0 rounded-full border px-3.5 py-1.5 text-sm font-medium",
                     active === s.key ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600",
                     active !== s.key && s.key === "revise" && grouped.revise.length > 0 && "border-rose-200 bg-rose-50 text-rose-600",
+                    active !== s.key && s.key === "deliver" && grouped.deliver.length > 0 && "border-sky-200 bg-sky-50 text-sky-700",
                     grouped[s.key].length === 0 && "opacity-40",
                   )}
                 >

@@ -19,12 +19,15 @@ export type MyTask = {
   finalUrl: string | null;
   revisionCount: number;
   revisionBrief: string | null;
+  needsDrive?: boolean; // approved by the client, draft still in the system, no Drive link yet
 };
 
-export type MyBucket = "revise" | "todo" | "review" | "done";
+export type MyBucket = "revise" | "deliver" | "todo" | "review" | "done";
 
 // ต้องแก้ = sent back with a brief; ต้องทำ = still editing; ส่งตรวจแล้ว = in QC / with the client; เสร็จแล้ว = approved or posted
-export function bucketOf(t: Pick<MyTask, "type" | "revisionCount">): MyBucket {
+// ส่ง Drive = the client approved it and the editor still has to put the final file on Drive
+export function bucketOf(t: Pick<MyTask, "type" | "revisionCount"> & { needsDrive?: boolean }): MyBucket {
+  if (t.needsDrive) return "deliver";
   if (t.type === "edit") return t.revisionCount > 0 ? "revise" : "todo";
   if (t.type === "qc" || t.type === "pending") return "review";
   return "done";

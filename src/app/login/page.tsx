@@ -65,7 +65,8 @@ export default function LoginPage() {
       body: JSON.stringify({ staffId: selected.id, pin }),
     });
     if (res.ok) {
-      router.push("/dashboard");
+      // phones land on the new clients grid, computers on the dashboard
+      router.push(window.matchMedia("(max-width: 767px)").matches ? "/v2/clients" : "/dashboard");
       router.refresh();
     } else {
       setError("PIN ไม่ถูกต้อง");

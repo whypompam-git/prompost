@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
           clientName: cl?.name ?? "",
           clientColor: cl?.color_tag ?? "orange",
           logo: logo.get(t.client_id) || cl?.brand_images?.[0] || "",
+          editorId: t.editor_id,
           editorName: nameOf(t.editor_id),
           revisionCount: t.revision_count ?? 0,
           editDate: t.edit_date,

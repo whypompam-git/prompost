@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Check, CheckCircle2, Download, Gauge, Heart, MessageCircle, Palette, Send, X } from "lucide-react";
+import { Check, CheckCircle2, Download, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { initials } from "@/components/v2/AppGrid";
@@ -25,6 +25,7 @@ export type FeedItem = {
   clientName: string;
   clientColor: string;
   logo: string;
+  editorId?: string | null;
   editorName: string;
   revisionCount: number;
   draft: { id: string; version: number; url?: string; downloadUrl?: string };
@@ -66,7 +67,7 @@ type Handlers = {
 
 // One full-screen clip, TikTok style. Speed button 1×–2×. Tap the bottom area for the
 // scrub bar; comments show as dots on it. The right rail depends on who watches.
-function Slide({ item, active, variant, index, total, h }: { item: FeedItem; active: boolean; variant: FeedVariant; index: number; total: number; h: Handlers }) {
+function Slide({ item, active, variant, index, total, h, onOverlay }: { item: FeedItem; active: boolean; variant: FeedVariant; index: number; total: number; h: Handlers; onOverlay: (open: boolean) => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -77,6 +78,22 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
   const [draft, setDraft] = useState("");
   const [at, setAt] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  // the video ran out of buffered data for a moment: slow connection
+  const [stalled, setStalled] = useState(false);
+  const stallTimer = useRef<ReturnType<typeof setTimeout>>();
+  const waiting = () => {
+    clearTimeout(stallTimer.current);
+    stallTimer.current = setTimeout(() => setStalled(true), 1200);
+  };
+  const flowing = () => {
+    clearTimeout(stallTimer.current);
+    setStalled(false);
+  };
+  useEffect(() => () => clearTimeout(stallTimer.current), []);
+
+  useEffect(() => {
+    if (active) onOverlay(panel !== "none");
+  }, [active, panel, onOverlay]);
 
   useEffect(() => {
     const v = video.current;
@@ -125,7 +142,10 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
           className="absolute inset-0 h-full w-full object-contain"
           playsInline
           loop
-          preload="metadata"
+          preload={active ? "auto" : "metadata"}
+          onWaiting={() => active && waiting()}
+          onPlaying={flowing}
+          onCanPlay={flowing}
           controlsList="nodownload noplaybackrate"
           disablePictureInPicture
           onContextMenu={(e) => variant === "client" && e.preventDefault()}
@@ -146,6 +166,13 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
       )}
 
       {total > 1 && <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-medium text-white">คลิปที่ {index + 1} / {total}</span>}
+      {stalled && active && panel === "none" && (
+        <div className="pointer-events-none absolute inset-x-0 top-12 z-10 flex justify-center px-6">
+          <span className="flex items-center gap-2 rounded-full bg-black/70 px-3 py-1.5 text-[11px] text-white">
+            <Loader2 size={13} className="animate-spin" /> เน็ตช้า วิดีโอเลยกระตุก — รอโหลดสักครู่ หรือลองต่อ Wi-Fi
+          </span>
+        </div>
+      )}
       {paused && panel === "none" && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl text-white/80">▶</span>}
 
       {/* right rail */}
@@ -351,6 +378,37 @@ function Slide({ item, active, variant, index, total, h }: { item: FeedItem; act
 export function ReviewFeed({ items, variant = "team", ...h }: { items: FeedItem[]; variant?: FeedVariant } & Handlers) {
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
+  const [overlay, setOverlay] = useState(false);
+  const [bulk, setBulk] = useState(false);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [sending, setSending] = useState<{ done: number; total: number } | null>(null);
+  const [slowNet, setSlowNet] = useState(false);
+
+  // a phone on a slow connection: warn once that drafts may stutter
+  useEffect(() => {
+    const c = (navigator as Navigator & { connection?: { effectiveType?: string; saveData?: boolean } }).connection;
+    if (c && (c.saveData || ["slow-2g", "2g", "3g"].includes(c.effectiveType ?? ""))) setSlowNet(true);
+  }, []);
+
+  // clips with notes still to send, for "สั่งแก้หลายคลิป"
+  const withNotes = variant === "editor" || !h.onRevise ? [] : items.filter((i) => openComments(i.comments, variant).length > 0);
+  function openBulk() {
+    setPicked(new Set(withNotes.map((i) => i.taskId)));
+    setBulk(true);
+  }
+  async function sendBulk() {
+    const list = withNotes.filter((i) => picked.has(i.taskId));
+    setSending({ done: 0, total: list.length });
+    try {
+      for (let n = 0; n < list.length; n++) {
+        await h.onRevise!(list[n]);
+        setSending({ done: n + 1, total: list.length });
+      }
+    } finally {
+      setSending(null);
+      setBulk(false);
+    }
+  }
 
   useEffect(() => {
     const el = box.current;
@@ -365,13 +423,93 @@ export function ReviewFeed({ items, variant = "team", ...h }: { items: FeedItem[
     return () => io.disconnect();
   }, [items]);
 
+  const isClient = variant === "client";
   return (
-    <div ref={box} className="h-full snap-y snap-mandatory overflow-y-auto">
-      {items.map((it, i) => (
-        <div key={`${it.taskId}-${it.draft.id}`} data-i={i} className="h-full">
-          <Slide item={it} active={i === active} variant={variant} index={i} total={items.length} h={h} />
+    <div className="relative h-full">
+      <div ref={box} className="h-full snap-y snap-mandatory overflow-y-auto">
+        {items.map((it, i) => (
+          <div key={`${it.taskId}-${it.draft.id}`} data-i={i} className="h-full">
+            <Slide item={it} active={i === active} variant={variant} index={i} total={items.length} h={h} onOverlay={setOverlay} />
+          </div>
+        ))}
+      </div>
+
+      {slowNet && !overlay && (
+        <button onClick={() => setSlowNet(false)} className="absolute inset-x-3 top-12 z-30 flex items-center gap-2 rounded-xl bg-amber-400/95 px-3 py-2 text-left text-[11px] font-medium text-gray-900 shadow-lg">
+          <WifiOff size={15} className="shrink-0" />
+          <span className="flex-1">เน็ตตอนนี้ค่อนข้างช้า วิดีโออาจกระตุกหรือโหลดนาน แนะนำต่อ Wi-Fi ก่อนตรวจ</span>
+          <X size={14} className="shrink-0" />
+        </button>
+      )}
+
+      {/* bottom-right, like a share button: send several clips back in one go */}
+      {withNotes.length > 0 && !overlay && !bulk && (
+        <button onClick={openBulk} className="absolute bottom-16 right-2 z-30 flex w-14 flex-col items-center gap-0.5 text-white" aria-label={isClient ? "ส่งให้แก้หลายคลิป" : "สั่งแก้หลายคลิป"}>
+          <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-amber-500 shadow-lg">
+            <ListChecks size={22} />
+            <span className="absolute -right-1 -top-1 min-w-5 rounded-full border-2 border-black bg-rose-500 px-1 text-center text-[10px] font-bold leading-4">{withNotes.length}</span>
+          </span>
+          <span className="text-center text-[10px] font-semibold leading-tight drop-shadow">{isClient ? "ส่งแก้รวม" : "สั่งแก้รวม"}</span>
+        </button>
+      )}
+
+      {bulk && (
+        <div className="absolute inset-0 z-40 flex items-end bg-black/50" onClick={() => !sending && setBulk(false)}>
+          <div className="flex max-h-[80%] w-full flex-col rounded-t-2xl bg-white text-gray-900" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <div>
+                <p className="text-sm font-semibold">{isClient ? "ส่งให้แก้หลายคลิปพร้อมกัน" : "สั่งแก้หลายคลิปพร้อมกัน"}</p>
+                <p className="text-[11px] text-gray-400">ติ๊กเลือกคลิปที่คอมเมนต์ไว้แล้ว แล้วกดยืนยัน</p>
+              </div>
+              <button onClick={() => !sending && setBulk(false)} className="rounded-full p-1 text-gray-400" aria-label="ปิด">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto px-4">
+              {withNotes.map((it) => {
+                const on = picked.has(it.taskId);
+                const notes = openComments(it.comments, variant);
+                return (
+                  <label key={it.taskId} className="flex cursor-pointer items-start gap-3 py-3">
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={() => {
+                        const n = new Set(picked);
+                        if (on) n.delete(it.taskId);
+                        else n.add(it.taskId);
+                        setPicked(n);
+                      }}
+                      className="mt-1 h-5 w-5 shrink-0 accent-amber-500"
+                    />
+                    <Avatar item={it} size="h-9 w-9 shrink-0" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{it.clientName} <span className="font-normal text-gray-600">· {it.title}</span></span>
+                      <span className="block text-[11px] text-amber-600">{notes.length} ข้อที่จะส่งให้แก้</span>
+                      <span className="mt-0.5 line-clamp-2 block text-xs text-gray-500">{notes.map((m) => stripClock(m.body)).join(" · ")}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="border-t border-gray-100 px-4 pb-6 pt-3">
+              <button
+                disabled={picked.size === 0 || Boolean(sending)}
+                onClick={sendBulk}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-amber-500 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {sending ? (
+                  <>
+                    <Loader2 size={15} className="animate-spin" /> กำลังส่ง {sending.done}/{sending.total}
+                  </>
+                ) : (
+                  `ยืนยัน${isClient ? "ส่งให้แก้" : "สั่งแก้"} ${picked.size} คลิป`
+                )}
+              </button>
+            </div>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
