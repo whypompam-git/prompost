@@ -65,7 +65,7 @@ export async function middleware(request: NextRequest) {
           ? "mc"
           : pathname === "/studio" || pathname.startsWith("/studio/")
             ? "studio"
-            : pathname.startsWith("/settings")
+            : pathname.startsWith("/settings") || pathname.startsWith("/v2/progress")
           ? "owner"
           : null;
   if (gate) {

@@ -142,6 +142,11 @@ export default function V2MePage() {
         </Link>
         <div className="mt-3">
           <GoalCard />
+          {auth.role === "owner" && (
+            <Link href="/v2/progress" className="mt-2 flex items-center justify-center gap-1 text-xs font-medium text-brand-600">
+              Progress Tracking ของทั้งทีม · ตั้งเป้าให้พนักงาน <ChevronRight size={14} />
+            </Link>
+          )}
         </div>
       </div>
 

@@ -8,6 +8,7 @@ import {
   Mic2,
   Package,
   Settings,
+  Target,
   Sparkles,
   UserCog,
   Users,
@@ -32,6 +33,7 @@ export const LEGACY_ITEMS: NavItem[] = [
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "accounting" },
   { href: "/reports", label: "รายงาน", icon: BarChart3, permission: "financialTotals" },
+  { href: "/v2/progress", label: "Progress Tracking", icon: Target, ownerOnly: true },
   { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
 ];
 

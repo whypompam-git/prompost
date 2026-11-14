@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   CalendarRange,
   StickyNote,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -45,10 +46,11 @@ const NAV_ITEMS = [
 ];
 
 // new UI pages, being tried out next to the old menu
-const V2_ITEMS = [
+const V2_ITEMS: { href: string; label: string; icon: typeof Target; ownerOnly?: boolean }[] = [
   { href: "/v2/clients", label: "ลูกค้า (ใหม่)", icon: LayoutGrid },
   { href: "/v2/calendar", label: "ปฏิทิน (ใหม่)", icon: CalendarRange },
   { href: "/v2/notes", label: "โน้ต", icon: StickyNote },
+  { href: "/v2/progress", label: "Progress Tracking", icon: Target, ownerOnly: true },
 ];
 
 const COLLAPSE_KEY = "prompost:sidebar-collapsed";
@@ -74,6 +76,7 @@ export function Sidebar() {
     });
   }
 
+  const v2Items = V2_ITEMS.filter((i) => !i.ownerOnly || auth.role === "owner");
   const items = NAV_ITEMS.filter(
     (item) =>
       (!item.permission || auth.permissions[item.permission]) && (!item.ownerOnly || auth.role === "owner"),
@@ -95,13 +98,13 @@ export function Sidebar() {
 
       <nav className={cn("flex-1 space-y-0.5 px-2 py-3", expanded && "lg:px-2")}>
         <p className={cn("hidden px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400", expanded && "lg:block")}>หน้าใหม่ (ทดลอง)</p>
-        {[...V2_ITEMS, ...items].map((item, i) => {
+        {[...v2Items, ...items].map((item, i) => {
           const active = pathname?.startsWith(item.href);
           const Icon = item.icon;
           return (
             <Link
               key={item.href}
-              style={i === V2_ITEMS.length ? { marginTop: 10 } : undefined}
+              style={i === v2Items.length ? { marginTop: 10 } : undefined}
               href={item.href}
               title={item.label}
               className={cn(
