@@ -94,7 +94,7 @@ export function GoalCard({ staffId, data, onChanged, compact }: { staffId?: stri
             <span className="ml-1.5 text-sm font-medium text-brand-600">{pct}%</span>
           </p>
           <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-gray-100">
-            <div className={cn("h-full rounded-full transition-all", pct >= 100 ? "bg-emerald-500" : "bg-brand-500")} style={{ width: `${pct}%` }} />
+            <div className={cn("pp-bar h-full rounded-full", pct >= 100 ? "bg-emerald-500" : "bg-brand-500")} style={{ width: `${pct}%` }} />
           </div>
           {g.setByName && <p className="mt-1 text-[11px] text-gray-400">ตั้งเป้าโดย {g.setByName}</p>}
           <p className="mt-1.5 text-xs text-gray-500">

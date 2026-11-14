@@ -43,7 +43,24 @@ export const SESSION_COOKIE_MAX_AGE = SESSION_DURATION;
 // Live access lookup (works on the edge and in Node): permissions and role are
 // read from the database on every gated request, so an owner's change to a
 // staff member takes effect immediately instead of at their next login.
-export async function fetchLiveAccess(staffId: string): Promise<{
+// A page view fires several server checks at once (layout, middleware, API
+// routes); they share one lookup for a few seconds.
+type LiveAccess = Awaited<ReturnType<typeof fetchLiveAccessUncached>>;
+const LIVE_TTL_MS = 10_000;
+const liveCache = new Map<string, { at: number; value: Promise<LiveAccess> }>();
+export function fetchLiveAccess(staffId: string): Promise<LiveAccess> {
+  const hit = liveCache.get(staffId);
+  if (hit && Date.now() - hit.at < LIVE_TTL_MS) return hit.value;
+  const value = fetchLiveAccessUncached(staffId).then((v) => {
+    if (!v) liveCache.delete(staffId); // never cache a failed lookup
+    return v;
+  });
+  liveCache.set(staffId, { at: Date.now(), value });
+  if (liveCache.size > 500) liveCache.clear();
+  return value;
+}
+
+async function fetchLiveAccessUncached(staffId: string): Promise<{
   active: boolean;
   role: StaffRole;
   permissions: Permissions;

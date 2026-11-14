@@ -39,7 +39,7 @@ const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
 
 // Tiny "has a script" marker: an icon after the title, zero extra width when absent.
 function ScriptMark({ task }: { task: Task }) {
-  if (!task.scriptText?.trim()) return null;
+  if (!(task.hasScript ?? Boolean(task.scriptText?.trim()))) return null;
   return (
     <span title="มีสคริปต์แล้ว" className="ml-1.5 inline-flex shrink-0 align-middle text-brand-500">
       <ScrollText size={14} aria-label="มีสคริปต์แล้ว" />

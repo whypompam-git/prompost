@@ -24,7 +24,7 @@ import {
   deleteTaskRow,
   listClients,
   listStaff,
-  listTasks,
+  listTasksLite,
   listTeams,
   updateTaskRow,
 } from "@/lib/supabase/queries";
@@ -91,7 +91,7 @@ function DashboardPageInner() {
   }, [clientFilter, staffFilter, sortBy, sortDir, view, teamFilter]);
 
   useEffect(() => {
-    Promise.all([listTasks(), listClients(), listStaff(), listTeams().catch(() => [] as Team[])])
+    Promise.all([listTasksLite(), listClients(), listStaff(), listTeams().catch(() => [] as Team[])])
       .then(([t, c, s, tm]) => {
         setTeams(tm);
         setTasks(t);
@@ -216,7 +216,7 @@ function DashboardPageInner() {
     } else {
       await createTasksBulk(values);
     }
-    setTasks(await listTasks());
+    setTasks(await listTasksLite());
     setBulkOpen(false);
     setToast("สำเร็จ");
   }

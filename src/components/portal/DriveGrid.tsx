@@ -24,7 +24,7 @@ export function DriveGrid({ clips }: { clips: DriveClip[] }) {
             <button key={t.id} onClick={() => t.finalUrl && setOpen(t)} disabled={!t.finalUrl} className="relative block aspect-[9/16] overflow-hidden bg-gray-200 text-left">
               {thumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={thumb} alt="" className="h-full w-full object-cover" />
+                <img src={thumb} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-gray-300"><Film size={26} /></span>
               )}

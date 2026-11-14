@@ -106,7 +106,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
             <p className="flex items-center gap-1.5 text-xs font-medium text-gray-500"><Film size={14} /> ความคืบหน้า</p>
             <p className="mt-1 text-base font-semibold text-gray-900">ส่งแล้ว {delivered} / {counted.length} คลิป</p>
             <div className="mt-2 h-2 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full rounded-full bg-emerald-500" style={{ width: counted.length ? `${Math.round((delivered / counted.length) * 100)}%` : 0 }} />
+              <div className="pp-bar h-full rounded-full bg-emerald-500" style={{ width: counted.length ? `${Math.round((delivered / counted.length) * 100)}%` : 0 }} />
             </div>
             {fixing > 0 && <p className="mt-1.5 text-xs text-amber-600">ทีมกำลังแก้ตามที่คุณแจ้ง {fixing} คลิป</p>}
           </div>

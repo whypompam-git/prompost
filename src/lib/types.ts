@@ -82,6 +82,7 @@ export interface Task {
   footageUrl?: string; // Google Drive link — raw footage from the shoot
   refLink?: string; // Ref Link Video
   contentCategory?: ContentCategory; // Mass / Royalty / Sell
+  hasScript?: boolean; // list screens: script exists (the text itself is not loaded)
   scriptText?: string; // typed in-app; **bold** / __underline__ markers, see ScriptEditor
   shots?: string[]; // free-typed, remembered/suggested across tasks
   equipment?: string[]; // free-typed, remembered/suggested across tasks

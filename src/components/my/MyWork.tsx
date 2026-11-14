@@ -355,7 +355,7 @@ export function MyWork({ name }: { name: string }) {
               {contract.kind === "monthly" && contract.shootTarget ? ` · ลงถ่าย ${contract.shootDays ?? 0} / ${contract.shootTarget} วัน` : ""}
             </p>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-gray-100">
-              <div className="h-full rounded-full bg-brand-500" style={{ width: `${Math.min(100, Math.round((contract.done / contract.target) * 100))}%` }} />
+              <div className="pp-bar h-full rounded-full bg-brand-500" style={{ width: `${Math.min(100, Math.round((contract.done / contract.target) * 100))}%` }} />
             </div>
           </div>
         </div>

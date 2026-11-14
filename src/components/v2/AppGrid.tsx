@@ -24,7 +24,7 @@ export function ClientTile({ href, name, logo, color, alert }: { href: string; n
       <span className="relative block aspect-square w-full max-w-[110px] overflow-hidden rounded-2xl bg-white shadow-card transition group-hover:shadow-md group-active:scale-95">
         {logo ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={logo} alt="" className="h-full w-full object-cover" />
+          <img src={logo} alt="" decoding="async" className="h-full w-full object-cover" />
         ) : (
           <span className={cn("flex h-full w-full items-center justify-center text-2xl font-bold text-white", PALETTE[stem(color)].solid)}>{initials(name)}</span>
         )}

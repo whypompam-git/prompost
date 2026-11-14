@@ -1,5 +1,5 @@
 import { createClient } from "./client";
-import { cachedFetch, dedupe } from "@/lib/offline/cache";
+import { cachedFetch, dedupe, memo } from "@/lib/offline/cache";
 import { defaultStatusFor } from "@/lib/workflow";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
@@ -490,10 +490,15 @@ const TASK_LITE_COLUMNS = TASK_COLUMNS.split(",")
   .filter((c) => !["script_text", "notes", "shots", "equipment"].includes(c))
   .join(", ");
 export async function listTasksLite(): Promise<Task[]> {
-  return dedupe("listTasksLite", async () => {
-    const { data, error } = await supabase().from("tasks").select(TASK_LITE_COLUMNS).order("scheduled_date", { ascending: true });
-    if (error) throw error;
-    return (data as unknown as TaskRow[]).map((r) => fromTaskRow({ ...r, script_text: null, notes: null, shots: [], equipment: [] }));
+  return memo("listTasksLite", async () => {
+    const withMark: string = `${TASK_LITE_COLUMNS}, has_script`;
+    let res: { data: unknown; error: unknown } = await supabase().from("tasks").select(withMark).order("scheduled_date", { ascending: true });
+    if (res.error) res = await supabase().from("tasks").select(TASK_LITE_COLUMNS).order("scheduled_date", { ascending: true }); // before migration 0051
+    if (res.error) throw res.error;
+    return (res.data as (TaskRow & { has_script?: boolean })[]).map((r) => ({
+      ...fromTaskRow({ ...r, script_text: null, notes: null, shots: [], equipment: [] }),
+      hasScript: r.has_script ?? undefined,
+    }));
   });
 }
 
@@ -2476,6 +2481,9 @@ export async function getClientCi(clientId: string): Promise<ClientCi> {
 
 // logos for the client grid (one query)
 export async function listClientLogos(): Promise<Record<string, string>> {
+  return memo("listClientLogos", listClientLogosRaw);
+}
+async function listClientLogosRaw(): Promise<Record<string, string>> {
   const { data, error } = await supabase().from("client_ci").select("client_id, logo_url").not("logo_url", "is", null);
   if (error) throw error;
   return Object.fromEntries((data ?? []).filter((r) => r.logo_url).map((r) => [r.client_id as string, r.logo_url as string]));

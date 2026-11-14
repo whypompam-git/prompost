@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDays, ClipboardCheck, PlusCircle, UserCircle2, Users } from "lucide-react";
@@ -19,13 +20,16 @@ const TABS_RIGHT = [
 export function MobileBottomNav() {
   const pathname = usePathname() ?? "";
   const router = useRouter();
-  const on = (match: string[]) => match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
-  const notesActive = pathname.startsWith("/v2/notes");
+  // the tapped tab lights up at once, before the next page has arrived
+  const [pending, setPending] = useState<string | null>(null);
+  useEffect(() => setPending(null), [pathname]);
+  const on = (match: string[], href?: string) => (pending ? pending === href : match.some((m) => pathname === m || pathname.startsWith(`${m}/`)));
+  const notesActive = pending ? pending === "/v2/notes" : pathname.startsWith("/v2/notes");
 
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => {
     const Icon = t.icon;
     return (
-      <Link href={t.href} className={cn("flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", on(t.match) ? "text-brand-600" : "text-gray-500")}>
+      <Link href={t.href} onClick={() => setPending(t.href)} className={cn("pp-tab flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", on(t.match, t.href) ? "pp-tab-on text-brand-600" : "text-gray-500")}>
         <Icon size={22} />
         {t.label}
       </Link>
@@ -39,8 +43,11 @@ export function MobileBottomNav() {
       ))}
       {/* notes page (new note button is at its top) */}
       <button
-        onClick={() => router.push("/v2/notes")}
-        className={cn("flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-medium", notesActive ? "text-brand-600" : "text-brand-500")}
+        onClick={() => {
+          setPending("/v2/notes");
+          router.push("/v2/notes");
+        }}
+        className={cn("pp-tab flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-medium", notesActive ? "text-brand-600" : "text-brand-500")}
         aria-label="โน้ต"
       >
         <PlusCircle size={28} />

@@ -61,6 +61,57 @@ button, a, select, input, textarea {
 }
 button:not(:disabled):active { transform: scale(0.96); }
 
+/* ── Motion, new UI ─────────────────────────────────────────────────── */
+@keyframes pp-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.pp-skel {
+  background: linear-gradient(90deg, #f1f2f4 25%, #e6e8eb 37%, #f1f2f4 63%);
+  background-size: 400% 100%;
+  animation: pp-shimmer 1.3s ease-in-out infinite;
+}
+
+/* top loading bar on navigation */
+@keyframes pp-nav-run { from { transform: scaleX(0); } to { transform: scaleX(0.85); } }
+@keyframes pp-nav-done { from { transform: scaleX(0.85); opacity: 1; } to { transform: scaleX(1); opacity: 0; } }
+.pp-navbar { position: fixed; inset: 0 0 auto 0; height: 3px; z-index: 100; transform-origin: left; background: linear-gradient(90deg, #fb923c, #f97316, #ea580c); box-shadow: 0 0 8px rgba(249, 115, 22, 0.6); }
+.pp-navbar-run { animation: pp-nav-run 6s cubic-bezier(0.1, 0.7, 0.2, 1) forwards; }
+.pp-navbar-done { animation: pp-nav-done 0.35s ease-out forwards; }
+
+/* app-icon grids: tiles pop in one after another */
+.grid > a.group { animation: pp-pop 0.32s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+.grid > a.group:nth-child(2) { animation-delay: 25ms; }
+.grid > a.group:nth-child(3) { animation-delay: 50ms; }
+.grid > a.group:nth-child(4) { animation-delay: 75ms; }
+.grid > a.group:nth-child(5) { animation-delay: 100ms; }
+.grid > a.group:nth-child(6) { animation-delay: 125ms; }
+.grid > a.group:nth-child(7) { animation-delay: 150ms; }
+.grid > a.group:nth-child(8) { animation-delay: 175ms; }
+.grid > a.group:nth-child(n + 9) { animation-delay: 200ms; }
+
+/* bottom sheets inside the new pages (review feed, upload, CI…): backdrop fades, sheet slides up */
+@keyframes pp-sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+div.items-end[class*="bg-black/"] { animation: pp-fade-in 0.2s ease-out backwards; }
+div.items-end[class*="bg-black/"] > div { animation: pp-sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
+/* tab bars: the active icon lifts a little */
+.pp-tab svg { transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.pp-tab-on svg { transform: translateY(-2px) scale(1.12); }
+.pp-tab:active svg { transform: scale(0.88); }
+
+/* progress bars grow in from the left */
+@keyframes pp-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.pp-bar { transform-origin: left; animation: pp-grow 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+
+/* cards and tiles you can tap give a little under the finger */
+a.rounded-2xl:active, a.rounded-xl:active { transform: scale(0.98); }
+a.rounded-2xl, a.rounded-xl { transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease; }
+
+/* toasts in the new pages */
+@keyframes pp-toast { from { opacity: 0; scale: 0.9; } to { opacity: 1; scale: 1; } }
+span.absolute.left-1\/2.top-4 { animation: pp-toast 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
