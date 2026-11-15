@@ -5,6 +5,7 @@ import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { ALL_PERMISSIONS, NO_PERMISSIONS } from "@/lib/permissions";
 import { OfflineStatus } from "@/components/OfflineStatus";
 import { NavProgress } from "@/components/layout/NavProgress";
+import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { Suspense } from "react";
 import { MyWork } from "@/components/my/MyWork";
 import { AuthProvider } from "@/lib/auth/AuthContext";
@@ -36,6 +37,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   if (auth.ownOnly) {
     return (
       <AuthProvider auth={auth}>
+        <PullToRefresh />
         <MyWork name={auth.name} />
       </AuthProvider>
     );
@@ -44,6 +46,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AuthProvider auth={auth}>
       <div className="flex min-h-screen">
+        <PullToRefresh />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>

@@ -123,3 +123,8 @@ input[type="date"] {
   max-width: 100%;
   box-sizing: border-box;
 }
+
+/* our own pull-to-refresh handles the pull gesture on phones; stop the browser reloading too */
+@media (pointer: coarse) {
+  html { overscroll-behavior-y: contain; }
+}

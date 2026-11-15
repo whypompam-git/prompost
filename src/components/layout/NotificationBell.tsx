@@ -181,10 +181,17 @@ export function NotificationBell() {
   // the personal inbox is cheap (one small query) so it refreshes faster
   useEffect(() => {
     loadInbox().catch(() => {});
+    // fresh when you come back to the app (PullToRefresh fires pp:refresh) or pull to refresh;
+    // while it stays open, a slow safety refresh
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") loadInbox().catch(() => {});
-    }, 45_000);
-    return () => clearInterval(timer);
+    }, 180_000);
+    const onRefresh = () => loadInbox().catch(() => {});
+    window.addEventListener("pp:refresh", onRefresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("pp:refresh", onRefresh);
+    };
   }, [loadInbox]);
 
   async function openInboxItem(n: AppNotification) {
@@ -209,9 +216,15 @@ export function NotificationBell() {
     if (fresh) setNotices(alertsCache!.notices);
     const first = fresh ? undefined : setTimeout(() => load().catch(() => {}), 2500);
     const timer = setInterval(() => load().catch(() => {}), ALERTS_TTL_MS);
+    const onRefresh = () => {
+      alertsCache = null;
+      load().catch(() => {});
+    };
+    window.addEventListener("pp:refresh", onRefresh);
     return () => {
       if (first) clearTimeout(first);
       clearInterval(timer);
+      window.removeEventListener("pp:refresh", onRefresh);
     };
   }, [load, auth.staffId]);
 
