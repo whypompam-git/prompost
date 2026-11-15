@@ -89,7 +89,19 @@ type ProxyInput = {
   search: string;
   body: unknown;
   access: ProxyAccess;
+  contentType?: string; // of the request body, when there is one
+  hasBody?: boolean;
+  prefer?: string; // the Prefer header
 };
+
+// Server-only tables (logins, workspaces, join requests, client-link PINs, rate counters) and
+// login secrets: never named anywhere in a proxied request — not as a table, not embedded
+// (`staff?select=accounts(...)`, `account_id(...)`), not as a filter on an embedded column.
+const SERVER_ONLY = /\b(accounts|workspaces|workspace_join_requests|client_portal_pins|auth_rate_events|password_hash|pin_hash|account_id|created_by_account)\b|workspace_id\s*[(!]/i;
+
+// Upsert that overwrites an existing row (Prefer: resolution=merge-duplicates) is an update in
+// disguise; outside the owner it's allowed only where it can't do more than a PATCH could.
+const MERGE_UPSERT_TABLES = new Set(["agency_settings", "client_context", "client_ci"]);
 
 // Workspace isolation, applied after the permission rules: reads, updates and deletes are
 // filtered to the caller's workspace (any workspace_id the caller sent is replaced), new rows
@@ -98,6 +110,16 @@ type ProxyInput = {
 export function authorizeProxyRequest(input: ProxyInput): ProxyDecision {
   const ws = input.access.workspaceId;
   if (!ws) return deny(401, "no workspace");
+  const params0 = new URLSearchParams(input.search);
+  for (const [k, v] of params0.entries()) if (SERVER_ONLY.test(k) || SERVER_ONLY.test(v)) return deny(403, "not available here");
+  if (SERVER_ONLY.test(decodeURIComponent(input.path))) return deny(403, "not available here");
+  const m = input.method.toUpperCase();
+  // the rules read JSON bodies; any other body type (form-encoded, CSV) would slip past them
+  if (m !== "GET" && m !== "HEAD" && input.hasBody && !/json/i.test(input.contentType ?? "")) return deny(415, "send JSON");
+  if (m === "POST" && /merge-duplicates/i.test(input.prefer ?? "") && input.access.role !== "owner") {
+    const t = input.path.split("/").filter(Boolean)[2] ?? "";
+    if (!MERGE_UPSERT_TABLES.has(t)) return deny(403, "overwriting rows is not allowed here");
+  }
   const decision = authorizeCore(input);
   if (!decision.ok) return decision;
   const method = input.method.toUpperCase();

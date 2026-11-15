@@ -73,6 +73,9 @@ async function handle(request: NextRequest, { params }: { params: { path: string
     path,
     search: incoming,
     body: parsed,
+    hasBody: Boolean(raw && raw.byteLength > 0),
+    contentType: request.headers.get("content-type") ?? "",
+    prefer: request.headers.get("prefer") ?? "",
     access: {
       staffId: claims.staffId,
       role: live.role,

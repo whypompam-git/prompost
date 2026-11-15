@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (!isUuid(taskId) || typeof path !== "string" || !path.startsWith("")) return NextResponse.json({ error: "invalid request" }, { status: 400 });
   const task = await taskForCaller(c, taskId);
   if (!task) return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 });
-  if (!path.startsWith(`${task.client_id}/${task.id}/`)) return NextResponse.json({ error: "invalid path" }, { status: 400 });
+  if (!path.startsWith(`${task.client_id}/${task.id}/`) || path.includes("..")) return NextResponse.json({ error: "invalid path" }, { status: 400 });
 
   const db = workspaceDb(c.workspaceId);
   // the file must really be there

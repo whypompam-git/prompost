@@ -46,6 +46,18 @@ export async function POST(request: NextRequest) {
   const { data: staff } = await workspaceDb(c.workspaceId).from("staff").select("id, account_id").eq("id", body.staffId).maybeSingle();
   if (!staff) return NextResponse.json({ error: "ไม่พบพนักงาน" }, { status: 404 });
 
+  // A login that is also used in another workspace (or the platform admin's) belongs to that
+  // person, not to this workspace's owner: only they can change its name or password.
+  if (staff.account_id && (username !== undefined || password !== undefined)) {
+    const [{ count: elsewhere }, { data: acc }] = await Promise.all([
+      db.from("staff").select("id", { count: "exact", head: true }).eq("account_id", staff.account_id).neq("workspace_id", c.workspaceId),
+      db.from("accounts").select("is_platform_admin").eq("id", staff.account_id).maybeSingle(),
+    ]);
+    if (elsewhere || acc?.is_platform_admin) {
+      return NextResponse.json({ error: "บัญชีนี้ใช้ใน Workspace อื่นด้วย เจ้าตัวต้องเปลี่ยนชื่อผู้ใช้/รหัสผ่านเองในหน้าโปรไฟล์" }, { status: 403 });
+    }
+  }
+
   if (username !== undefined) {
     const { data: taken } = await db.from("accounts").select("id").eq("username", username).maybeSingle();
     if (taken && taken.id !== staff.account_id) return NextResponse.json({ error: "ชื่อผู้ใช้นี้มีคนใช้แล้ว" }, { status: 409 });

@@ -265,3 +265,44 @@ test("no workspace, no access", () => {
   const lost = { ...owner, workspaceId: "" };
   assert.equal(authorizeProxyRequest({ method: "GET", path: "rest/v1/clients", search: "", body: undefined, access: lost }).ok, false);
 });
+
+// ── security review fixes ───────────────────────────────────────────────────
+const run2 = (access: ProxyAccess, method: string, path: string, search = "", body: unknown = undefined, extra: { contentType?: string; prefer?: string; hasBody?: boolean } = {}) =>
+  authorizeProxyRequest({ method, path, search, body, access, hasBody: extra.hasBody ?? body !== undefined, contentType: extra.contentType ?? "application/json", prefer: extra.prefer });
+
+test("server-only tables can't be embedded, filtered on or named", () => {
+  for (const q of [
+    "?select=id,accounts(username,password_hash)",
+    "?select=id,a:accounts!inner(id)",
+    "?select=id,account_id(username)",
+    "?select=id,client_portal_pins(pin_hash)",
+    "?select=id,workspaces(handle)",
+    "?select=id,workspace_id(handle)",
+    "?select=id,workspace_join_requests(*)",
+    "?select=id&accounts.password_hash=like.*",
+    "?select=id%2Caccounts%28password_hash%29",
+    "?order=pin_hash",
+  ]) {
+    assert.equal(run2(owner, "GET", "rest/v1/staff", q).ok, false, q);
+    assert.equal(run2(owner, "GET", "rest/v1/clients", q).ok, false, q);
+  }
+  assert.equal(run2(owner, "GET", "rest/v1/accounts", "?select=*").ok, false);
+  assert.equal(run2(owner, "GET", "rest/v1/client_portal_pins", "?select=*").ok, false);
+  assert.equal(run2(owner, "GET", "rest/v1/staff", "?select=id,name,teams(name)").ok, true);
+});
+
+test("writes must be JSON, so the body rules always see them", () => {
+  assert.equal(run2(staff, "PATCH", "rest/v1/staff", "?id=eq.staff-1", undefined, { hasBody: true, contentType: "application/x-www-form-urlencoded" }).ok, false);
+  assert.equal(run2(staff, "POST", "rest/v1/tasks", "", undefined, { hasBody: true, contentType: "text/csv" }).ok, false);
+  assert.equal(run2(staff, "PATCH", "rest/v1/staff", "?id=eq.staff-1", { name: "x" }).ok, true);
+  assert.equal(run2(owner, "DELETE", "rest/v1/tasks", "?id=eq.x", undefined, { hasBody: false, contentType: "" }).ok, true);
+});
+
+test("an overwriting upsert is an update: owner only, except where it can't exceed a PATCH", () => {
+  const merge = { prefer: "resolution=merge-duplicates,return=representation" };
+  assert.equal(run2(staff, "POST", "rest/v1/payroll_entries", "", [{ id: "someone-elses", staff_id: "staff-1", bonus: 9 }], merge).ok, false);
+  assert.equal(run2(staff, "POST", "rest/v1/tasks", "", [{ id: "x", title: "t" }], merge).ok, false);
+  assert.equal(run2(staff, "POST", "rest/v1/client_ci", "", { client_id: "c" }, merge).ok, true);
+  assert.equal(run2(owner, "POST", "rest/v1/task_settings", "", { id: true }, merge).ok, true);
+  assert.equal(run2(staff, "POST", "rest/v1/payroll_entries", "", [{ staff_id: "staff-1" }], { prefer: "resolution=ignore-duplicates" }).ok, true);
+});
