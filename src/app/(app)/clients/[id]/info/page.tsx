@@ -200,7 +200,7 @@ export default function ClientInfoPage() {
               className={inputClass}
             />
             <p className="mt-1 break-all text-xs text-gray-400">
-              ลิงก์: prompost.vercel.app/{slugify(client.nameEn ?? "") || "…"}
+              ลิงก์: prompost.app/{slugify(client.nameEn ?? "") || "…"}
               {client.slug && client.slug !== slugify(client.nameEn ?? "") && ` (ตอนนี้: /${client.slug})`}
             </p>
           </div>

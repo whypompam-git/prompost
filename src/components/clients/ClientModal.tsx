@@ -127,7 +127,7 @@ export function ClientModal({
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
             />
             <p className="mt-1 break-all text-xs text-gray-400">
-              ลิงก์: prompost.vercel.app/{slugify(nameEn) || "…"}
+              ลิงก์: prompost.app/{slugify(nameEn) || "…"}
             </p>
           </Field>
 

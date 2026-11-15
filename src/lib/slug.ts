@@ -1,4 +1,4 @@
-// Friendly public client links: prompost.vercel.app/<slug>.
+// Friendly public client links: prompost.app/<slug>.
 // Anything that is (or could become) an app route must never be a slug.
 export const RESERVED_SLUGS = new Set([
   "dashboard", "calendar", "clients", "packages", "hr", "documents", "accounting",
