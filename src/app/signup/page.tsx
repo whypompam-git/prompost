@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "@/components/ui/Link";
 import Image from "next/image";
 import { Eye, EyeOff } from "lucide-react";
@@ -14,6 +14,15 @@ export default function SignupPage() {
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [formToken, setFormToken] = useState("");
+  const [website, setWebsite] = useState(""); // honeypot: hidden from people
+
+  useEffect(() => {
+    fetch("/api/auth/signup", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => setFormToken(d.token ?? ""))
+      .catch(() => {});
+  }, []);
 
   const uErr = username ? usernameError(normalizeUsername(username)) : null;
   const pErr = password ? passwordError(password) : null;
@@ -24,7 +33,7 @@ export default function SignupPage() {
     if (!can) return;
     setBusy(true);
     setError("");
-    const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, username, password }) }).catch(() => null);
+    const res = await fetch("/api/auth/signup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, username, password, formToken, website }) }).catch(() => null);
     const data = await res?.json().catch(() => ({}));
     if (res?.ok) {
       window.location.href = "/welcome";
@@ -42,6 +51,16 @@ export default function SignupPage() {
         <h1 className="text-lg font-semibold text-gray-900">สมัครใช้งาน {APP_NAME}</h1>
       </div>
       <form onSubmit={submit} className="flex w-full max-w-xs flex-col gap-3">
+        <input
+          type="text"
+          name="website"
+          tabIndex={-1}
+          autoComplete="off"
+          value={website}
+          onChange={(e) => setWebsite(e.target.value)}
+          aria-hidden="true"
+          className="absolute -left-[9999px] h-0 w-0 opacity-0"
+        />
         <label className="text-xs font-medium text-gray-500">
           ชื่อที่ให้ทีมเห็น
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="เช่น มิว" className={field} />

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { memberships, setSessions } from "@/lib/auth/accountServer";
+import { LIMITS, clientIp } from "@/lib/rateLimitRules";
+import { hashKey, record, tooMany } from "@/lib/rateLimit";
 import { afterFailure, lockedMinutesLeft, normalizeUsername } from "@/lib/accountRules";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +23,10 @@ export async function POST(request: Request) {
   const password = typeof body.password === "string" ? body.password : "";
   if (!username || !password) return NextResponse.json({ error: WRONG }, { status: 400 });
 
+  // many wrong passwords from one network (guessing across many usernames) → wait
+  const ip = hashKey(clientIp(request.headers));
+  if (await tooMany("login_fail", ip, LIMITS.loginFailPerIp)) return NextResponse.json({ error: "ลองหลายครั้งเกินไป รอ 15 นาทีแล้วลองใหม่" }, { status: 429 });
+
   const db = createAdminClient();
   const { data: account } = await db
     .from("accounts")
@@ -35,6 +41,7 @@ export async function POST(request: Request) {
   const ok = bcrypt.compareSync(password, account?.password_hash ?? DUMMY_HASH);
   if (!account || !account.password_hash || !ok) {
     if (account) await db.from("accounts").update(afterFailure(account.failed_attempts ?? 0, now)).eq("id", account.id);
+    await record("login_fail", ip);
     return NextResponse.json({ error: WRONG }, { status: 401 });
   }
   if (account.failed_attempts) await db.from("accounts").update({ failed_attempts: 0, locked_until: null }).eq("id", account.id);

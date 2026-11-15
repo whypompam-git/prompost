@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { findPortalClient } from "@/lib/portalClient";
 import { pinRow, portalCookie } from "@/lib/portalPin";
 import { PORTAL_PIN_LOCK_MINUTES, PORTAL_PIN_MAX_FAILS, portalPinError } from "@/lib/portalPinRules";
+import { LIMITS, clientIp } from "@/lib/rateLimitRules";
+import { hashKey, record, tooMany } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,9 @@ export async function POST(request: Request) {
   if (typeof clientKey !== "string" || !["set", "enter"].includes(action)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
   const err = portalPinError(pin);
   if (err) return NextResponse.json({ error: err }, { status: 400 });
+  // one network guessing PINs across many client links
+  const ip = hashKey(clientIp(request.headers));
+  if (await tooMany("pin_fail", ip, LIMITS.pinFailPerIp)) return NextResponse.json({ error: "ลองหลายครั้งเกินไป รอ 15 นาที" }, { status: 429 });
   const client = await findPortalClient(clientKey);
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "ลิงก์นี้ใช้ไม่ได้แล้ว" }, { status: 404 });
 
@@ -35,6 +40,7 @@ export async function POST(request: Request) {
     const left = row.locked_until ? Date.parse(row.locked_until) - Date.now() : 0;
     if (left > 0) return NextResponse.json({ error: `ใส่ผิดหลายครั้ง ลองใหม่อีก ${Math.ceil(left / 60_000)} นาที` }, { status: 429 });
     if (!bcrypt.compareSync(pin, row.pin_hash)) {
+      await record("pin_fail", ip);
       const fails = (row.failed_attempts ?? 0) + 1;
       const lock = fails >= PORTAL_PIN_MAX_FAILS;
       await db

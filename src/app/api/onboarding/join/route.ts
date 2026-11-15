@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { memberships, requireAccount } from "@/lib/auth/accountServer";
 import { normalizeHandle } from "@/lib/workspaceRules";
+import { LIMITS } from "@/lib/rateLimitRules";
+import { record, tooMany } from "@/lib/rateLimit";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,9 @@ export async function POST(request: NextRequest) {
   const { handle: raw } = await request.json().catch(() => ({}));
   const handle = normalizeHandle(raw);
   if (!handle) return NextResponse.json({ error: "ใส่ Workspace ID" }, { status: 400 });
+  // guessing Workspace IDs one after another
+  if (await tooMany("join", acc, LIMITS.joinPerAccountHour)) return NextResponse.json({ error: "ลองหลายครั้งเกินไป ลองใหม่ในอีกชั่วโมง" }, { status: 429 });
+  await record("join", acc);
 
   const db = createAdminClient();
   const { data: ws } = await db.from("workspaces").select("id, name, join_open").eq("handle", handle).maybeSingle();
