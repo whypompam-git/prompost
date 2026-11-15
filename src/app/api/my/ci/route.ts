@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { requireMe } from "@/lib/myWork";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   if (me instanceof NextResponse) return me;
   const clientId = new URL(request.url).searchParams.get("clientId") ?? "";
   if (!isUuid(clientId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data: mine } = await db.from("tasks").select("id").eq("client_id", clientId).eq("editor_id", me.staffId).limit(1);
   if (!mine?.length) return NextResponse.json({ error: "not found" }, { status: 404 });
   const [{ data: ci }, { data: client }] = await Promise.all([

@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller } from "@/lib/draftsServer";
 import { alertTeamLine } from "@/lib/lineDigest";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (c.ownOnly) return NextResponse.json({ error: "not available for this account" }, { status: 403 });
   const { queueId, send } = await request.json().catch(() => ({}));
   if (!isUuid(queueId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
   const { data: q } = await db.from("queues").select("id, name, shoot_date, client_id, clients(name)").eq("id", queueId).maybeSingle();
   if (!q) return NextResponse.json({ error: "ไม่พบคิว" }, { status: 404 });
   const { data: tasks } = await db.from("tasks").select("title, type, status, shoot_order").eq("queue_id", queueId);

@@ -2,14 +2,17 @@ import { notFound } from "next/navigation";
 import { ContractDocument } from "@/components/contracts/ContractDocument";
 import { ContractToolbar } from "@/components/contracts/ContractToolbar";
 import { CONTRACT_COLUMNS, fromContractRow } from "@/lib/supabase/queries";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
+import { viewerWorkspaceId } from "@/lib/auth/viewer";
 import { signerInfo, viewerIsOwner, withViewableSignatures } from "@/lib/contractServer";
 
 export const dynamic = "force-dynamic";
 
 // Staff preview / PDF of any contract (login-checked by the middleware).
 export default async function PrintContractPage({ params }: { params: { id: string } }) {
-  const { data } = await createAdminClient().from("contracts").select(CONTRACT_COLUMNS).eq("id", params.id).maybeSingle();
+  const ws = await viewerWorkspaceId();
+  if (!ws) notFound();
+  const { data } = await workspaceDb(ws).from("contracts").select(CONTRACT_COLUMNS).eq("id", params.id).maybeSingle();
   if (!data) notFound();
   const owner = await viewerIsOwner();
   // staff contracts are owner-only

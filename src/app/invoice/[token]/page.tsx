@@ -12,14 +12,14 @@ export default async function InvoiceSharePage({ params }: { params: { token: st
 
   const { data: invoice } = await supabase
     .from("invoices")
-    .select("invoice_no, items, vat_percent, wht_percent, created_at, due_date, payment_note, notes, client_id")
+    .select("workspace_id, invoice_no, items, vat_percent, wht_percent, created_at, due_date, payment_note, notes, client_id")
     .eq("share_token", params.token)
     .maybeSingle();
   if (!invoice) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type, portal_enabled").eq("id", invoice.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("workspace_id", invoice.workspace_id).maybeSingle(),
   ]);
 
   if (client && client.portal_enabled === false) return <LinkRevoked />;

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, taskForCaller } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { planNotifications, pushNotifications } from "@/lib/notify";
 import { settle } from "@/lib/workflow";
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!task) return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 });
   if (!path.startsWith(`${task.client_id}/${task.id}/`)) return NextResponse.json({ error: "invalid path" }, { status: 400 });
 
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
   // the file must really be there
   const folder = path.slice(0, path.lastIndexOf("/"));
   const { data: files } = await db.storage.from("drafts").list(folder, { search: path.slice(path.lastIndexOf("/") + 1) });

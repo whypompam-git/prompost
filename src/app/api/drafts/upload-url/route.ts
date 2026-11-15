@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, taskForCaller } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
   if (!task) return NextResponse.json({ error: "ไม่พบงานนี้" }, { status: 404 });
   if (!["edit", "qc"].includes(task.type)) return NextResponse.json({ error: "อัปโหลดดราฟได้เฉพาะงานที่อยู่ขั้นตัดต่อหรือ QC" }, { status: 409 });
   const path = `${task.client_id}/${task.id}/${Date.now()}.${ext.toLowerCase()}`;
-  const { data, error } = await createAdminClient().storage.from("drafts").createSignedUploadUrl(path);
+  const { data, error } = await workspaceDb(c.workspaceId).storage.from("drafts").createSignedUploadUrl(path);
   if (error || !data) return NextResponse.json({ error: error?.message ?? "failed" }, { status: 500 });
   return NextResponse.json({ path: data.path, token: data.token });
 }

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, taskForCaller } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
   const at = typeof atSeconds === "number" && atSeconds >= 0 && atSeconds < 36000 ? Math.round(atSeconds * 100) / 100 : null;
   const task = await taskForCaller(c, taskId);
   if (!task) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const { data, error } = await createAdminClient()
+  const { data, error } = await workspaceDb(c.workspaceId)
     .from("draft_comments")
     .insert({ task_id: taskId, draft_id: draftId ?? null, author_staff_id: c.staffId, at_seconds: at, body: body.trim() })
     .select("id, created_at")
@@ -33,7 +33,7 @@ export async function PATCH(request: NextRequest) {
   if (c.ownOnly) return NextResponse.json({ error: "not available for this account" }, { status: 403 });
   const { taskId } = await request.json().catch(() => ({}));
   if (!isUuid(taskId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  const { error } = await createAdminClient()
+  const { error } = await workspaceDb(c.workspaceId)
     .from("draft_comments")
     .update({ resolved_at: new Date().toISOString() })
     .eq("task_id", taskId)

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 import { isUuid } from "@/lib/aiApi";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { bangkokDay } from "@/lib/alerts";
 import { digestScript, parseSellingLines, textSimilarity } from "@/lib/scriptChecks";
@@ -34,7 +35,10 @@ export async function POST(request: NextRequest) {
   const instruction = typeof body.instruction === "string" ? body.instruction.slice(0, 4000) : "";
   const category = ["mass", "royalty", "sell"].includes(body.category) ? body.category : undefined;
 
-  const db = createAdminClient();
+  // AI runs on the platform owner's paid key: only workspaces it was switched on for
+  const { data: wsRow } = await createAdminClient().from("workspaces").select("ai_enabled").eq("id", live.workspaceId).maybeSingle();
+  if (!wsRow?.ai_enabled) return NextResponse.json({ error: "AI ยังไม่ได้เปิดให้ workspace นี้" }, { status: 403 });
+  const db = workspaceDb(live.workspaceId);
   const cap = Number(process.env.AI_DAILY_CAP_THB ?? 100);
   const dayStart = new Date(`${bangkokDay(new Date())}T00:00:00+07:00`).toISOString();
   const { data: today } = await db.from("ai_runs").select("cost_thb").gte("created_at", dayStart);

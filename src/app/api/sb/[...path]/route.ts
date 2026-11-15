@@ -78,6 +78,7 @@ async function handle(request: NextRequest, { params }: { params: { path: string
       role: live.role,
       hideInternal: live.hideInternal,
       ownOnly: live.ownOnly,
+      workspaceId: live.workspaceId,
       permissions: {
         documents: live.permissions.documents,
         accounting: live.permissions.accounting,
@@ -97,10 +98,13 @@ async function handle(request: NextRequest, { params }: { params: { path: string
   // for restricted people a write may only come back with the columns the rules allowed
   if (decision.minimalReturn) headers["prefer"] = "return=minimal";
 
+  // the rules may have rewritten the body (workspace stamped on new rows / the rpc)
+  const outBody = decision.body !== undefined ? JSON.stringify(decision.body) : raw && raw.byteLength > 0 ? raw : undefined;
+  if (decision.body !== undefined) headers["content-type"] = "application/json";
   const upstream = await fetch(`${url}/${path}${decision.search}`, {
     method,
     headers,
-    body: raw && raw.byteLength > 0 ? raw : undefined,
+    body: outBody,
     cache: "no-store",
   });
 

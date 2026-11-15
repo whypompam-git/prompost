@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { workspaceDb, type WorkspaceDb } from "@/lib/supabase/workspaceDb";
 import { addDays, buildDigest, bangkokDay, digestToText, filterDigest } from "@/lib/alerts";
 import { alertBilling } from "@/lib/billing";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -12,10 +12,11 @@ const dateLabel = (iso: string) => `${Number(iso.slice(8))} ${THAI_MONTHS[Number
 
 // Server-only: loads what's needed with the service key and builds the text.
 export async function buildDigestText(
+  workspaceId: string,
   now = new Date(),
   opts: { topics?: string[]; teamId?: string | null } = {},
 ): Promise<string | null> {
-  const db = createAdminClient();
+  const db = workspaceDb(workspaceId);
   const today = bangkokDay(now);
   const [clients, staff, tasks, invoices, rounds, receipts, leave, quotes, txs] = await Promise.all([
     db.from("clients").select("id, name"),
@@ -88,8 +89,8 @@ export async function pushLine(text: string, to = process.env.LINE_TO): Promise<
 
 // Instant alert to the team's LINE group(s) — every enabled channel that follows
 // the "tasks" topic. Never throws: the action that triggered it already happened.
-export async function alertTeamLine(db: SupabaseClient, text: string): Promise<number> {
-  if (!lineTokenSet()) return 0;
+export async function alertTeamLine(db: WorkspaceDb, text: string): Promise<number> {
+  if (!lineTokenSet() || !(await lineEnabledFor(db.workspaceId))) return 0;
   const { data } = await db.from("line_channels").select("group_id, topics, enabled").eq("enabled", true);
   const groups = [...new Set((data ?? []).filter((c) => (c.topics ?? []).includes("tasks")).map((c) => c.group_id as string))];
   let sent = 0;
@@ -102,4 +103,10 @@ export async function alertTeamLine(db: SupabaseClient, text: string): Promise<n
     }
   }
   return sent;
+}
+
+// LINE is a paid, shared bot: a workspace sends only when the platform owner switched it on.
+export async function lineEnabledFor(workspaceId: string): Promise<boolean> {
+  const { data } = await createAdminClient().from("workspaces").select("line_enabled").eq("id", workspaceId).maybeSingle();
+  return Boolean(data?.line_enabled);
 }

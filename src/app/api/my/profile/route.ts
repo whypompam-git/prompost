@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireMe } from "@/lib/myWork";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const me = await requireMe(request);
   if (me instanceof NextResponse) return me;
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const [{ data: staff }, { data: done }, { data: contracts }] = await Promise.all([
     db.from("staff").select("name, photo_url, position").eq("id", me.staffId).maybeSingle(),
     db.from("tasks").select("id, title, final_url, cover_url, type, edit_date, clients(name)").eq("editor_id", me.staffId).in("type", ["approved", "posted"]).order("edit_date", { ascending: false }).limit(300),

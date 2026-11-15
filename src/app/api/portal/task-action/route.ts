@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { isUuid } from "@/lib/slug";
 import { applyClientAction, type ClientAction } from "@/lib/workflow";
 import { planNotifications, pushNotifications, type NotifyKind } from "@/lib/notify";
@@ -42,7 +43,7 @@ export async function POST(request: Request) {
   const db = createAdminClient();
   const { data: client } = await db
     .from("clients")
-    .select("id, name, manager_id, portal_enabled")
+    .select("id, name, manager_id, portal_enabled, workspace_id")
     .eq(isUuid(clientKey) ? "portal_token" : "slug", clientKey)
     .maybeSingle();
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "link inactive" }, { status: 403 });
@@ -92,13 +93,13 @@ export async function POST(request: Request) {
   if (action === "revise") {
     const lines = notes.length ? notes.map((n) => `• ${n.body}`).join("\n") : (brief ?? "").trim();
     await alertTeamLine(
-      db,
+      workspaceDb(client.workspace_id),
       `✏️ ลูกค้าสั่งแก้ ${task.type === "plan" ? "แผนคอนเทนต์" : "งาน"}\n${client.name} · ${task.title}\nรอบที่ ${result.revisionCount}\n${lines}`.slice(0, 4000),
     ).catch(() => 0);
   }
   try {
     await pushNotifications(
-      db,
+      workspaceDb(client.workspace_id),
       planNotifications(
         { kind: KIND[action as ClientAction], taskTitle: task.title, clientName: client.name, brief: brief?.trim(), round: result.revisionCount, toStage: result.type },
         { assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client.manager_id },

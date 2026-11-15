@@ -1,5 +1,6 @@
 import { ScriptSheets, type SheetTask } from "@/components/print/ScriptSheets";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
+import { viewerWorkspaceId } from "@/lib/auth/viewer";
 import { isUuid } from "@/lib/aiApi";
 import { statusLabel, stageInfo } from "@/lib/workflow";
 
@@ -10,7 +11,9 @@ export const dynamic = "force-dynamic";
 export default async function PrintScriptsPage({ searchParams }: { searchParams: { ids?: string } }) {
   const ids = (searchParams.ids ?? "").split(",").filter(isUuid).slice(0, 60);
   if (ids.length === 0) return <p className="p-8 text-sm text-gray-500">ไม่ได้เลือกงาน</p>;
-  const db = createAdminClient();
+  const ws = await viewerWorkspaceId();
+  if (!ws) return <p className="p-8 text-sm text-gray-500">ต้องเข้าสู่ระบบ</p>;
+  const db = workspaceDb(ws);
   const { data } = await db
     .from("tasks")
     .select("id, title, type, status, script_text, shots, equipment, content_category, scheduled_date, edit_date, due_date, notes, clients(name), queues(name)")

@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { caller, signedDraftUrl } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const c = await caller(request);
   if (c instanceof NextResponse) return c;
   if (c.ownOnly) return NextResponse.json({ error: "not available for this account" }, { status: 403 });
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
 
   const { data: tasks, error } = await db
     .from("tasks")

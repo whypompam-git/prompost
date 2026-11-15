@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { viewerWorkspaceId } from "@/lib/auth/viewer";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createAdminClient as createClient } from "@/lib/supabase/admin";
@@ -9,14 +10,16 @@ export default async function PrintReceiptPage({ params }: { params: { id: strin
 
   const { data: receipt } = await supabase
     .from("receipts")
-    .select("receipt_no, amount, created_at, notes, client_id, description")
+    .select("workspace_id, receipt_no, amount, created_at, notes, client_id, description")
     .eq("id", params.id)
     .maybeSingle();
   if (!receipt) notFound();
+  // staff print view: only documents of the viewer's own workspace
+  if (receipt.workspace_id !== (await viewerWorkspaceId())) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type").eq("id", receipt.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("workspace_id", receipt.workspace_id).maybeSingle(),
   ]);
 
   return (

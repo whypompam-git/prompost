@@ -10,14 +10,14 @@ export default async function ReceiptSharePage({ params }: { params: { token: st
 
   const { data: receipt } = await supabase
     .from("receipts")
-    .select("receipt_no, amount, created_at, notes, client_id, description")
+    .select("workspace_id, receipt_no, amount, created_at, notes, client_id, description")
     .eq("share_token", params.token)
     .maybeSingle();
   if (!receipt) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type, portal_enabled").eq("id", receipt.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("workspace_id", receipt.workspace_id).maybeSingle(),
   ]);
 
   if (client && client.portal_enabled === false) return <LinkRevoked />;

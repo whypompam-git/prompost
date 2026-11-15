@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, signedDraftUrl, taskForCaller } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   if (!isUuid(taskId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
   const task = await taskForCaller(c, taskId!);
   if (!task) return NextResponse.json({ error: "not found" }, { status: 404 });
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
   const [{ data: d }, { data: cl }] = await Promise.all([
     db.from("task_drafts").select("path, version").eq("task_id", task.id).is("removed_at", null).order("version", { ascending: false }).limit(1).maybeSingle(),
     db.from("clients").select("name").eq("id", task.client_id).maybeSingle(),
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   const task = await taskForCaller(c, taskId);
   if (!task) return NextResponse.json({ error: "not found" }, { status: 404 });
   if (!["approved", "posted"].includes(task.type)) return NextResponse.json({ error: "ลูกค้ายังไม่อนุมัติคลิปนี้" }, { status: 409 });
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
   const { error } = await db.from("tasks").update({ final_url: finalUrl.trim(), updated_at: new Date().toISOString() }).eq("id", taskId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

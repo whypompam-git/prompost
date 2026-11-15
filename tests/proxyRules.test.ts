@@ -5,11 +5,13 @@ import { authorizeProxyRequest, type ProxyAccess } from "../src/lib/supabase/pro
 const owner: ProxyAccess = {
   staffId: "owner-1",
   role: "owner",
+  workspaceId: "ws-a",
   permissions: { documents: true, accounting: true, othersPayroll: true },
 };
 const staff: ProxyAccess = {
   staffId: "staff-1",
   role: "staff",
+  workspaceId: "ws-a",
   permissions: { documents: false, accounting: false, othersPayroll: false },
 };
 const finance: ProxyAccess = { ...staff, permissions: { ...staff.permissions, documents: true } };
@@ -54,7 +56,7 @@ test("payroll: others' rows are hidden, own row pinned", () => {
   assert.equal(run(staff, "POST", "rest/v1/payroll_entries", "", [{ staff_id: "owner-1" }]).ok, false);
   assert.equal(run(staff, "PATCH", "rest/v1/payroll_entries", "?id=eq.p", { bonus: 9999 }).ok, false);
   const ownerRead = run(owner, "GET", "rest/v1/payroll_entries", "?select=*");
-  assert.equal(ownerRead.ok && ownerRead.search === "?select=*", true);
+  assert.equal(ownerRead.ok && ownerRead.search === "?select=*&workspace_id=eq.ws-a", true);
 });
 
 test("a client cannot spoof the staff_id filter to read others' payroll", () => {
@@ -198,7 +200,6 @@ test("notes: everyone reads, writes are pinned to the author (owner edits any)",
 });
 
 test("login fields on staff can't be read or written through the proxy, even by the owner", () => {
-  const owner = { staffId: "o1", role: "owner" as const, permissions: { documents: true, accounting: true, othersPayroll: true } };
   const read = authorizeProxyRequest({ method: "GET", path: "rest/v1/staff", search: "?select=id,pin_hash", access: owner });
   assert.equal(read.ok, false);
   const link = authorizeProxyRequest({ method: "GET", path: "rest/v1/staff", search: "?select=id,account_id", access: owner });
@@ -212,6 +213,55 @@ test("login fields on staff can't be read or written through the proxy, even by 
 });
 
 test("the accounts table is not reachable through the proxy", () => {
-  const owner = { staffId: "o1", role: "owner" as const, permissions: { documents: true, accounting: true, othersPayroll: true } };
   assert.equal(authorizeProxyRequest({ method: "GET", path: "rest/v1/accounts", search: "?select=*", access: owner }).ok, false);
+});
+
+// ── workspace isolation ─────────────────────────────────────────────────────
+const TABLES_TO_CHECK = ["clients", "tasks", "staff", "quotations", "receipts", "invoices", "contracts", "transactions", "packages", "notes", "teams", "positions", "agency_settings", "task_settings"];
+
+test("every read, update and delete is pinned to the caller's workspace", () => {
+  for (const t of TABLES_TO_CHECK) {
+    for (const method of ["GET", "PATCH", "DELETE"]) {
+      const r = run(owner, method, `rest/v1/${t}`, "?select=id&id=eq.x", method === "PATCH" ? { name: "n" } : undefined);
+      assert.equal(r.ok, true, `${method} ${t}`);
+      if (r.ok) {
+        const p = new URLSearchParams(r.search);
+        assert.deepEqual(p.getAll("workspace_id"), ["eq.ws-a"], `${method} ${t}`);
+      }
+    }
+  }
+});
+
+test("a workspace filter sent by the browser is replaced, not added to", () => {
+  for (const spoof of ["?workspace_id=eq.ws-b", "?workspace_id=neq.ws-a", "?select=*&workspace_id=in.(ws-a,ws-b)", "?or=(workspace_id.eq.ws-b)"]) {
+    const r = run(owner, "GET", "rest/v1/clients", spoof);
+    assert.equal(r.ok, true);
+    if (r.ok) assert.deepEqual(new URLSearchParams(r.search).getAll("workspace_id"), ["eq.ws-a"], spoof);
+  }
+});
+
+test("new rows are stamped with the caller's workspace, whatever the browser sent", () => {
+  const one = run(staff, "POST", "rest/v1/tasks", "", { title: "t", workspace_id: "ws-b" });
+  assert.equal(one.ok, true);
+  if (one.ok) assert.deepEqual(one.body, { title: "t", workspace_id: "ws-a" });
+  const many = run(owner, "POST", "rest/v1/clients", "", [{ name: "a" }, { name: "b", workspace_id: "ws-b" }]);
+  assert.equal(many.ok, true);
+  if (many.ok) assert.deepEqual(many.body, [{ name: "a", workspace_id: "ws-a" }, { name: "b", workspace_id: "ws-a" }]);
+  assert.equal(run(owner, "POST", "rest/v1/clients", "", undefined).ok, false);
+});
+
+test("rows can't be moved to another workspace", () => {
+  assert.equal(run(owner, "PATCH", "rest/v1/clients", "?id=eq.x", { workspace_id: "ws-b" }).ok, false);
+  assert.equal(run(owner, "PATCH", "rest/v1/clients", "?id=eq.x", { workspace_id: "ws-a", name: "n" }).ok, true);
+});
+
+test("document numbers count inside the caller's workspace", () => {
+  const r = run(finance, "POST", "rest/v1/rpc/next_doc_no", "", { p_kind: "quotations", p_prefix: "QT", p_workspace: "ws-b" });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.deepEqual(r.body, { p_kind: "quotations", p_prefix: "QT", p_workspace: "ws-a" });
+});
+
+test("no workspace, no access", () => {
+  const lost = { ...owner, workspaceId: "" };
+  assert.equal(authorizeProxyRequest({ method: "GET", path: "rest/v1/clients", search: "", body: undefined, access: lost }).ok, false);
 });

@@ -4,13 +4,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 
-export async function requireMe(request: NextRequest): Promise<{ staffId: string; name: string } | NextResponse> {
+export async function requireMe(request: NextRequest): Promise<{ staffId: string; name: string; workspaceId: string } | NextResponse> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
   const claims = token ? await verifySession(token) : null;
   if (!claims) return NextResponse.json({ error: "not logged in" }, { status: 401 });
   const live = await fetchLiveAccess(claims.staffId);
   if (!live || !live.active) return NextResponse.json({ error: "account disabled" }, { status: 401 });
-  return { staffId: claims.staffId, name: live.name };
+  return { staffId: claims.staffId, name: live.name, workspaceId: live.workspaceId };
 }
 
 export { MY_STAGES } from "./myWorkTypes.ts";

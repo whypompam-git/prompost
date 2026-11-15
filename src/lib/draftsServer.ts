@@ -1,10 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 // Server-only helpers for draft videos (private "drafts" bucket).
 
-export type Caller = { staffId: string; role: string; ownOnly: boolean };
+export type Caller = { staffId: string; role: string; ownOnly: boolean; workspaceId: string };
 
 export async function caller(request: NextRequest): Promise<Caller | NextResponse> {
   const token = request.cookies.get(SESSION_COOKIE)?.value;
@@ -12,12 +13,12 @@ export async function caller(request: NextRequest): Promise<Caller | NextRespons
   if (!claims) return NextResponse.json({ error: "not logged in" }, { status: 401 });
   const live = await fetchLiveAccess(claims.staffId);
   if (!live || !live.active) return NextResponse.json({ error: "account disabled" }, { status: 401 });
-  return { staffId: claims.staffId, role: live.role, ownOnly: live.ownOnly };
+  return { staffId: claims.staffId, role: live.role, ownOnly: live.ownOnly, workspaceId: live.workspaceId };
 }
 
 // team members may touch any clip; an own-only editor only clips where they are the editor
 export async function taskForCaller(c: Caller, taskId: string) {
-  const { data } = await createAdminClient()
+  const { data } = await workspaceDb(c.workspaceId)
     .from("tasks")
     .select("id, title, type, status, client_id, editor_id, assignee_id, footage_url, final_url, revision_count")
     .eq("id", taskId)

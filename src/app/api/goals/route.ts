@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller } from "@/lib/draftsServer";
 import { goalProgressFor, saveGoal } from "@/lib/goalServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const c = await caller(request);
   if (c instanceof NextResponse) return c;
   if (c.role !== "owner") return NextResponse.json({ error: "owner only" }, { status: 403 });
-  const db = createAdminClient();
+  const db = workspaceDb(c.workspaceId);
   const { data: staff, error } = await db.from("staff").select("id, name, role, position, photo_url, positions(own_only)").eq("is_active", true).order("name");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const progress = await goalProgressFor(db, (staff ?? []).map((s) => s.id));
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
   if (c.role !== "owner") return NextResponse.json({ error: "owner only" }, { status: 403 });
   const body = await request.json().catch(() => ({}));
   if (!isUuid(body.staffId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  const err = await saveGoal(createAdminClient(), body.staffId, c.staffId, body);
+  const err = await saveGoal(workspaceDb(c.workspaceId), body.staffId, c.staffId, body);
   if (err) return NextResponse.json({ error: err }, { status: 400 });
   return NextResponse.json({ ok: true });
 }

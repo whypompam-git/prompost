@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { requireMe } from "@/lib/myWork";
 import { fetchLiveAccess } from "@/lib/auth/session";
 import { goalProgressFor, saveGoal } from "@/lib/goalServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const me = await requireMe(request);
   if (me instanceof NextResponse) return me;
-  const p = (await goalProgressFor(createAdminClient(), [me.staffId])).get(me.staffId)!;
+  const p = (await goalProgressFor(workspaceDb(me.workspaceId), [me.staffId])).get(me.staffId)!;
   return NextResponse.json({ ...p, locked: Boolean(p.goal?.setById && p.goal.setById !== me.staffId) });
 }
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const me = await requireMe(request);
   if (me instanceof NextResponse) return me;
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data: row } = await db.from("staff_goals").select("set_by").eq("staff_id", me.staffId).maybeSingle();
   if (row?.set_by && row.set_by !== me.staffId) {
     const live = await fetchLiveAccess(me.staffId);

@@ -1,5 +1,5 @@
 // Server-only: Progress Tracking goals + progress for one or many people.
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { WorkspaceDb } from "@/lib/supabase/workspaceDb";
 import { bangkokDay } from "@/lib/alerts";
 import { countGoal, goalWindow, type GoalMode } from "@/lib/goalProgress";
 
@@ -12,7 +12,7 @@ export type GoalProgress = {
   total: number;
 };
 
-export async function goalProgressFor(db: SupabaseClient, staffIds: string[]): Promise<Map<string, GoalProgress>> {
+export async function goalProgressFor(db: WorkspaceDb, staffIds: string[]): Promise<Map<string, GoalProgress>> {
   const out = new Map<string, GoalProgress>();
   if (!staffIds.length) return out;
   const today = bangkokDay(new Date());
@@ -50,7 +50,7 @@ export async function goalProgressFor(db: SupabaseClient, staffIds: string[]): P
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 // validate + save (target 0/null clears)
-export async function saveGoal(db: SupabaseClient, staffId: string, setBy: string, body: { target?: unknown; mode?: unknown; startDate?: unknown }): Promise<string | null> {
+export async function saveGoal(db: WorkspaceDb, staffId: string, setBy: string, body: { target?: unknown; mode?: unknown; startDate?: unknown }): Promise<string | null> {
   const { target, mode, startDate } = body;
   if (target === 0 || target === null) {
     const { error } = await db.from("staff_goals").delete().eq("staff_id", staffId);

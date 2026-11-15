@@ -1,7 +1,7 @@
 // Per-person notifications. planNotifications() is pure (and tested);
 // pushNotifications() writes them with the service key. Notifications are only
 // ever created on the server, from the route that handled the event.
-import type { SupabaseClient } from "@supabase/supabase-js";
+import type { WorkspaceDb } from "@/lib/supabase/workspaceDb";
 import { stageInfo } from "./workflow.ts";
 
 export type NotifyKind =
@@ -88,7 +88,7 @@ export function planNotifications(e: NotifyEvent, c: NotifyContext): PlannedNoti
 // An unread notification of the same kind for the same task is merged into
 // one row with a counter instead of piling up.
 export async function pushNotifications(
-  db: SupabaseClient,
+  db: WorkspaceDb,
   items: PlannedNotification[],
   ref: { taskId?: string; clientId?: string },
 ): Promise<void> {

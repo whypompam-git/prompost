@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 import { isUuid, validateNewTasks } from "@/lib/aiApi";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { bangkokDay, addDays } from "@/lib/alerts";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   if (!isUuid(body.clientId)) return NextResponse.json({ error: "ต้องมี clientId" }, { status: 400 });
-  const db = createAdminClient();
+  const db = workspaceDb(live.workspaceId);
   const { data: client } = await db.from("clients").select("id, name").eq("id", body.clientId).maybeSingle();
   if (!client) return NextResponse.json({ error: "ไม่พบลูกค้า" }, { status: 404 });
 

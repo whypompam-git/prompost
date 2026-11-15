@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
 import { isUuid, resolveFlow, sanitizeExpect, sanitizePatch, validateNewTasks } from "@/lib/aiApi";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(request: Request) {
   if (ids.length === 0 || ids.length > 200 || !ids.every(isUuid)) {
     return NextResponse.json({ error: "ids ต้องเป็น uuid คั่นด้วย , (1–200 ตัว)" }, { status: 400 });
   }
-  const { data, error } = await createAdminClient().from("tasks").select(READ_COLUMNS).in("id", ids);
+  const { data, error } = await workspaceDb(PROMPOST_WORKSPACE_ID).from("tasks").select(READ_COLUMNS).in("id", ids);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ tasks: data });
 }
@@ -33,7 +34,7 @@ export async function POST(request: Request) {
   const checked = validateNewTasks(body.tasks);
   if (!checked.ok) return NextResponse.json({ error: "ข้อมูลไม่ถูกต้อง", details: checked.errors }, { status: 400 });
 
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const { data: clients, error: clientError } = await db.from("clients").select("id, name, slug").eq("slug", slug);
   if (clientError) return NextResponse.json({ error: clientError.message }, { status: 500 });
   if (clients?.length !== 1) {
@@ -89,7 +90,7 @@ export async function PATCH(request: Request) {
     prepared.push({ id: u.id, patch: patch.patch, expect: expect.expect });
   }
 
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const results: { id: string; updated: boolean; error?: string }[] = [];
   for (const u of prepared) {
     let patch = u.patch;

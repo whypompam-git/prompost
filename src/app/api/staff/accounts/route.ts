@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { isUuid } from "@/lib/aiApi";
 import { caller } from "@/lib/draftsServer";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { normalizeUsername, passwordError, usernameError } from "@/lib/accountRules";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
   const c = await caller(request);
   if (c instanceof NextResponse) return c;
   if (c.role !== "owner") return NextResponse.json({ error: "owner only" }, { status: 403 });
-  const { data, error } = await createAdminClient().from("staff").select("id, accounts(username, password_hash)");
+  const { data, error } = await workspaceDb(c.workspaceId).from("staff").select("id, accounts(username, password_hash)");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json(
     (data ?? []).map((s) => {
@@ -41,7 +42,8 @@ export async function POST(request: NextRequest) {
   }
 
   const db = createAdminClient();
-  const { data: staff } = await db.from("staff").select("id, account_id").eq("id", body.staffId).maybeSingle();
+  // only people in the owner's own workspace
+  const { data: staff } = await workspaceDb(c.workspaceId).from("staff").select("id, account_id").eq("id", body.staffId).maybeSingle();
   if (!staff) return NextResponse.json({ error: "ไม่พบพนักงาน" }, { status: 404 });
 
   if (username !== undefined) {
@@ -60,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (!username) return NextResponse.json({ error: "ต้องตั้งชื่อผู้ใช้" }, { status: 400 });
     const { data: acc, error } = await db.from("accounts").insert(patch).select("id").single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    await db.from("staff").update({ account_id: acc.id }).eq("id", staff.id);
+    await workspaceDb(c.workspaceId).from("staff").update({ account_id: acc.id }).eq("id", staff.id);
   }
   return NextResponse.json({ ok: true });
 }

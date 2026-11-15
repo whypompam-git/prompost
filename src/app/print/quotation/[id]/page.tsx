@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { viewerWorkspaceId } from "@/lib/auth/viewer";
 import { BillingDocument } from "@/components/billing/BillingDocument";
 import { PrintToolbar } from "@/components/billing/PrintToolbar";
 import { createAdminClient as createClient } from "@/lib/supabase/admin";
@@ -10,14 +11,16 @@ export default async function PrintQuotationPage({ params }: { params: { id: str
 
   const { data: quotation } = await supabase
     .from("quotations")
-    .select("quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_id")
+    .select("workspace_id, quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_id")
     .eq("id", params.id)
     .maybeSingle();
   if (!quotation) notFound();
+  // staff print view: only documents of the viewer's own workspace
+  if (quotation.workspace_id !== (await viewerWorkspaceId())) notFound();
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type").eq("id", quotation.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("workspace_id", quotation.workspace_id).maybeSingle(),
   ]);
 
   return (

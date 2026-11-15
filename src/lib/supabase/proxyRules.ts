@@ -12,11 +12,12 @@ export type ProxyAccess = {
   role: "owner" | "staff";
   hideInternal?: boolean; // position that must not see internal data (e.g. edit difficulty)
   ownOnly?: boolean; // locked to /api/my/* — the generic database proxy is closed to them (except their own inbox)
+  workspaceId: string; // every row read or written is pinned to this workspace
   permissions: { documents: boolean; accounting: boolean; othersPayroll: boolean; mc?: boolean; studio?: boolean };
 };
 
 export type ProxyDecision =
-  | { ok: true; search: string; minimalReturn?: boolean }
+  | { ok: true; search: string; minimalReturn?: boolean; body?: unknown }
   | { ok: false; status: number; reason: string };
 
 const deny = (status: number, reason: string): ProxyDecision => ({ ok: false, status, reason });
@@ -82,7 +83,51 @@ function bodyRows(body: unknown): Record<string, unknown>[] {
   return body && typeof body === "object" ? [body as Record<string, unknown>] : [];
 }
 
-export function authorizeProxyRequest(input: {
+type ProxyInput = {
+  method: string;
+  path: string;
+  search: string;
+  body: unknown;
+  access: ProxyAccess;
+};
+
+// Workspace isolation, applied after the permission rules: reads, updates and deletes are
+// filtered to the caller's workspace (any workspace_id the caller sent is replaced), new rows
+// are stamped with it, and the document-number rpc counts in it. The database refuses a row
+// whose parent is in another workspace and never lets a row change workspace.
+export function authorizeProxyRequest(input: ProxyInput): ProxyDecision {
+  const ws = input.access.workspaceId;
+  if (!ws) return deny(401, "no workspace");
+  const decision = authorizeCore(input);
+  if (!decision.ok) return decision;
+  const method = input.method.toUpperCase();
+  const parts = input.path.split("/").filter(Boolean);
+
+  if (parts[2] === "rpc") {
+    const body = input.body && typeof input.body === "object" && !Array.isArray(input.body) ? input.body : {};
+    return { ...decision, body: { ...(body as Record<string, unknown>), p_workspace: ws } };
+  }
+
+  if (method === "POST") {
+    if (input.body === undefined || input.body === null) return deny(400, "a body is required");
+    const stamp = (r: unknown) => (r && typeof r === "object" && !Array.isArray(r) ? { ...(r as Record<string, unknown>), workspace_id: ws } : r);
+    return { ...decision, body: Array.isArray(input.body) ? input.body.map(stamp) : stamp(input.body) };
+  }
+
+  const params = new URLSearchParams(decision.search);
+  params.delete("workspace_id");
+  params.set("workspace_id", `eq.${ws}`);
+  let body = input.body;
+  if (method === "PATCH" || method === "PUT") {
+    // a write may not try to move rows to another workspace
+    const rows = bodyRows(input.body);
+    if (rows.some((r) => "workspace_id" in r && r.workspace_id !== ws)) return deny(403, "rows cannot change workspace");
+    if (method === "PUT") body = Array.isArray(input.body) ? input.body : { ...(input.body as Record<string, unknown>), workspace_id: ws };
+  }
+  return { ...decision, search: `?${params.toString()}`, ...(body !== input.body ? { body } : {}) };
+}
+
+function authorizeCore(input: {
   method: string;
   path: string; // e.g. "rest/v1/clients" or "storage/v1/object/slips/abc.png"
   search: string; // leading "?" or ""

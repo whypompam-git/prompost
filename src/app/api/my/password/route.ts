@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { caller } from "@/lib/draftsServer";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { passwordError } from "@/lib/accountRules";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
   if (err) return NextResponse.json({ error: err }, { status: 400 });
 
   const db = createAdminClient();
-  const { data: me } = await db.from("staff").select("account_id").eq("id", c.staffId).maybeSingle();
+  const { data: me } = await workspaceDb(c.workspaceId).from("staff").select("account_id").eq("id", c.staffId).maybeSingle();
   if (!me?.account_id) return NextResponse.json({ error: "ยังไม่มีบัญชีผู้ใช้ ให้หัวหน้าตั้งให้ก่อน" }, { status: 400 });
   const { data: acc } = await db.from("accounts").select("password_hash").eq("id", me.account_id).maybeSingle();
   if (!acc?.password_hash || typeof body.current !== "string" || !bcrypt.compareSync(body.current, acc.password_hash)) {

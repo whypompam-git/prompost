@@ -3,7 +3,8 @@
 // the hidden flag are never touched. Tally photo links are copied into our own
 // storage so they keep working if the form's link expires.
 import { createHash } from "node:crypto";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 import { mapSheet, parseCsv, sheetCsvUrl } from "@/lib/mcSheet";
 
 export type McSyncResult = { ok: boolean; added: number; updated: number; photos: number; total: number; error?: string };
@@ -12,7 +13,7 @@ const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif", "image/heic": "heic" };
 
 async function copyPhoto(source: string, key: string): Promise<string | null> {
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const res = await fetch(source, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
   if (!res.ok) return null;
   const type = (res.headers.get("content-type") ?? "").split(";")[0].trim().toLowerCase();
@@ -27,7 +28,7 @@ async function copyPhoto(source: string, key: string): Promise<string | null> {
 }
 
 export async function syncMcSheet(): Promise<McSyncResult> {
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const fail = async (error: string): Promise<McSyncResult> => {
     await db.from("mc_settings").update({ last_result: `ผิดพลาด: ${error}` }).eq("id", true);
     return { ok: false, added: 0, updated: 0, photos: 0, total: 0, error };
@@ -63,7 +64,7 @@ export async function syncMcSheet(): Promise<McSyncResult> {
       rows.push({ ...p, photo_url, photo_source, synced_at: new Date().toISOString() });
     }
     if (rows.length > 0) {
-      const { error } = await db.from("mc_profiles").upsert(rows, { onConflict: "source_id" });
+      const { error } = await db.from("mc_profiles").upsert(rows, { onConflict: "workspace_id,source_id" });
       if (error) return await fail(error.message);
     }
     const added = rows.filter((r) => !known.has(r.source_id)).length;

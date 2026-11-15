@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export async function POST(request: Request) {
   if (typeof clientSlug !== "string" || !type || typeof base64 !== "string" || base64.length > 4_200_000) {
     return NextResponse.json({ error: "ต้องมี clientSlug, ext (png/jpg/webp/svg), base64 (≤3 MB)" }, { status: 400 });
   }
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const { data: client } = await db.from("clients").select("id, name").eq("slug", clientSlug).maybeSingle();
   if (!client) return NextResponse.json({ error: `ไม่พบลูกค้า slug "${clientSlug}"` }, { status: 404 });
 

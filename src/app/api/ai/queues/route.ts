@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
 import { isUuid } from "@/lib/aiApi";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
   if (b.crew != null && !crewOk(b.crew)) return NextResponse.json({ error: "crew ต้องเป็น array ของ staff uuid" }, { status: 400 });
   if (b.note != null && (typeof b.note !== "string" || b.note.length > 1000)) return NextResponse.json({ error: "note ไม่ถูกต้อง" }, { status: 400 });
 
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const { data: clients } = await db.from("clients").select("id").eq("slug", b.clientSlug);
   if (clients?.length !== 1) return NextResponse.json({ error: `หาลูกค้า slug "${b.clientSlug}" ไม่พบ/ซ้ำ` }, { status: 404 });
   const clientId = clients[0].id;
@@ -47,7 +48,7 @@ export async function PATCH(request: Request) {
   if (!Array.isArray(b.updates) || b.updates.length === 0 || b.updates.length > 100) {
     return NextResponse.json({ error: "updates ต้องเป็น array 1–100 รายการ" }, { status: 400 });
   }
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const results: { id: string; updated: boolean; error?: string }[] = [];
   for (const [i, raw] of b.updates.entries()) {
     const u = (raw ?? {}) as { id?: unknown; patch?: Record<string, unknown> };

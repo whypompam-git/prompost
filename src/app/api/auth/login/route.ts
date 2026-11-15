@@ -44,6 +44,8 @@ export async function POST(request: Request) {
     .select("id, name, role")
     .eq("account_id", account.id)
     .eq("is_active", true)
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (!staff) return NextResponse.json({ error: "บัญชีนี้ยังไม่ได้อยู่ในทีมไหน หรือถูกปิดใช้งาน" }, { status: 403 });
 

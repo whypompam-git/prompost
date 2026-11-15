@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   const denied = requireAiToken(request);
   if (denied) return denied;
 
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const slug = new URL(request.url).searchParams.get("client");
 
   async function all(table: string, order: { column: string; ascending: boolean }[], filter?: (q: any) => any) {

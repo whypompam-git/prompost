@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireAiToken } from "@/lib/aiAuth";
 import { validateContextMap, validatePlaybooks } from "@/lib/aiContext";
-import { createAdminClient } from "@/lib/supabase/admin";
+// the AI workspace tools and the MC sheet belong to PromPost
+import { PROMPOST_WORKSPACE_ID, workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +15,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const denied = requireAiToken(request);
   if (denied) return denied;
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
   const url = new URL(request.url);
   try {
     if (url.searchParams.get("playbooks")) {
@@ -48,7 +49,7 @@ export async function PUT(request: Request) {
   if (denied) return denied;
   const body = await request.json().catch(() => ({}));
   const overwrite = body.overwrite === true;
-  const db = createAdminClient();
+  const db = workspaceDb(PROMPOST_WORKSPACE_ID);
 
   try {
     if (body.playbooks !== undefined) {

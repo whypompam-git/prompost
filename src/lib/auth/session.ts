@@ -67,6 +67,7 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
   name: string;
   hideInternal: boolean; // position flagged "hide internal" (e.g. outsourced editors)
   ownOnly: boolean; // position locked to "my work only" (served by /api/my/*)
+  workspaceId: string; // every query this person makes is limited to this workspace
 } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // service key: once the database is locked down the anon key reads nothing
@@ -74,7 +75,7 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
   if (!url || !key) return null;
   try {
     const res = await fetch(
-      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,positions(hide_internal,own_only)`,
+      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,workspace_id,positions(hide_internal,own_only)`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: "no-store" },
     );
     if (!res.ok) return null;
@@ -82,7 +83,9 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
     const r = rows?.[0];
     if (!r) return null;
     const role = r.role as StaffRole;
+    if (!r.workspace_id) return null; // never act without knowing the workspace
     return {
+      workspaceId: r.workspace_id as string,
       active: Boolean(r.is_active),
       role,
       name: r.name,

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { requireMe } from "@/lib/myWork";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
   const url = typeof finalUrl === "string" && finalUrl.trim() ? finalUrl.trim() : null;
-  const { data, error } = await createAdminClient()
+  const { data, error } = await workspaceDb(me.workspaceId)
     .from("tasks")
     .update({ final_url: url, updated_at: new Date().toISOString() })
     .eq("id", taskId)

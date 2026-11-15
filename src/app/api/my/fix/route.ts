@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireMe } from "@/lib/myWork";
 import { signedDraftUrl } from "@/lib/draftsServer";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const me = await requireMe(request);
   if (me instanceof NextResponse) return me;
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data: tasks } = await db
     .from("tasks")
     .select("id, title, client_id, revision_count, clients(name, color_tag, brand_images)")

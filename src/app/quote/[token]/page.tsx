@@ -16,7 +16,7 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
   const { data: quotation } = await supabase
     .from("quotations")
     .select(
-      "quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_feedback, client_id, share_token, file_url",
+      "workspace_id, quote_no, items, vat_percent, wht_percent, created_at, valid_until, payment_note, notes, client_feedback, client_id, share_token, file_url",
     )
     .eq("share_token", params.token)
     .maybeSingle();
@@ -25,7 +25,7 @@ export default async function QuoteSharePage({ params }: { params: { token: stri
 
   const [{ data: client }, { data: agency }] = await Promise.all([
     supabase.from("clients").select("name, billing_name, phone, address, tax_id, entity_type, portal_enabled").eq("id", quotation.client_id).maybeSingle(),
-    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("id", true).maybeSingle(),
+    supabase.from("agency_settings").select("name, address, phone, tax_id, bank_info, signature_url").eq("workspace_id", quotation.workspace_id).maybeSingle(),
   ]);
 
   if (client && client.portal_enabled === false) return <LinkRevoked />;

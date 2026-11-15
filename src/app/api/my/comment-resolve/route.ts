@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { requireMe } from "@/lib/myWork";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
   if (me instanceof NextResponse) return me;
   const { commentId } = await request.json().catch(() => ({}));
   if (!isUuid(commentId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data: c } = await db.from("draft_comments").select("id, task_id, tasks(editor_id)").eq("id", commentId).maybeSingle();
   const t = c ? ((Array.isArray(c.tasks) ? c.tasks[0] : c.tasks) as { editor_id: string | null } | null) : null;
   if (!c || t?.editor_id !== me.staffId) return NextResponse.json({ error: "not found" }, { status: 404 });

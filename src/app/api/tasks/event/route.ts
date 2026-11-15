@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { applyQcRevision } from "@/lib/workflow";
 import { planNotifications, pushNotifications } from "@/lib/notify";
 
@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
 
-  const db = createAdminClient();
+  const db = workspaceDb(live.workspaceId);
   const { data: task } = await db
     .from("tasks")
     .select("id, title, type, status, client_id, assignee_id, editor_id, revision_count, clients(name, manager_id)")

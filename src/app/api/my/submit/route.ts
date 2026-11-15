@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { planNotifications, pushNotifications } from "@/lib/notify";
 import { isUuid } from "@/lib/aiApi";
 import { requireMe } from "@/lib/myWork";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { settle } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
   const { taskId } = await request.json().catch(() => ({}));
   if (!isUuid(taskId)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
 
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data: task } = await db
     .from("tasks")
     .select("id, title, type, status, client_id, assignee_id, editor_id, footage_url, revision_count, clients(name, manager_id)")

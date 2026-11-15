@@ -16,13 +16,14 @@ export const metadata: Metadata = { title: "ข้อเสนอ MC", robots: {
 export default async function McPackPage({ params }: { params: { token: string } }) {
   if (!isUuid(params.token)) notFound();
   const db = createAdminClient();
-  const { data: pack } = await db.from("mc_packs").select("title, mc_ids, show, enabled").eq("share_token", params.token).maybeSingle();
+  const { data: pack } = await db.from("mc_packs").select("title, mc_ids, show, enabled, workspace_id").eq("share_token", params.token).maybeSingle();
   if (!pack || !pack.enabled) notFound();
 
   const { data: rows } = await db
     .from("mc_profiles")
     .select("id, nickname, age, height, weight, character, skills, experience, portfolio, ig, facebook, photo_url, extra_photos, rate_offer, hidden")
-    .in("id", pack.mc_ids);
+    .in("id", pack.mc_ids)
+    .eq("workspace_id", pack.workspace_id); // a pack only shows its own workspace's MCs
   const order = new Map((pack.mc_ids as string[]).map((id, i) => [id, i]));
   const list = (rows ?? []).filter((r) => !r.hidden).sort((a, b) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
   const show = (pack.show ?? {}) as Record<string, boolean>;

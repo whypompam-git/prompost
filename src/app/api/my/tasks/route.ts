@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { requireMe } from "@/lib/myWork";
 import { MY_STAGES, type MyTask } from "@/lib/myWorkTypes";
 import { freelanceProgress, monthlyProgress } from "@/lib/contractProgress";
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
   const me = await requireMe(request);
   if (me instanceof NextResponse) return me;
 
-  const db = createAdminClient();
+  const db = workspaceDb(me.workspaceId);
   const { data, error } = await db
     .from("tasks")
     .select("id, title, type, status, client_id, edit_date, due_date, script_text, shots, equipment, notes, footage_url, ref_link, final_url, revision_count, revision_brief, clients(name)")
