@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Building2, Check, Plus } from "lucide-react";
+import { Building2, Check, Plus, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 
 type W = { workspaceId: string; workspaceName: string; handle: string; role: string };
@@ -12,11 +12,13 @@ export function WorkspaceSwitcher() {
   const [list, setList] = useState<W[] | null>(null);
   const [current, setCurrent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [admin, setAdmin] = useState(false);
 
   useEffect(() => {
     Promise.all([fetch("/api/auth/switch", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null)), fetch("/api/workspace/current", { cache: "no-store" }).then((r) => (r.ok ? r.json() : null))])
       .then(([a, b]) => {
         setList(a?.workspaces ?? []);
+        setAdmin(Boolean(a?.platformAdmin));
         setCurrent(b?.workspaceId ?? null);
       })
       .catch(() => setList([]));
@@ -45,6 +47,11 @@ export function WorkspaceSwitcher() {
       <a href="/welcome" className="mt-2 flex items-center gap-1.5 px-2 text-xs font-medium text-brand-600">
         <Plus size={14} /> สร้าง / เข้าร่วม Workspace อื่น
       </a>
+      {admin && (
+        <a href="/admin" className="mt-2 flex items-center gap-1.5 px-2 text-xs font-medium text-gray-600">
+          <ShieldCheck size={14} /> ผู้ดูแลระบบ (ทุก Workspace)
+        </a>
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { memberships, requireAccount, setSessions } from "@/lib/auth/accountServer";
+import { isPlatformAdmin } from "@/lib/auth/platformAdmin";
 
 export const dynamic = "force-dynamic";
 
@@ -7,7 +8,10 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const acc = await requireAccount(request);
   if (acc instanceof NextResponse) return acc;
-  return NextResponse.json({ workspaces: (await memberships(acc)).map(({ workspaceId, workspaceName, handle, role }) => ({ workspaceId, workspaceName, handle, role })) });
+  return NextResponse.json({
+    workspaces: (await memberships(acc)).map(({ workspaceId, workspaceName, handle, role }) => ({ workspaceId, workspaceName, handle, role })),
+    platformAdmin: await isPlatformAdmin(acc),
+  });
 }
 
 export async function POST(request: NextRequest) {
