@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { Check, CheckCircle2, Download, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";

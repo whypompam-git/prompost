@@ -304,7 +304,7 @@ export function MyWork({ name }: { name: string }) {
 
   useEffect(() => {
     load();
-    const t = setInterval(() => document.visibilityState === "visible" && load(), 60_000);
+    const t = setInterval(() => document.visibilityState === "visible" && load(), 120_000);
     return () => clearInterval(t);
   }, []);
 

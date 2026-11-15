@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, ScrollText } from "lucide-react";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { statusLabel, statusesFor } from "@/lib/workflow";

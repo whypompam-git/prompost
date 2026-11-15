@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarDays, CheckCheck, Printer, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";

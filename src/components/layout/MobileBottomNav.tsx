@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDays, ClipboardCheck, PlusCircle, UserCircle2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import type { LucideIcon } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";

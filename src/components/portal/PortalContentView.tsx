@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { CalendarDays, Film } from "lucide-react";
 import { loadPortalClient } from "@/lib/portalData";
 import { PortalTaskList } from "@/components/portal/PortalTaskList";

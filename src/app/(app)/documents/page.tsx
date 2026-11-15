@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useRouter } from "next/navigation";
 import { Download, FileSignature, FileText, FileUp, Pencil, Plus, Printer, Receipt as ReceiptIcon, ReceiptText, Search, Settings, Trash2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";

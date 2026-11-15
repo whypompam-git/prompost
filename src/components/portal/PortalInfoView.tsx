@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { FileText, Package as PackageIcon, Phone, Receipt as ReceiptIcon } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { PortalHeader } from "@/components/portal/PortalHeader";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { format, isSameDay, isSameMonth, isToday } from "date-fns";
 import { th } from "date-fns/locale";
 import { Plus } from "lucide-react";

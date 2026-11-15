@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useRouter } from "next/navigation";
 import { Camera, ChevronRight, Film, LogOut, Menu, Pencil, Users, X } from "lucide-react";
 import { LoadingView } from "@/components/ui/LoadingView";

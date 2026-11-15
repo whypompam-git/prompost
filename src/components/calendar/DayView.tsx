@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { Plus } from "lucide-react";
 import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
 import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useRouter } from "next/navigation";
 import { Pin, Search, SquarePen } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { Bell, CalendarOff, CircleAlert, MessageSquareText, Receipt } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -183,7 +183,7 @@ export function NotificationBell() {
     loadInbox().catch(() => {});
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") loadInbox().catch(() => {});
-    }, 45_000);
+    }, 120_000);
     return () => clearInterval(timer);
   }, [loadInbox]);
 

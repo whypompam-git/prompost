@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useParams, useRouter } from "next/navigation";
 import { Check, Copy, Eye, Save, Send, Undo2 } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";

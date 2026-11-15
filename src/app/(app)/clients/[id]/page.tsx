@@ -2,7 +2,7 @@
 
 import { clientLinkPath } from "@/lib/slug";
 import { ExternalLink, Sparkles } from "lucide-react";
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";

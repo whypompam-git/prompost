@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/ui/Link";
 import { useState } from "react";
 import { ChevronDown, MessageSquareWarning, UserCheck } from "lucide-react";
 import type { Client, Task } from "@/lib/types";
