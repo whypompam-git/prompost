@@ -28,6 +28,8 @@ export async function signSession(claims: SessionClaims): Promise<string> {
 export async function verifySession(token: string): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secretKey());
+    // an account-only token (no workspace yet) is never a staff session
+    if (payload.typ === "account" || typeof payload.staffId !== "string") return null;
     return {
       staffId: payload.staffId as string,
       name: payload.name as string,
@@ -39,6 +41,36 @@ export async function verifySession(token: string): Promise<SessionClaims | null
 }
 
 export const SESSION_COOKIE_MAX_AGE = SESSION_DURATION;
+
+// The person behind the login (accounts row), kept in its own cookie: it lets someone
+// with no workspace yet reach /welcome, and lets anyone switch between their workspaces.
+export const ACCOUNT_COOKIE = "pp_account";
+
+export async function signAccount(accountId: string): Promise<string> {
+  return new SignJWT({ typ: "account", accountId })
+    .setProtectedHeader({ alg: "HS256" })
+    .setIssuedAt()
+    .setExpirationTime(`${SESSION_DURATION}s`)
+    .sign(secretKey());
+}
+
+export async function verifyAccount(token: string | undefined): Promise<string | null> {
+  if (!token) return null;
+  try {
+    const { payload } = await jwtVerify(token, secretKey());
+    return payload.typ === "account" && typeof payload.accountId === "string" ? payload.accountId : null;
+  } catch {
+    return null;
+  }
+}
+
+export const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "lax" as const,
+  path: "/",
+  maxAge: SESSION_DURATION,
+};
 
 // Live access lookup (works on the edge and in Node): permissions and role are
 // read from the database on every gated request, so an owner's change to a

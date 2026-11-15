@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import Image from "next/image";
+import Link from "@/components/ui/Link";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 
 export default function LoginPage() {
@@ -25,8 +26,9 @@ export default function LoginPage() {
       body: JSON.stringify({ username, password }),
     }).catch(() => null);
     if (res?.ok) {
-      // phones land on the new clients grid, computers on the dashboard
-      router.push(window.matchMedia("(max-width: 767px)").matches ? "/v2/clients" : "/dashboard");
+      const data = await res.json().catch(() => ({}));
+      // no workspace yet → create / join one; phones land on the clients grid, computers on the dashboard
+      router.push(data.next ?? (window.matchMedia("(max-width: 767px)").matches ? "/v2/clients" : "/dashboard"));
       router.refresh();
       return;
     }
@@ -77,7 +79,10 @@ export default function LoginPage() {
         <button type="submit" disabled={submitting || !username.trim() || !password} className="mt-2 rounded-xl bg-brand-500 py-3 text-sm font-semibold text-white disabled:opacity-50">
           {submitting ? "กำลังเข้าสู่ระบบ…" : "เข้าสู่ระบบ"}
         </button>
-        <p className="mt-2 text-center text-[11px] text-gray-400">พนักงานเดิม: รหัสผ่านคือ PIN 4 หลักเดิม ลืมชื่อผู้ใช้ให้ถามหัวหน้า</p>
+        <p className="mt-2 text-center text-xs text-gray-500">
+          ยังไม่มีบัญชี? <Link href="/signup" className="font-medium text-brand-600">สมัครใช้งาน</Link>
+        </p>
+        <p className="text-center text-[11px] text-gray-400">พนักงานเดิม: รหัสผ่านคือ PIN 4 หลักเดิม ลืมชื่อผู้ใช้ให้ถามหัวหน้า</p>
       </form>
     </div>
   );

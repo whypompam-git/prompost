@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { DriveGrid } from "@/components/portal/DriveGrid";
 import { GoalCard } from "@/components/my/GoalCard";
 import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 
 const MAX = 256;
 function resizeToDataUrl(file: File): Promise<string> {
@@ -149,7 +150,8 @@ export default function V2MePage() {
             </Link>
           )}
         </div>
-        <div className="mt-3">
+        <div className="mt-3 space-y-3">
+          <WorkspaceSwitcher />
           <ChangePasswordCard />
         </div>
       </div>

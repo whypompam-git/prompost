@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SESSION_COOKIE, SESSION_COOKIE_MAX_AGE, signSession } from "@/lib/auth/session";
+import { memberships, setSessions } from "@/lib/auth/accountServer";
 import { afterFailure, lockedMinutesLeft, normalizeUsername } from "@/lib/accountRules";
 
 export const dynamic = "force-dynamic";
@@ -39,24 +39,10 @@ export async function POST(request: Request) {
   }
   if (account.failed_attempts) await db.from("accounts").update({ failed_attempts: 0, locked_until: null }).eq("id", account.id);
 
-  const { data: staff } = await db
-    .from("staff")
-    .select("id, name, role")
-    .eq("account_id", account.id)
-    .eq("is_active", true)
-    .order("created_at", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  if (!staff) return NextResponse.json({ error: "บัญชีนี้ยังไม่ได้อยู่ในทีมไหน หรือถูกปิดใช้งาน" }, { status: 403 });
-
-  const token = await signSession({ staffId: staff.id, name: staff.name, role: staff.role });
-  const res = NextResponse.json({ ok: true });
-  res.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_COOKIE_MAX_AGE,
-  });
+  // in a workspace: log straight in (the first one, or the one asked for); otherwise /welcome
+  const all = await memberships(account.id);
+  const pick = all.find((m) => m.workspaceId === body.workspaceId) ?? all[0];
+  const res = NextResponse.json({ ok: true, next: pick ? null : "/welcome" });
+  await setSessions(res, account.id, pick ? { id: pick.staffId, name: pick.name, role: pick.role } : undefined);
   return res;
 }

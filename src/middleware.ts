@@ -1,9 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isClientSlugPath } from "@/lib/slug";
-import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
+import { ACCOUNT_COOKIE, SESSION_COOKIE, fetchLiveAccess, verifyAccount, verifySession } from "@/lib/auth/session";
 
 const PUBLIC_PREFIXES = [
   "/login",
+  "/signup",
+  "/welcome", // logged in without a workspace yet: create or join one (checks the account cookie itself)
+  "/api/onboarding", // same
   "/api/auth",
   "/api/portal",
   "/api/public",
@@ -44,8 +47,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ message: "not logged in" }, { status: 401 });
     }
-    const loginUrl = new URL("/login", request.url);
-    return NextResponse.redirect(loginUrl);
+    // logged in, but not into a workspace yet → create or join one
+    const account = await verifyAccount(request.cookies.get(ACCOUNT_COOKIE)?.value);
+    return NextResponse.redirect(new URL(account ? "/welcome" : "/login", request.url));
   }
 
   // a client's money page (new UI) needs the documents or accounting permission

@@ -2,7 +2,7 @@
 // Anything that is (or could become) an app route must never be a slug.
 export const RESERVED_SLUGS = new Set([
   "dashboard", "calendar", "clients", "packages", "hr", "documents", "accounting",
-  "settings", "profile", "tasks", "login", "api", "portal", "quote", "invoice",
+  "settings", "profile", "tasks", "login", "signup", "welcome", "api", "portal", "quote", "invoice",
   "receipt", "print", "info", "manifest", "sw", "icon", "favicon", "apple-touch-icon",
   "logo-source", "logout", "admin", "app", "static", "public", "mc", "workload", "mc-pack", "studio", "voucher", "contract", "contracts", "v2", "my-work",
 ]);

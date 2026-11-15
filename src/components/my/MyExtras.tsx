@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GoalCard } from "@/components/my/GoalCard";
 import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
+import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 import { Camera, CheckCircle2, ExternalLink, Film, FileSignature, Inbox, Palette, X } from "lucide-react";
 import { ReviewFeed, type FeedItem, type FeedComment } from "@/components/v2/ReviewFeed";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
@@ -229,6 +230,7 @@ export function MyProfile({ contract, inProgress }: { contract: { contractNo: st
       </div>
 
       <GoalCard />
+      <WorkspaceSwitcher />
       <ChangePasswordCard />
 
       {contract && contract.target > 0 && (

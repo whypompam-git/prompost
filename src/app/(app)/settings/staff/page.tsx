@@ -18,6 +18,7 @@ import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffModal, type StaffFormValues, type StaffLogin } from "@/components/hr/StaffModal";
+import { WorkspaceCard } from "@/components/workspace/WorkspaceCard";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createStaffRow,
@@ -297,6 +298,11 @@ export default function StaffSettingsPage() {
       <Topbar title="ตั้งค่า" subtitle="รายชื่อ เงินเดือน สิทธิ์การเข้าถึง และวันลา" />
       <SettingsTabs />
       <div className="flex-1 space-y-6 p-6">
+        <section>
+          <h2 className="mb-3 text-sm font-semibold text-gray-700">Workspace</h2>
+          {/* approving someone adds a staff row — reload so they show up below */}
+          <WorkspaceCard onApproved={() => window.location.reload()} />
+        </section>
         <section>
           <h2 className="mb-3 text-sm font-semibold text-gray-700">ทีม</h2>
           <Card className="flex flex-wrap items-center gap-2">
