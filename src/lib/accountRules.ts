@@ -1,6 +1,6 @@
 // Pure rules for usernames and passwords (shared by API routes, UI and tests).
 
-export const USERNAME_HINT = "2–30 ตัว ใช้ภาษาไทย อังกฤษ ตัวเลข . _ - ได้ (ไม่มีช่องว่าง)";
+export const USERNAME_HINT = "2–30 ตัว ภาษาอังกฤษตัวเล็ก ตัวเลข . _ - (ไม่มีช่องว่าง)";
 export const PASSWORD_MIN = 6;
 export const MAX_FAILED = 5;
 export const LOCK_MINUTES = 5;
@@ -11,7 +11,7 @@ export function normalizeUsername(input: unknown): string {
 
 export function usernameError(u: string): string | null {
   if (u.length < 2 || u.length > 30) return "ชื่อผู้ใช้ต้องยาว 2–30 ตัว";
-  if (!/^[a-z0-9ก-๙._-]+$/u.test(u)) return "ชื่อผู้ใช้ใช้ได้แค่ภาษาไทย อังกฤษ ตัวเลข . _ - (ไม่มีช่องว่าง)";
+  if (!/^[a-z0-9._-]+$/.test(u)) return "ชื่อผู้ใช้ต้องเป็นภาษาอังกฤษ ตัวเลข . _ - เท่านั้น (ไม่มีช่องว่าง)";
   return null;
 }
 
@@ -34,3 +34,6 @@ export function lockedMinutesLeft(lockedUntil: string | null | undefined, now: D
   const ms = Date.parse(lockedUntil) - now.getTime();
   return ms > 0 ? Math.ceil(ms / 60_000) : 0;
 }
+
+// usernames made before the English-only rule (e.g. from a Thai name) still log in, but should be changed
+export const isLegacyUsername = (u: string | null | undefined) => !!u && !/^[a-z0-9._-]+$/.test(u);

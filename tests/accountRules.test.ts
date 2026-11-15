@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { afterFailure, lockedMinutesLeft, normalizeUsername, passwordError, usernameError } from "../src/lib/accountRules.ts";
+import { afterFailure, isLegacyUsername, lockedMinutesLeft, normalizeUsername, passwordError, usernameError } from "../src/lib/accountRules.ts";
 
 test("usernames: trimmed, lower-cased, Thai/English/digits/._- only", () => {
   assert.equal(normalizeUsername("  Mew.Edit "), "mew.edit");
   assert.equal(normalizeUsername(42), "");
   assert.equal(usernameError("mew"), null);
-  assert.equal(usernameError("มิว"), null);
+  assert.ok(usernameError("มิว")); // English only
+  assert.ok(isLegacyUsername("พอม"));
+  assert.equal(isLegacyUsername("pom"), false);
   assert.equal(usernameError("ton_2"), null);
   assert.ok(usernameError("a"));
   assert.ok(usernameError("has space"));

@@ -19,6 +19,7 @@ import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { StaffModal, type StaffFormValues, type StaffLogin } from "@/components/hr/StaffModal";
 import { WorkspaceCard } from "@/components/workspace/WorkspaceCard";
+import { isLegacyUsername } from "@/lib/accountRules";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createStaffRow,
@@ -390,6 +391,7 @@ export default function StaffSettingsPage() {
                   </p>
                   <p className="truncate text-[11px] text-gray-400">
                     {usernames[s.id] ? `ชื่อผู้ใช้: ${usernames[s.id]}` : usernames[s.id] === null ? "ยังไม่มีชื่อผู้ใช้" : ""}
+                    {isLegacyUsername(usernames[s.id]) && <span className="ml-1 font-medium text-amber-600">· เปลี่ยนเป็นภาษาอังกฤษ</span>}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
