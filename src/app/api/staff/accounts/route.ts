@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
 
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (username !== undefined) patch.username = username;
-  if (password !== undefined) Object.assign(patch, { password_hash: bcrypt.hashSync(password, 10), failed_attempts: 0, locked_until: null });
+  // a password the owner typed is temporary: the person picks their own at next login
+  if (password !== undefined) Object.assign(patch, { password_hash: bcrypt.hashSync(password, 10), failed_attempts: 0, locked_until: null, must_change_password: true });
 
   if (staff.account_id) {
     const { error } = await db.from("accounts").update(patch).eq("id", staff.account_id);

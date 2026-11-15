@@ -100,6 +100,7 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
   hideInternal: boolean; // position flagged "hide internal" (e.g. outsourced editors)
   ownOnly: boolean; // position locked to "my work only" (served by /api/my/*)
   workspaceId: string; // every query this person makes is limited to this workspace
+  mustChangePassword: boolean; // still on the old 4-digit PIN: pick a real password first
 } | null> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   // service key: once the database is locked down the anon key reads nothing
@@ -107,7 +108,7 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
   if (!url || !key) return null;
   try {
     const res = await fetch(
-      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,workspace_id,positions(hide_internal,own_only)`,
+      `${url}/rest/v1/staff?id=eq.${encodeURIComponent(staffId)}&select=name,role,is_active,permissions,can_view_accounting,workspace_id,positions(hide_internal,own_only),accounts(must_change_password)`,
       { headers: { apikey: key, Authorization: `Bearer ${key}` }, cache: "no-store" },
     );
     if (!res.ok) return null;
@@ -118,6 +119,7 @@ async function fetchLiveAccessUncached(staffId: string): Promise<{
     if (!r.workspace_id) return null; // never act without knowing the workspace
     return {
       workspaceId: r.workspace_id as string,
+      mustChangePassword: Boolean(r.accounts?.must_change_password),
       active: Boolean(r.is_active),
       role,
       name: r.name,

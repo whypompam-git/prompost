@@ -23,6 +23,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // deactivated account is bounced to the login screen.
   const live = await fetchLiveAccess(claims.staffId);
   if (live && !live.active) redirect("/login");
+  if (live?.mustChangePassword) redirect("/change-password");
   const auth = {
     staffId: claims.staffId,
     name: live?.name ?? claims.name,
