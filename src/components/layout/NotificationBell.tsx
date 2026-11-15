@@ -183,7 +183,7 @@ export function NotificationBell() {
     loadInbox().catch(() => {});
     const timer = setInterval(() => {
       if (document.visibilityState === "visible") loadInbox().catch(() => {});
-    }, 120_000);
+    }, 45_000);
     return () => clearInterval(timer);
   }, [loadInbox]);
 
