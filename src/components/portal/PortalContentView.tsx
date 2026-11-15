@@ -1,3 +1,5 @@
+import { portalGate } from "@/lib/portalPin";
+import { PortalPinScreen } from "@/components/portal/PortalPinScreen";
 import { notFound } from "next/navigation";
 import Link from "@/components/ui/Link";
 import { CalendarDays, Film } from "lucide-react";
@@ -23,6 +25,9 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
   const client = await findPortalClient(clientKey);
   if (!client) notFound();
   if (!client.portal_enabled) return <LinkRevoked />;
+  // the client's PIN (staff of this workspace skip it)
+  const gate = await portalGate(client);
+  if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={client.name} mode={gate} />;
 
   const { data: tasks } = await supabase
     .from("tasks")

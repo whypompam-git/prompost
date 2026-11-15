@@ -1,3 +1,4 @@
+import { portalGate } from "@/lib/portalPin";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/slug";
@@ -11,8 +12,9 @@ export async function GET(request: Request) {
   const key = new URL(request.url).searchParams.get("clientKey") ?? "";
   if (!key) return NextResponse.json({ error: "invalid request" }, { status: 400 });
   const db = createAdminClient();
-  const { data: client } = await db.from("clients").select("id, name, color_tag, brand_images, portal_enabled").eq(isUuid(key) ? "portal_token" : "slug", key).maybeSingle();
+  const { data: client } = await db.from("clients").select("id, name, color_tag, brand_images, portal_enabled, workspace_id").eq(isUuid(key) ? "portal_token" : "slug", key).maybeSingle();
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "link inactive" }, { status: 403 });
+  if ((await portalGate(client)) !== "open") return NextResponse.json({ error: "ต้องใส่ PIN ก่อน" }, { status: 401 });
   const [{ data: tasks }, { data: ci }] = await Promise.all([
     db.from("tasks").select("id, title, revision_count").eq("client_id", client.id).eq("type", "pending").order("edit_date"),
     db.from("client_ci").select("logo_url").eq("client_id", client.id).maybeSingle(),

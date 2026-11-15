@@ -1,3 +1,4 @@
+import { portalGate } from "@/lib/portalPin";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
     .eq(isUuid(clientKey) ? "portal_token" : "slug", clientKey)
     .maybeSingle();
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "link inactive" }, { status: 403 });
+  if ((await portalGate(client)) !== "open") return NextResponse.json({ error: "ต้องใส่ PIN ก่อน" }, { status: 401 });
 
   const { data: task } = await db
     .from("tasks")

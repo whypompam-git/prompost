@@ -13,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
+import { PortalPinStatus } from "@/components/clients/PortalPinStatus";
 import { calcQuotationTotals } from "@/lib/accounting";
 import {
   getClient,
@@ -203,6 +204,7 @@ export default function ClientInfoPage() {
               ลิงก์: prompost.app/{slugify(client.nameEn ?? "") || "…"}
               {client.slug && client.slug !== slugify(client.nameEn ?? "") && ` (ตอนนี้: /${client.slug})`}
             </p>
+            <PortalPinStatus clientId={client.id} />
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>

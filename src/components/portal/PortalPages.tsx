@@ -1,3 +1,5 @@
+import { portalGate } from "@/lib/portalPin";
+import { PortalPinScreen } from "@/components/portal/PortalPinScreen";
 import { notFound } from "next/navigation";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
 import { PortalHeader } from "@/components/portal/PortalHeader";
@@ -14,6 +16,9 @@ export async function PortalReviewPage({ clientKey, basePath }: { clientKey: str
   const portal = await loadPortalClient(clientKey);
   if (!portal) notFound();
   if (!portal.client.portal_enabled) return <LinkRevoked />;
+  // the client's PIN (staff of this workspace skip it)
+  const gate = await portalGate(portal.client);
+  if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
   return (
     <div className="h-[100dvh] bg-gray-950 pb-16">
       <PortalReviewFeed clientKey={clientKey} />
@@ -26,6 +31,9 @@ export async function PortalPlanPage({ clientKey, basePath }: { clientKey: strin
   const portal = await loadPortalClient(clientKey);
   if (!portal) notFound();
   if (!portal.client.portal_enabled) return <LinkRevoked />;
+  // the client's PIN (staff of this workspace skip it)
+  const gate = await portalGate(portal.client);
+  if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
   const { data } = await createAdminClient()
     .from("tasks")
     .select("id, title, script_text, ref_link, content_category, revision_count")
@@ -51,6 +59,9 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
   const portal = await loadPortalClient(clientKey);
   if (!portal) notFound();
   if (!portal.client.portal_enabled) return <LinkRevoked />;
+  // the client's PIN (staff of this workspace skip it)
+  const gate = await portalGate(portal.client);
+  if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
   const { data } = await createAdminClient()
     .from("tasks")
     .select("id, title, type, final_url, cover_url, post_date, edit_date")

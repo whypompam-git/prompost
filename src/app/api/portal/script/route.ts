@@ -1,3 +1,4 @@
+import { portalGate } from "@/lib/portalPin";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isUuid } from "@/lib/slug";
@@ -22,10 +23,11 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
   const { data: client } = await supabase
     .from("clients")
-    .select("id, portal_enabled")
+    .select("id, portal_enabled, workspace_id")
     .eq(isUuid(clientKey) ? "portal_token" : "slug", clientKey)
     .maybeSingle();
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "link inactive" }, { status: 403 });
+  if ((await portalGate(client)) !== "open") return NextResponse.json({ error: "ต้องใส่ PIN ก่อน" }, { status: 401 });
 
   const { data, error } = await supabase
     .from("tasks")
