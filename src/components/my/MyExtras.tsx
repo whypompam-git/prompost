@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GoalCard } from "@/components/my/GoalCard";
+import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
 import { Camera, CheckCircle2, ExternalLink, Film, FileSignature, Inbox, Palette, X } from "lucide-react";
 import { ReviewFeed, type FeedItem, type FeedComment } from "@/components/v2/ReviewFeed";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
@@ -228,6 +229,7 @@ export function MyProfile({ contract, inProgress }: { contract: { contractNo: st
       </div>
 
       <GoalCard />
+      <ChangePasswordCard />
 
       {contract && contract.target > 0 && (
         <div className="rounded-2xl border border-gray-100 bg-white px-4 py-3 text-sm shadow-card">

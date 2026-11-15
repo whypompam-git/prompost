@@ -244,15 +244,8 @@ export async function listStaff(): Promise<Staff[]> {
   });
 }
 
-// pin, when provided, is hashed client-side with bcryptjs before being sent
-// — the resulting pin_hash column is never selected back to the browser
-// (see STAFF_COLUMNS), and PIN verification only ever happens server-side
-// in /api/auth/login via the service-role admin client.
-export async function createStaffRow(
-  values: Omit<Staff, "id">,
-  pin?: string,
-): Promise<Staff> {
-  const bcrypt = await import("bcryptjs");
+// Login (username / password) is set separately through /api/staff/accounts.
+export async function createStaffRow(values: Omit<Staff, "id">): Promise<Staff> {
   const { data, error } = await supabase()
     .from("staff")
     .insert({
@@ -268,7 +261,6 @@ export async function createStaffRow(
       permissions: values.permissions,
       team_id: values.teamId ?? null,
       position_id: values.positionId ?? null,
-      pin_hash: pin ? bcrypt.hashSync(pin, 10) : null,
     })
     .select(STAFF_COLUMNS)
     .single();
@@ -276,11 +268,7 @@ export async function createStaffRow(
   return fromStaffRow(data as StaffRow);
 }
 
-export async function updateStaffRow(
-  id: string,
-  values: Omit<Staff, "id">,
-  pin?: string,
-): Promise<void> {
+export async function updateStaffRow(id: string, values: Omit<Staff, "id">): Promise<void> {
   const patch: Record<string, unknown> = {
     name: values.name,
     position: values.position,
@@ -295,10 +283,6 @@ export async function updateStaffRow(
     team_id: values.teamId ?? null,
     position_id: values.positionId ?? null,
   };
-  if (pin) {
-    const bcrypt = await import("bcryptjs");
-    patch.pin_hash = bcrypt.hashSync(pin, 10);
-  }
   const { error } = await supabase().from("staff").update(patch).eq("id", id);
   if (error) throw error;
 }

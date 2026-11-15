@@ -30,10 +30,11 @@ test("ordinary tables are open to logged-in staff", () => {
   assert.equal(run(staff, "POST", "rest/v1/tasks", "", [{ title: "t" }]).ok, true);
 });
 
-test("pin_hash is unreadable for everyone, writable only by the owner", () => {
+test("pin_hash is unreadable and unwritable for everyone (logins live in accounts now)", () => {
   assert.equal(run(staff, "GET", "rest/v1/staff", "?select=id,pin_hash").ok, false);
   assert.equal(run(owner, "GET", "rest/v1/staff", "?select=id,pin_hash").ok, false);
-  assert.equal(run(owner, "POST", "rest/v1/staff", "", [{ name: "n", pin_hash: "h" }]).ok, true);
+  assert.equal(run(owner, "POST", "rest/v1/staff", "", [{ name: "n", pin_hash: "h" }]).ok, false);
+  assert.equal(run(owner, "POST", "rest/v1/staff", "", [{ name: "n" }]).ok, true);
 });
 
 test("staff may only edit their own profile fields", () => {
@@ -194,4 +195,23 @@ test("notes: everyone reads, writes are pinned to the author (owner edits any)",
   const ownerPatch = run(owner, "PATCH", "rest/v1/notes", "?id=eq.n1", { body: "y" });
   assert.ok(ownerPatch.ok && !ownerPatch.search.includes("author_id"));
   assert.equal(run(staff, "PATCH", "rest/v1/client_ci", "?client_id=eq.c1", { notes: "x" }).ok, true);
+});
+
+test("login fields on staff can't be read or written through the proxy, even by the owner", () => {
+  const owner = { staffId: "o1", role: "owner" as const, permissions: { documents: true, accounting: true, othersPayroll: true } };
+  const read = authorizeProxyRequest({ method: "GET", path: "rest/v1/staff", search: "?select=id,pin_hash", access: owner });
+  assert.equal(read.ok, false);
+  const link = authorizeProxyRequest({ method: "GET", path: "rest/v1/staff", search: "?select=id,account_id", access: owner });
+  assert.equal(link.ok, false);
+  const write = authorizeProxyRequest({ method: "PATCH", path: "rest/v1/staff", search: "?id=eq.s1", body: { pin_hash: "x" }, access: owner });
+  assert.equal(write.ok, false);
+  const relink = authorizeProxyRequest({ method: "PATCH", path: "rest/v1/staff", search: "?id=eq.s1", body: { account_id: "a" }, access: owner });
+  assert.equal(relink.ok, false);
+  const fine = authorizeProxyRequest({ method: "PATCH", path: "rest/v1/staff", search: "?id=eq.s1", body: { name: "x" }, access: owner });
+  assert.equal(fine.ok, true);
+});
+
+test("the accounts table is not reachable through the proxy", () => {
+  const owner = { staffId: "o1", role: "owner" as const, permissions: { documents: true, accounting: true, othersPayroll: true } };
+  assert.equal(authorizeProxyRequest({ method: "GET", path: "rest/v1/accounts", search: "?select=*", access: owner }).ok, false);
 });

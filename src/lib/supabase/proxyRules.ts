@@ -115,9 +115,14 @@ export function authorizeProxyRequest(input: {
   let search = input.search;
   const params = new URLSearchParams(search);
 
-  // pin hashes never leave the database (login verifies them server-side)
-  if (table === "staff" && /pin_hash/i.test(search) && !isOwner) return deny(403, "pin_hash is not readable");
-  if (table === "staff" && method === "GET" && /pin_hash/i.test(search)) return deny(403, "pin_hash is not readable");
+  // login secrets never pass through here: logins live in the server-only accounts table
+  // (set via /api/staff/accounts), and the old pin_hash / account link can't be read or written
+  if (table === "staff" && /pin_hash|account_id/i.test(search)) return deny(403, "login fields are not available here");
+  if (table === "staff" && write) {
+    for (const row of bodyRows(input.body)) {
+      if ("pin_hash" in row || "account_id" in row) return deny(403, "login fields are not available here");
+    }
+  }
 
   if (table === "staff" && write && !isOwner) {
     if (method !== "PATCH") return deny(403, "owner only");

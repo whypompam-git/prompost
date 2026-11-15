@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { COLOR_STEMS, PALETTE } from "@/lib/colors";
 import { ALL_PERMISSIONS, PERMISSION_KEYS, PERMISSION_LABELS, type Permissions } from "@/lib/permissions";
 import type { Position, Staff, Team } from "@/lib/types";
+import { normalizeUsername, passwordError, usernameError, USERNAME_HINT } from "@/lib/accountRules";
 
 const AVATAR_COLORS = [
   "bg-orange-500",
@@ -16,9 +17,11 @@ const AVATAR_COLORS = [
 ];
 
 export type StaffFormValues = Omit<Staff, "id" | "avatarColor">;
+export type StaffLogin = { username?: string; password?: string };
 
 export function StaffModal({
   initial,
+  initialUsername,
   teams,
   positions,
   onCreateTeam,
@@ -26,11 +29,12 @@ export function StaffModal({
   onSave,
 }: {
   initial?: Staff;
+  initialUsername?: string | null;
   teams: Team[];
   positions: Position[];
   onCreateTeam: (name: string) => Promise<Team>;
   onClose: () => void;
-  onSave: (values: StaffFormValues, avatarColor: string, pin?: string) => void;
+  onSave: (values: StaffFormValues, avatarColor: string, login: StaffLogin) => void;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
   const [position, setPosition] = useState(initial?.position ?? "");
@@ -45,18 +49,21 @@ export function StaffModal({
   const [permissions, setPermissions] = useState<Permissions>(
     initial?.permissions ?? { ...ALL_PERMISSIONS, accounting: false, documents: false, financialTotals: false, staffList: false, othersPayroll: false, mc: false, studio: false },
   );
-  const [pin, setPin] = useState("");
+  const [username, setUsername] = useState(initialUsername ?? "");
+  const [password, setPassword] = useState("");
   const [color, setColor] = useState(
     initial?.avatarColor ?? AVATAR_COLORS[Math.floor(Math.random() * AVATAR_COLORS.length)],
   );
 
   const isNew = !initial;
-  const pinValid = pin === "" || /^\d{4}$/.test(pin);
+  const uname = normalizeUsername(username);
+  const unameErr = uname ? usernameError(uname) : isNew ? "ต้องตั้งชื่อผู้ใช้" : null;
+  const pwErr = password ? passwordError(password) : isNew ? "ต้องตั้งรหัสผ่าน" : null;
+  const loginValid = !unameErr && !pwErr;
   const canSave =
     name.trim().length > 0 &&
     (positions.length > 0 ? positionId.length > 0 || position.trim().length > 0 : position.trim().length > 0) &&
-    pinValid &&
-    (!isNew || /^\d{4}$/.test(pin));
+    loginValid;
 
   async function addTeam() {
     const name = newTeam.trim();
@@ -88,7 +95,10 @@ export function StaffModal({
         permissions: initial?.role === "owner" ? ALL_PERMISSIONS : permissions,
       },
       avatarColor,
-      pin || undefined,
+      {
+        username: uname && uname !== (initialUsername ?? "") ? uname : undefined,
+        password: password || undefined,
+      },
     );
   }
 
@@ -236,18 +246,29 @@ export function StaffModal({
           </Field>
 
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 space-y-3">
-            <Field label={isNew ? "ตั้งรหัส PIN 4 หลักสำหรับเข้าระบบ" : "เปลี่ยนรหัส PIN (เว้นว่างถ้าไม่เปลี่ยน)"}>
+            <Field label="ชื่อผู้ใช้ (ใช้เข้าระบบ)">
               <input
-                type="text"
-                inputMode="numeric"
-                maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                placeholder="เช่น 1234"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm tracking-widest focus:outline-none focus:ring-2 focus:ring-brand-300"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
+                placeholder="เช่น mew"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
               />
             </Field>
-            {!pinValid && <p className="text-xs text-rose-600">PIN ต้องเป็นตัวเลข 4 หลัก</p>}
+            <p className={`text-xs ${username && unameErr ? "text-rose-600" : "text-gray-400"}`}>{username && unameErr ? unameErr : USERNAME_HINT}</p>
+            <Field label={isNew ? "ตั้งรหัสผ่าน (อย่างน้อย 6 ตัว)" : "รีเซ็ตรหัสผ่าน (เว้นว่างถ้าไม่เปลี่ยน)"}>
+              <input
+                type="text"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                autoCapitalize="none"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
+              />
+            </Field>
+            {password && pwErr && <p className="text-xs text-rose-600">{pwErr}</p>}
 
             <p className="text-xs font-medium text-gray-500">สิทธิ์การเข้าถึง</p>
             {initial?.role === "owner" ? (

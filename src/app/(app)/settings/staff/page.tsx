@@ -17,7 +17,7 @@ import { Card } from "@/components/ui/Card";
 import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { LoadingView } from "@/components/ui/LoadingView";
-import { StaffModal, type StaffFormValues } from "@/components/hr/StaffModal";
+import { StaffModal, type StaffFormValues, type StaffLogin } from "@/components/hr/StaffModal";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
   createStaffRow,
@@ -82,12 +82,34 @@ export default function StaffSettingsPage() {
   const [staffModalMode, setStaffModalMode] = useState<"closed" | "create" | { edit: Staff }>(
     "closed",
   );
+  const [usernames, setUsernames] = useState<Record<string, string | null>>({});
+
+  async function loadUsernames() {
+    const res = await fetch("/api/staff/accounts", { cache: "no-store" }).catch(() => null);
+    if (!res?.ok) return;
+    const rows: { staffId: string; username: string | null }[] = await res.json();
+    setUsernames(Object.fromEntries(rows.map((r) => [r.staffId, r.username])));
+  }
+
+  // username / password live in the accounts table (server only), saved through /api/staff/accounts
+  async function saveLogin(staffId: string, login: StaffLogin) {
+    if (!login.username && !login.password) return;
+    const res = await fetch("/api/staff/accounts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ staffId, ...login }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error ?? "บันทึกชื่อผู้ใช้/รหัสผ่านไม่สำเร็จ");
+    await loadUsernames();
+  }
 
   useEffect(() => {
     if (auth.role !== "owner") {
       router.replace("/dashboard");
       return;
     }
+    loadUsernames();
     async function load() {
       const [staffRows, inactiveRows, leaveRows, teamRows, positionRows] = await Promise.all([
         listStaff(),
@@ -168,16 +190,27 @@ export default function StaffSettingsPage() {
     setStaff((prev) => prev.map((s) => (s.teamId === t.id ? { ...s, teamId: undefined } : s)));
   }
 
-  async function handleSaveStaff(values: StaffFormValues, avatarColor: string, pin?: string) {
+  async function handleSaveStaff(values: StaffFormValues, avatarColor: string, login: StaffLogin) {
     if (staffModalMode === "create") {
-      const created = await createStaffRow({ ...values, avatarColor }, pin);
+      const created = await createStaffRow({ ...values, avatarColor });
       setStaff((prev) => [...prev, created]);
+      try {
+        await saveLogin(created.id, login);
+      } catch (e) {
+        window.alert(`เพิ่มพนักงานแล้ว แต่${e instanceof Error ? e.message : "ตั้งชื่อผู้ใช้ไม่สำเร็จ"} — กดแก้ไขแล้วตั้งใหม่`);
+      }
       await ensurePayrollEntriesForMonth(currentPeriodMonth, [created]);
       const payrollRows = await listPayrollEntries(currentPeriodMonth);
       setPayroll(payrollRows);
     } else if (staffModalMode !== "closed") {
       const { edit } = staffModalMode;
-      await updateStaffRow(edit.id, { ...values, avatarColor }, pin);
+      try {
+        await saveLogin(edit.id, login);
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
+        return;
+      }
+      await updateStaffRow(edit.id, { ...values, avatarColor });
       setStaff((prev) => prev.map((s) => (s.id === edit.id ? { ...s, ...values, avatarColor } : s)));
     }
     setStaffModalMode("closed");
@@ -348,6 +381,9 @@ export default function StaffSettingsPage() {
                     {s.position}
                     {s.role === "owner" && !s.position.includes("เจ้าของ") && " · เจ้าของ"}
                     {s.teamId && ` · ${teams.find((t) => t.id === s.teamId)?.name ?? ""}`}
+                  </p>
+                  <p className="truncate text-[11px] text-gray-400">
+                    {usernames[s.id] ? `ชื่อผู้ใช้: ${usernames[s.id]}` : usernames[s.id] === null ? "ยังไม่มีชื่อผู้ใช้" : ""}
                   </p>
                 </div>
                 <div className="flex shrink-0 gap-1">
@@ -537,6 +573,7 @@ export default function StaffSettingsPage() {
       {staffModalMode !== "closed" && (
         <StaffModal
           initial={staffModalMode === "create" ? undefined : staffModalMode.edit}
+          initialUsername={staffModalMode === "create" ? undefined : usernames[staffModalMode.edit.id]}
           teams={teams}
           positions={positions}
           onCreateTeam={handleCreateTeam}

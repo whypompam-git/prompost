@@ -13,6 +13,7 @@ import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { DriveGrid } from "@/components/portal/DriveGrid";
 import { GoalCard } from "@/components/my/GoalCard";
+import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
 
 const MAX = 256;
 function resizeToDataUrl(file: File): Promise<string> {
@@ -147,6 +148,9 @@ export default function V2MePage() {
               Progress Tracking ของทั้งทีม · ตั้งเป้าให้พนักงาน <ChevronRight size={14} />
             </Link>
           )}
+        </div>
+        <div className="mt-3">
+          <ChangePasswordCard />
         </div>
       </div>
 
