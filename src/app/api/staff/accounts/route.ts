@@ -47,8 +47,9 @@ export async function POST(request: NextRequest) {
   if (!staff) return NextResponse.json({ error: "ไม่พบพนักงาน" }, { status: 404 });
 
   // A login that is also used in another workspace (or the platform admin's) belongs to that
-  // person, not to this workspace's owner: only they can change its name or password.
-  if (staff.account_id && (username !== undefined || password !== undefined)) {
+  // person, not to this workspace's owner: only they can change its name or password
+  // (the owner editing their own login is fine).
+  if (staff.account_id && staff.id !== c.staffId && (username !== undefined || password !== undefined)) {
     const [{ count: elsewhere }, { data: acc }] = await Promise.all([
       db.from("staff").select("id", { count: "exact", head: true }).eq("account_id", staff.account_id).neq("workspace_id", c.workspaceId),
       db.from("accounts").select("is_platform_admin").eq("id", staff.account_id).maybeSingle(),
