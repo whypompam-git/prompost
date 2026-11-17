@@ -28,16 +28,19 @@ import {
   listReceipts,
   listRoundFiles,
   listTransactions,
+  setRoundPaymentStatus,
   unassignClientPackage,
   updateInvoiceStatus,
   updateQuotationStatus,
 } from "@/lib/supabase/queries";
 import { createClient } from "@/lib/supabase/client";
-import type { Client, ClientPackage, Invoice, Package, Quotation, QuotationStatus, Receipt, RoundFile, Transaction } from "@/lib/types";
+import type { Client, ClientPackage, Invoice, Package, PaymentStatus, Quotation, QuotationStatus, Receipt, RoundFile, Transaction } from "@/lib/types";
 
 const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
 const dateLabel = (iso: string) => format(new Date(iso), "d MMM yyyy", { locale: th });
 const QUOTE_STATUS: Record<QuotationStatus, string> = { draft: "ร่าง", sent: "ส่งแล้ว", accepted: "ลูกค้าตอบรับ", rejected: "ปฏิเสธ" };
+const PAY_LABEL: Record<PaymentStatus, string> = { unpaid: "ยังไม่ชำระ", confirmed: "เซ็นคอนเฟิม รอมัดจำ", deposit: "มัดจำแล้ว", paid: "ชำระครบแล้ว", declined: "ปฏิเสธ" };
+const PAY_STYLE: Record<PaymentStatus, string> = { unpaid: "bg-rose-100 text-rose-700", confirmed: "bg-sky-100 text-sky-700", deposit: "bg-amber-100 text-amber-700", paid: "bg-emerald-100 text-emerald-700", declined: "bg-gray-200 text-gray-600" };
 const iconBtn = "rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600";
 
 type Modal = { kind: "quote" | "invoice" | "receipt"; roundId: string } | null;
@@ -56,6 +59,7 @@ export function ClientRounds({ client, onChanged }: { client: Client; onChanged?
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [modal, setModal] = useState<Modal>(null);
+  const [picking, setPicking] = useState(false);
 
   const load = useCallback(async () => {
     const [cp, pk, q, inv, rc, tx, fl] = await Promise.all([
@@ -194,8 +198,13 @@ export function ClientRounds({ client, onChanged }: { client: Client; onChanged?
                 <p className="text-xs text-gray-400">ซื้อเมื่อ {dateLabel(r.assignedAt)} · ราคาแพ็คเกจ ฿{currency(r.amount)}</p>
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs ${bal.outstanding > 0 ? "bg-amber-50 text-amber-700" : "bg-emerald-50 text-emerald-700"}`}>
-                  {bal.outstanding > 0 ? `ค้าง ฿${currency(bal.outstanding)}` : "ชำระครบ"}
+                <span className={`relative inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${PAY_STYLE[r.paymentStatus]}`}>
+                  {PAY_LABEL[r.paymentStatus]}
+                  <select value={r.paymentStatus} disabled={busy} aria-label="สถานะการชำระเงินของแพ็คเกจนี้"
+                    onChange={(e) => run(() => setRoundPaymentStatus(r.id, client.id, e.target.value as PaymentStatus), "เปลี่ยนสถานะไม่สำเร็จ")}
+                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0">
+                    {(Object.keys(PAY_LABEL) as PaymentStatus[]).map((s) => <option key={s} value={s}>{PAY_LABEL[s]}</option>)}
+                  </select>
                 </span>
                 <button onClick={() => removeRound(r, count)} disabled={busy} className="rounded-full p-1 text-gray-300 hover:bg-rose-50 hover:text-rose-500" aria-label="เอาแพ็คเกจออก"><X size={14} /></button>
               </div>
@@ -215,7 +224,7 @@ export function ClientRounds({ client, onChanged }: { client: Client; onChanged?
               <AddBtn onClick={() => setModal({ kind: "invoice", roundId: r.id })} disabled={busy}>ใบแจ้งหนี้</AddBtn>
               <AddBtn onClick={() => setModal({ kind: "receipt", roundId: r.id })} disabled={busy}>ใบเสร็จ</AddBtn>
               <UploadBtn disabled={busy} onPick={(f) => pickFile(r.id, f)} />
-              <span className="ml-auto text-xs text-gray-400">เรียกเก็บ ฿{currency(bal.billed)} · รับแล้ว ฿{currency(bal.paid)}</span>
+              <span className="ml-auto text-xs text-gray-400">เรียกเก็บ ฿{currency(bal.billed)} · รับแล้ว ฿{currency(bal.paid)}{bal.outstanding > 0 ? ` · ค้าง ฿${currency(bal.outstanding)}` : ""}</span>
             </div>
           </Card>
         );
@@ -223,16 +232,23 @@ export function ClientRounds({ client, onChanged }: { client: Client; onChanged?
       {rounds.length === 0 && <p className="rounded-2xl border border-dashed border-gray-200 py-6 text-center text-sm text-gray-400">ยังไม่มีแพ็คเกจ — เลือกด้านล่างเพื่อเริ่มรอบการซื้อ</p>}
 
       {packages.length > 0 && (
-        <Card>
-          <p className="mb-2 text-xs font-medium text-gray-500">เพิ่มแพ็คเกจ (เริ่มรอบการซื้อใหม่)</p>
+        <div>
+          <button onClick={() => setPicking((v) => !v)} className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100">
+            <Plus size={14} />เพิ่มแพ็คเกจ
+          </button>
+          {picking && (
+          <Card className="mt-2">
+          <p className="mb-2 text-xs font-medium text-gray-500">เลือกแพ็คเกจที่ลูกค้าซื้อ (เริ่มรอบการซื้อใหม่)</p>
           <div className="flex flex-wrap gap-2">
             {packages.map((p) => (
-              <button key={p.id} disabled={busy} onClick={() => addPackage(p)} className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50">
+              <button key={p.id} disabled={busy} onClick={async () => { await addPackage(p); setPicking(false); }} className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50">
                 <Plus size={12} />{p.name}{p.clipCount > 0 && <span className="opacity-70">· {p.clipCount} คลิป</span>}
               </button>
             ))}
           </div>
-        </Card>
+          </Card>
+          )}
+        </div>
       )}
 
       {loose > 0 && (

@@ -198,20 +198,6 @@ export function ClientModal({
             />
           </Field>
 
-          <Field label="สถานะการชำระเงิน">
-            <select
-              value={paymentStatus}
-              onChange={(e) => setPaymentStatus(e.target.value as PaymentStatus)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-            >
-              {PAYMENT_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-
           <Field label="สีประจำลูกค้า (ใช้ในปฏิทิน)" wide>
             <div className="flex gap-2">
               {COLOR_OPTIONS.map((color) => (

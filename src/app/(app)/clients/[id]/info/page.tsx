@@ -11,7 +11,7 @@ import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
 import { PortalPinStatus } from "@/components/clients/PortalPinStatus";
 import { getClient, updateClientRow, listStaff } from "@/lib/supabase/queries";
-import type { Client, EntityType, PaymentStatus, Staff } from "@/lib/types";
+import type { Client, EntityType, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 
@@ -138,20 +138,6 @@ export default function ClientInfoPage() {
             <div>
               <label className={labelClass}>เบอร์โทร</label>
               <input value={client.phone ?? ""} onChange={(e) => patch({ phone: e.target.value })} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass}>สถานะการชำระเงิน</label>
-              <select
-                value={client.paymentStatus}
-                onChange={(e) => patch({ paymentStatus: e.target.value as PaymentStatus })}
-                className={inputClass}
-              >
-                <option value="unpaid">ยังไม่ชำระ</option>
-                <option value="confirmed">เซ็นคอนเฟิม (รอมัดจำ)</option>
-                <option value="deposit">มัดจำแล้ว</option>
-                <option value="paid">ชำระครบแล้ว</option>
-                <option value="declined">ปฏิเสธ</option>
-              </select>
             </div>
           </div>
 

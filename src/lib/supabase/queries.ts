@@ -160,9 +160,29 @@ export async function updateClientRow(id: string, values: ClientInput): Promise<
   if (error) throw error;
 }
 
+// The clients list shows one status per client: it mirrors the client's NEWEST package round
+// (the real status lives on each round). Editing it there edits that round.
 export async function setClientPaymentStatus(id: string, status: Client["paymentStatus"]): Promise<void> {
   const { error } = await supabase().from("clients").update({ payment_status: status }).eq("id", id);
   if (error) throw error;
+  const { data: round } = await supabase().from("client_packages").select("id").eq("client_id", id).order("assigned_at", { ascending: false }).limit(1).maybeSingle();
+  if (round) {
+    const { error: e2 } = await supabase().from("client_packages").update({ payment_status: status }).eq("id", round.id);
+    if (e2) throw e2;
+  }
+}
+
+async function syncClientPaymentStatus(clientId: string): Promise<void> {
+  const { data: round } = await supabase().from("client_packages").select("payment_status").eq("client_id", clientId).order("assigned_at", { ascending: false }).limit(1).maybeSingle();
+  if (!round) return;
+  const { error } = await supabase().from("clients").update({ payment_status: round.payment_status }).eq("id", clientId);
+  if (error) throw error;
+}
+
+export async function setRoundPaymentStatus(roundId: string, clientId: string, status: Client["paymentStatus"]): Promise<void> {
+  const { error } = await supabase().from("client_packages").update({ payment_status: status }).eq("id", roundId);
+  if (error) throw error;
+  await syncClientPaymentStatus(clientId);
 }
 
 export async function setClientManager(id: string, managerId: string | null): Promise<void> {
@@ -1506,6 +1526,7 @@ type ClientPackageRow = {
   package_id: string;
   assigned_at: string;
   amount: number;
+  payment_status: Client["paymentStatus"];
 };
 
 const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
@@ -1514,6 +1535,7 @@ const fromClientPackageRow = (r: ClientPackageRow): ClientPackage => ({
   packageId: r.package_id,
   assignedAt: r.assigned_at,
   amount: r.amount,
+  paymentStatus: r.payment_status,
 });
 
 export function listClientPackages(): Promise<ClientPackage[]> {
@@ -1523,7 +1545,7 @@ export function listClientPackages(): Promise<ClientPackage[]> {
 async function listClientPackagesRaw(): Promise<ClientPackage[]> {
   const { data, error } = await supabase()
     .from("client_packages")
-    .select("id, client_id, package_id, assigned_at, amount")
+    .select("id, client_id, package_id, assigned_at, amount, payment_status")
     .order("assigned_at", { ascending: false });
   if (error) throw error;
   return (data as ClientPackageRow[]).map(fromClientPackageRow);
@@ -1567,17 +1589,20 @@ export async function assignPackageToClient(clientId: string, packageId: string)
   const { data, error } = await db
     .from("client_packages")
     .insert({ client_id: clientId, package_id: packageId, amount: pkg.price })
-    .select("id, client_id, package_id, assigned_at, amount")
+    .select("id, client_id, package_id, assigned_at, amount, payment_status")
     .single();
   if (error) throw error;
 
   // no quotation is made here: the team creates each document from the package card
+  await syncClientPaymentStatus(clientId);
   return fromClientPackageRow(data as ClientPackageRow);
 }
 
 export async function unassignClientPackage(id: string): Promise<void> {
+  const { data: row } = await supabase().from("client_packages").select("client_id").eq("id", id).maybeSingle();
   const { error } = await supabase().from("client_packages").delete().eq("id", id);
   if (error) throw error;
+  if (row) await syncClientPaymentStatus(row.client_id);
 }
 
 // ── Client call/contact log ───────────────────────────────────────────

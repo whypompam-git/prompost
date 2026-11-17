@@ -231,6 +231,7 @@ export interface ClientPackage {
   clientId: string;
   packageId: string;
   assignedAt: string; // ISO date
+  paymentStatus: PaymentStatus; // payment status of THIS purchase
   amount: number; // snapshot of the package price — this round's bill, doesn't change if the package price changes later
 }
 
