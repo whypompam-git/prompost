@@ -31,8 +31,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
-  { href: "/calendar", label: "ปฏิทินงาน", icon: CalendarDays },
-  { href: "/workload", label: "สรุปงาน", icon: ClipboardList },
   { href: "/clients", label: "ลูกค้า", icon: Users },
   { href: "/mc", label: "MC", icon: Mic2, permission: "mc" as const },
   { href: "/studio", label: "AI สคริปต์", icon: Sparkles, permission: "studio" as const },
@@ -48,7 +46,7 @@ const NAV_ITEMS = [
 // new UI pages, being tried out next to the old menu
 const V2_ITEMS: { href: string; label: string; icon: typeof Target; ownerOnly?: boolean }[] = [
   { href: "/v2/clients", label: "ลูกค้า (ใหม่)", icon: LayoutGrid },
-  { href: "/v2/calendar", label: "ปฏิทิน (ใหม่)", icon: CalendarRange },
+  { href: "/v2/calendar", label: "ปฏิทิน", icon: CalendarRange },
   { href: "/v2/notes", label: "โน้ต", icon: StickyNote },
   { href: "/v2/progress", label: "Progress Tracking", icon: Target, ownerOnly: true },
 ];

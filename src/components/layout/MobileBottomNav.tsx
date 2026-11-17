@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 // The old menu lives under โปรไฟล์ → "เมนูเดิม" until the new pages replace it.
 const TABS = [
   { href: "/v2/clients", label: "ลูกค้า", icon: Users, match: ["/v2/clients", "/clients"] },
-  { href: "/v2/calendar", label: "ปฏิทิน", icon: CalendarDays, match: ["/v2/calendar", "/calendar", "/workload"] },
+  { href: "/v2/calendar", label: "ปฏิทิน", icon: CalendarDays, match: ["/v2/calendar"] },
 ];
 const TABS_RIGHT = [
   { href: "/v2/review", label: "ตรวจดราฟ", icon: ClipboardCheck, match: ["/v2/review"] },

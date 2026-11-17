@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "@/components/ui/Link";
 import { Plus } from "lucide-react";
 import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
 import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";
@@ -15,7 +14,9 @@ export function DayView({
   chips,
   clients,
   onAddTask,
+  onOpenChip,
 }: {
+  onOpenChip?: (chip: CalendarChip) => void;
   date: Date;
   chips: CalendarChip[];
   clients: Client[];
@@ -38,10 +39,11 @@ export function DayView({
           <p className="mb-2 text-sm font-semibold text-gray-800">{client.name}</p>
           <div className="flex flex-wrap gap-2">
             {list.map((chip) => (
-              <Link
+              <button
                 key={chip.key}
-                href={chip.href}
-                className={cn("flex flex-col rounded-lg px-3 py-2 text-xs font-medium hover:brightness-95", pillClass(GROUP_COLOR[chip.group]))}
+                type="button"
+                onClick={() => (onOpenChip ? onOpenChip(chip) : (window.location.href = chip.href))}
+                className={cn("flex flex-col rounded-lg px-3 py-2 text-left text-xs font-medium hover:brightness-95", pillClass(GROUP_COLOR[chip.group]))}
               >
                 <span className="flex items-center gap-1.5">
                   <span className={cn("h-1.5 w-1.5 rounded-full", PALETTE[GROUP_COLOR[chip.group]].solid)} />
@@ -52,7 +54,7 @@ export function DayView({
                     {chip.count} คลิป{chip.crew.length > 0 && ` · ${chip.crew.join(", ")}`}
                   </span>
                 )}
-              </Link>
+              </button>
             ))}
           </div>
         </div>

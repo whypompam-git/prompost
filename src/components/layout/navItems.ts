@@ -22,8 +22,6 @@ export type NavItem = { href: string; label: string; icon: LucideIcon; permissio
 // The original menu. On phones it now lives under โปรไฟล์ → "เมนูเดิม" while the new pages are tried out.
 export const LEGACY_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
-  { href: "/calendar", label: "ปฏิทินงาน (เดิม)", icon: CalendarDays },
-  { href: "/workload", label: "สรุปงาน (เดิม)", icon: ClipboardList },
   { href: "/clients", label: "ลูกค้า (ตาราง)", icon: Users },
   { href: "/mc", label: "MC", icon: Mic2, permission: "mc" },
   { href: "/studio", label: "AI สคริปต์", icon: Sparkles, permission: "studio" },

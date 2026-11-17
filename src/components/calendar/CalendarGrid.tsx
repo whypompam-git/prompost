@@ -28,6 +28,7 @@ export function CalendarGrid({
   detailed = false,
   onAddTask,
   onMoveChip,
+  onOpenChip,
 }: {
   days: Date[];
   chips: CalendarChip[];
@@ -35,6 +36,7 @@ export function CalendarGrid({
   detailed?: boolean; // week view: show crew names under each chip
   onAddTask?: (date: string) => void;
   onMoveChip?: (chip: CalendarChip, date: string) => void; // drag a chip onto another day
+  onOpenChip?: (chip: CalendarChip) => void; // tap a chip: manage its clips in a popup
 }) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [overDay, setOverDay] = useState("");
@@ -102,13 +104,14 @@ export function CalendarGrid({
                   </div>
                   <div className="flex flex-col gap-1">
                     {shown.map((chip) => (
-                      <Link
+                      <ChipTag
                         key={chip.key}
-                        href={chip.href}
+                        chip={chip}
+                        onOpen={onOpenChip}
                         draggable={!!onMoveChip}
                         onDragStart={(e) => e.dataTransfer.setData("text/chip", chip.key)}
                         title={`${chip.label}${chip.group !== "other" ? ` · ${chip.count} คลิป` : ""}${chip.crew.length ? ` · ${chip.crew.join(", ")}` : ""}`}
-                        className={cn("flex min-w-0 flex-col rounded-md px-1.5 py-1 text-[11px] font-medium leading-tight hover:brightness-95", pillClass(GROUP_COLOR[chip.group]))}
+                        className={cn("flex min-w-0 flex-col rounded-md px-1.5 py-1 text-left text-[11px] font-medium leading-tight hover:brightness-95", pillClass(GROUP_COLOR[chip.group]))}
                       >
                         <span className="flex items-center gap-1">
                           <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PALETTE[GROUP_COLOR[chip.group]].solid)} />
@@ -119,7 +122,7 @@ export function CalendarGrid({
                             {chip.count} คลิป{detailed && chip.crew.length > 0 && ` · ${chip.crew.join(", ")}`}
                           </span>
                         )}
-                      </Link>
+                      </ChipTag>
                     ))}
                     {!open && list.length > COLLAPSED && (
                       <button
@@ -146,5 +149,21 @@ export function CalendarGrid({
         ))}
       </div>
     </div>
+  );
+}
+
+// a chip: opens the popup when there is one, otherwise it is a link to the clients' page
+function ChipTag({ chip, onOpen, children, ...rest }: { chip: CalendarChip; onOpen?: (c: CalendarChip) => void; children: React.ReactNode } & React.HTMLAttributes<HTMLElement> & { draggable?: boolean; title?: string }) {
+  if (onOpen) {
+    return (
+      <button type="button" onClick={() => onOpen(chip)} {...(rest as React.ButtonHTMLAttributes<HTMLButtonElement>)}>
+        {children}
+      </button>
+    );
+  }
+  return (
+    <Link href={chip.href} {...(rest as object)}>
+      {children}
+    </Link>
   );
 }

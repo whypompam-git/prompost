@@ -7,6 +7,7 @@ import { th } from "date-fns/locale";
 import { CalendarClock } from "lucide-react";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { TaskManageSheet } from "@/components/calendar/TaskManageSheet";
 import { StaffAvatar } from "@/components/ui/StaffAvatar";
 import { bangkokDay } from "@/lib/alerts";
 import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
@@ -28,20 +29,22 @@ const SECTIONS: { key: "shoot" | "edit"; title: string; kinds: CardKind[] }[] = 
   { key: "edit", title: "ตัดต่อ (วันตัดต่อ = Deadline ส่งลูกค้า)", kinds: ["edit", "qc", "other"] },
 ];
 
+const PER_CELL = 3; // at most 3 cards per person per day, "+N" for the rest
 const short = (iso: string) => format(new Date(iso), "d MMM", { locale: th });
 
-function Card({ card, clientName, today, onMove }: { card: WorkCard; clientName: string; today: string; onMove: (card: WorkCard, date: string) => void }) {
+function Card({ card, clientName, today, onMove, onOpen }: { card: WorkCard; clientName: string; today: string; onMove: (card: WorkCard, date: string) => void; onOpen: (card: WorkCard) => void }) {
   const k = KIND[card.kind];
   const late = card.deadline < today;
   const soon = card.deadline === today;
   return (
     <div className="relative">
-      <Link
-        href={card.href}
+      <button
+        type="button"
+        onClick={() => onOpen(card)}
         draggable
         onDragStart={(e) => e.dataTransfer.setData("text/card", card.key)}
         title={card.titles.slice(0, 12).join("\n")}
-        className={cn("block cursor-grab rounded-lg py-1 pl-2 pr-7 leading-tight hover:brightness-95 active:cursor-grabbing", pillClass(k.color))}
+        className={cn("block w-full cursor-grab rounded-lg py-1 pl-2 pr-7 text-left leading-tight hover:brightness-95 active:cursor-grabbing", pillClass(k.color))}
       >
         <span className="flex items-center justify-between gap-2 text-[11px] font-semibold">
           <span className="flex min-w-0 items-center gap-1">
@@ -54,8 +57,8 @@ function Card({ card, clientName, today, onMove }: { card: WorkCard; clientName:
             <span className={cn("shrink-0 font-medium", late ? "text-rose-600" : soon ? "text-orange-600" : "opacity-70")}>ส่ง {short(card.deadline)}</span>
           )}
         </span>
-        <span className="block truncate text-[10px] font-normal opacity-80">{card.title}</span>
-      </Link>
+        <span className="block truncate text-[10px] font-normal opacity-80">{card.title}{card.count > 1 && ` · ${card.count} งาน`}</span>
+      </button>
       {/* phones can't drag: tap the clock to pick a new date */}
       <label className="absolute right-1 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md text-gray-500 hover:bg-white/60" title="ย้ายวัน">
         <CalendarClock size={13} />
@@ -86,6 +89,8 @@ export function WorkloadView() {
   const [clientFilter, setClientFilter] = useState<string[]>([]);
   const [showAll, setShowAll] = useState(false);
   const [over, setOver] = useState("");
+  const [manage, setManage] = useState<WorkCard | null>(null);
+  const [openCells, setOpenCells] = useState<Set<string>>(new Set()); // cells expanded past 3 cards
 
   useEffect(() => {
     Promise.all([listTasksLite(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[]), listTeams().catch(() => [] as Team[])])
@@ -247,11 +252,26 @@ export function WorkloadView() {
                               over === cellKey && "ring-2 ring-inset ring-brand-300",
                             )}
                           >
-                            <div className="flex min-h-[36px] flex-col gap-1">
-                              {cardsAt(sec.kinds, r.id, col).map((c) => (
-                                <Card key={c.key} card={c} clientName={clientName(c.clientId)} today={today} onMove={moveCard} />
-                              ))}
-                            </div>
+                            {(() => {
+                              const all = cardsAt(sec.kinds, r.id, col);
+                              const expanded = openCells.has(cellKey);
+                              const shown = expanded ? all : all.slice(0, PER_CELL);
+                              return (
+                                <div className="flex min-h-[36px] flex-col gap-1">
+                                  {shown.map((c) => (
+                                    <Card key={c.key} card={c} clientName={clientName(c.clientId)} today={today} onMove={moveCard} onOpen={setManage} />
+                                  ))}
+                                  {all.length > PER_CELL && (
+                                    <button
+                                      onClick={() => setOpenCells((p) => { const n = new Set(p); if (expanded) n.delete(cellKey); else n.add(cellKey); return n; })}
+                                      className="rounded-md px-1.5 py-0.5 text-left text-[11px] font-medium text-gray-500 hover:bg-gray-100"
+                                    >
+                                      {expanded ? "ย่อ" : `+${all.length - PER_CELL} งาน`}
+                                    </button>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
                         );
                       })}
@@ -306,6 +326,19 @@ export function WorkloadView() {
             ))}
           </div>
         </section>
+      )}
+      {manage && (
+        <TaskManageSheet
+          title={`${KIND[manage.kind].label} · ${clientName(manage.clientId)}`}
+          subtitle={manage.title}
+          tasks={tasks.filter((t) => manage.taskIds.includes(t.id))}
+          staff={staff}
+          clients={clients}
+          queue={manage.kind === "shoot" && manage.queueId ? queues.find((q) => q.id === manage.queueId) : undefined}
+          onChanged={(t) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, ...t } : x)))}
+          onQueueChanged={(q) => setQueues((prev) => prev.map((x) => (x.id === q.id ? q : x)))}
+          onClose={() => setManage(null)}
+        />
       )}
     </div>
   );

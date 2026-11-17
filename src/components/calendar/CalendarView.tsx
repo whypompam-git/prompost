@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   addDays,
   addMonths,
@@ -20,6 +20,7 @@ import { CalendarGrid } from "@/components/calendar/CalendarGrid";
 import { DayView } from "@/components/calendar/DayView";
 import { YearView } from "@/components/calendar/YearView";
 import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
+import { TaskManageSheet } from "@/components/calendar/TaskManageSheet";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { buildCalendarChips } from "@/lib/calendarChips";
 import { createTaskRow, listClients, listQueues, listStaff, listTasksLite, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
@@ -71,34 +72,19 @@ export function CalendarView() {
 
   const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff }), [tasks, queues, clients, staff]);
 
-  // month view scrolls on and on: a few months back, more are added as you reach the end
-  const [monthsBack, setMonthsBack] = useState(1);
-  const [monthsAhead, setMonthsAhead] = useState(4);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // the month view shows the chosen month only; use the arrows to go to the next one
+  // (it used to scroll on and on and jumped down by itself when the page opened)
   const monthDays = useMemo(
     () =>
       eachDayOfInterval({
-        start: startOfWeek(startOfMonth(addMonths(anchor, -monthsBack)), { weekStartsOn: 1 }),
-        end: endOfWeek(endOfMonth(addMonths(anchor, monthsAhead)), { weekStartsOn: 1 }),
+        start: startOfWeek(startOfMonth(anchor), { weekStartsOn: 1 }),
+        end: endOfWeek(endOfMonth(anchor), { weekStartsOn: 1 }),
       }),
-    [anchor, monthsBack, monthsAhead],
+    [anchor],
   );
-  // jump to the chosen month whenever it changes
-  useEffect(() => {
-    if (view !== "month" || loading) return;
-    setMonthsBack(1);
-    setMonthsAhead(4);
-    const id = requestAnimationFrame(() => document.getElementById(`day-${format(startOfMonth(anchor), "yyyy-MM-dd")}`)?.scrollIntoView({ block: "start" }));
-    return () => cancelAnimationFrame(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, loading, format(anchor, "yyyy-MM")]);
-  useEffect(() => {
-    const el = bottomRef.current;
-    if (view !== "month" || !el) return;
-    const io = new IntersectionObserver((e) => e[0].isIntersecting && setMonthsAhead((m) => m + 3), { rootMargin: "400px" });
-    io.observe(el);
-    return () => io.disconnect();
-  }, [view, loading, monthsAhead]);
+
+  const [manage, setManage] = useState<CalendarChip | null>(null);
+  const patchLocal = (t: Task) => setTasks((prev) => prev.map((x) => (x.id === t.id ? { ...x, ...t } : x)));
 
   // dragging a chip to another day moves what it stands for
   async function moveChip(chip: CalendarChip, date: string) {
@@ -212,12 +198,11 @@ export function CalendarView() {
 
         {view === "month" && (
           <>
-            <CalendarGrid days={monthDays} chips={chips} onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} />
-            <div ref={bottomRef} className="py-4 text-center text-xs text-gray-400">กำลังโหลดเดือนถัดไป…</div>
+            <CalendarGrid days={monthDays} chips={chips} month={anchor} onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} onOpenChip={setManage} />
           </>
         )}
         {view === "week" && (
-          <CalendarGrid days={weekDays} chips={chips} detailed onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} />
+          <CalendarGrid days={weekDays} chips={chips} detailed onAddTask={(date) => setModalState({ create: { date } })} onMoveChip={moveChip} onOpenChip={setManage} />
         )}
         {view === "day" && (
           <DayView
@@ -225,6 +210,7 @@ export function CalendarView() {
             chips={chips.filter((c) => c.date === format(anchor, "yyyy-MM-dd"))}
             clients={clients}
             onAddTask={(date) => setModalState({ create: { date } })}
+            onOpenChip={setManage}
           />
         )}
         {view === "year" && (
@@ -238,6 +224,20 @@ export function CalendarView() {
           />
         )}
       </div>
+
+      {manage && (
+        <TaskManageSheet
+          title={manage.label}
+          subtitle={clients.find((c) => c.id === manage.clientId)?.name}
+          tasks={tasks.filter((t) => manage.taskIds.includes(t.id))}
+          staff={staff}
+          clients={clients}
+          queue={manage.queueId ? queues.find((q) => q.id === manage.queueId) : undefined}
+          onChanged={patchLocal}
+          onQueueChanged={(q) => setQueues((prev) => prev.map((x) => (x.id === q.id ? q : x)))}
+          onClose={() => setManage(null)}
+        />
+      )}
 
       {modalState !== "closed" && (
         <TaskModal
