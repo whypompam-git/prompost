@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { DriveGrid } from "@/components/portal/DriveGrid";
 import { GoalCard } from "@/components/my/GoalCard";
 import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
+import { ReviewBadgeCard } from "@/components/my/ReviewBadgeCard";
 import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 
 const MAX = 256;
@@ -152,6 +153,7 @@ export default function V2MePage() {
         </div>
         <div className="mt-3 space-y-3">
           <WorkspaceSwitcher />
+          <ReviewBadgeCard />
           <ChangePasswordCard />
         </div>
       </div>

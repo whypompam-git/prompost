@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckCircle2, Download, Inbox, Upload, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Download, Inbox, Play, Upload, X } from "lucide-react";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { listClients, listTasksLite } from "@/lib/supabase/queries";
+import { listClientLogos, listClients, listTasksLite } from "@/lib/supabase/queries";
+import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
 import type { Client, Task } from "@/lib/types";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/components/v2/ReviewFeed";
@@ -167,6 +168,7 @@ function DeliverList({ items: all, onDone }: { items: DeliverItem[]; onDone: (ta
   const auth = useAuth();
   const [links, setLinks] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState("");
+  const [preview, setPreview] = useState<DeliverItem | null>(null);
   const mineCount = all.filter((i) => i.editorId === auth.staffId).length;
   const [scope, setScope] = useState<"mine" | "all">(mineCount > 0 ? "mine" : "all");
   const items = scope === "mine" ? all.filter((i) => i.editorId === auth.staffId) : all;
@@ -197,6 +199,11 @@ function DeliverList({ items: all, onDone }: { items: DeliverItem[]; onDone: (ta
               <p className="truncate text-xs text-gray-500">{it.title}</p>
               <p className="truncate text-[11px] text-gray-400">Editor: {it.editorName || "ยังไม่ได้ตั้ง"}</p>
             </div>
+            {it.draft.url && (
+              <button onClick={() => setPreview(it)} className="flex items-center gap-1 rounded-lg bg-gray-900 px-2.5 py-1.5 text-xs font-medium text-white">
+                <Play size={13} /> ดูคลิป
+              </button>
+            )}
             {it.draft.downloadUrl && (
               <a href={it.draft.downloadUrl} className="flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-700">
                 <Download size={13} /> โหลด
@@ -222,57 +229,89 @@ function DeliverList({ items: all, onDone }: { items: DeliverItem[]; onDone: (ta
           </div>
         </div>
       ))}
+      {preview && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-black/85 p-4" onClick={() => setPreview(null)}>
+          <div className="w-full max-w-md text-center text-white">
+            <p className="truncate text-sm font-semibold">{preview.clientName}</p>
+            <p className="truncate text-xs text-white/70">{preview.title} · v{preview.draft.version}</p>
+          </div>
+          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+          <video src={preview.draft.url} controls autoPlay playsInline onClick={(e) => e.stopPropagation()} className="max-h-[75dvh] max-w-full rounded-xl bg-black" />
+          <button onClick={() => setPreview(null)} className="rounded-full bg-white px-5 py-2 text-sm font-medium text-gray-900">ปิด</button>
+        </div>
+      )}
     </div>
   );
 }
 
-// "อัปดราฟ" for the in-house team: pick a clip that is in editing (mine first) and upload.
+// "อัปดราฟ" for the in-house team: pick a CLIENT first (icons, like the clients page), then the
+// clip of that client in editing / QC, and upload. Mine first, with a switch for everyone's clips.
 function UploadSheet({ onClose, onUploaded }: { onClose: () => void; onUploaded: () => void }) {
   const auth = useAuth();
   const [tasks, setTasks] = useState<Task[] | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
+  const [logos, setLogos] = useState<Record<string, string>>({});
   const [all, setAll] = useState(false);
-  const [q, setQ] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
   useEffect(() => {
-    Promise.all([listTasksLite(), listClients()]).then(([t, c]) => {
+    Promise.all([listTasksLite(), listClients(), listClientLogos().catch(() => ({}) as Record<string, string>)]).then(([t, c, l]) => {
       setTasks(t.filter((x) => x.type === "edit" || x.type === "qc"));
       setClients(c);
+      setLogos(l);
     });
   }, []);
-  const name = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
   const mine = (t: Task) => t.editorId === auth.staffId || (!t.editorId && t.assigneeId === auth.staffId);
-  const list = (tasks ?? [])
-    .filter((t) => all || mine(t))
-    .filter((t) => !q.trim() || `${t.title} ${name(t.clientId)}`.toLowerCase().includes(q.trim().toLowerCase()))
-    .sort((a, b) => (a.editDate ?? "").localeCompare(b.editDate ?? ""));
+  const scoped = (tasks ?? []).filter((t) => all || mine(t));
+  const counts = new Map<string, number>();
+  for (const t of scoped) counts.set(t.clientId, (counts.get(t.clientId) ?? 0) + 1);
+  const withClips = clients.filter((c) => counts.has(c.id));
+  const client = clients.find((c) => c.id === clientId);
+  const list = scoped.filter((t) => t.clientId === clientId).sort((a, b) => (a.editDate ?? "").localeCompare(b.editDate ?? ""));
   return (
     <div className="absolute inset-0 z-30 flex items-end bg-black/50" onClick={onClose}>
       <div className="flex max-h-[85%] w-full flex-col rounded-t-2xl bg-white" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
-          <p className="text-sm font-semibold text-gray-900">อัปดราฟ — เลือกคลิป</p>
+          <div className="flex min-w-0 items-center gap-2">
+            {client && <button onClick={() => setClientId(null)} className="rounded-full p-1 text-gray-500" aria-label="กลับ"><ArrowLeft size={18} /></button>}
+            <p className="truncate text-sm font-semibold text-gray-900">{client ? `อัปดราฟ — ${client.name}` : "อัปดราฟ — เลือกลูกค้า"}</p>
+          </div>
           <button onClick={onClose} className="rounded-full p-1 text-gray-400" aria-label="ปิด"><X size={18} /></button>
         </div>
-        <div className="space-y-2 px-4 py-3">
-          <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
-            <button onClick={() => setAll(false)} className={cn("rounded-md py-1.5", !all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>คลิปที่ฉันตัด</button>
-            <button onClick={() => setAll(true)} className={cn("rounded-md py-1.5", all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>ทุกคลิปที่กำลังตัด</button>
+        {!client && (
+          <div className="px-4 py-3">
+            <div className="grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+              <button onClick={() => setAll(false)} className={cn("rounded-md py-1.5", !all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>คลิปที่ฉันตัด</button>
+              <button onClick={() => setAll(true)} className={cn("rounded-md py-1.5", all ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>ทุกคลิปที่กำลังตัด</button>
+            </div>
           </div>
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหาชื่อคลิป / ลูกค้า" className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm" />
-        </div>
-        <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto px-4 pb-6">
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">
           {tasks === null && <p className="py-6 text-center text-sm text-gray-400">กำลังโหลด…</p>}
-          {tasks !== null && list.length === 0 && (
+          {tasks !== null && !client && withClips.length === 0 && (
             <p className="py-6 text-center text-sm text-gray-400">{all ? "ไม่มีคลิปที่อยู่ขั้นตัดต่อ" : "ยังไม่มีคลิปที่ตั้งคุณเป็นคนตัด — ลองดู “ทุกคลิปที่กำลังตัด”"}</p>
           )}
-          {list.map((t) => (
-            <div key={t.id} className="space-y-1.5 py-3">
-              <p className="text-sm font-semibold text-gray-900">{name(t.clientId)} <span className="font-normal text-gray-600">· {t.title}</span></p>
-              <p className="text-[11px] text-gray-400">{t.type === "qc" ? "อยู่ที่ QC แล้ว (อัปเวอร์ชันใหม่ได้)" : "กำลังตัดต่อ"}{t.editDate ? ` · Deadline ${t.editDate}` : ""}{(t.revisionCount ?? 0) > 0 ? ` · แก้รอบที่ ${t.revisionCount}` : ""}</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปดราฟ + ส่ง QC" : "อัปเวอร์ชันใหม่"} onDone={() => { onUploaded(); onClose(); }} />
-              </div>
+          {!client && withClips.length > 0 && (
+            <AppGrid dense>
+              {withClips.map((c) => (
+                <button key={c.id} onClick={() => setClientId(c.id)} className="relative text-left">
+                  <span className="pointer-events-none block"><ClientTile href="#" name={c.name} logo={logos[c.id] || c.brandImages?.[0]} color={c.colorTag} /></span>
+                  <span className="absolute right-1 top-1 min-w-5 rounded-full border-2 border-white bg-rose-500 px-1 text-center text-[10px] font-bold leading-4 text-white">{counts.get(c.id)}</span>
+                </button>
+              ))}
+            </AppGrid>
+          )}
+          {client && (
+            <div className="divide-y divide-gray-100">
+              {list.map((t) => (
+                <div key={t.id} className="space-y-1.5 py-3">
+                  <p className="text-sm font-semibold text-gray-900">{t.title}</p>
+                  <p className="text-[11px] text-gray-400">{t.type === "qc" ? "อยู่ที่ QC แล้ว (อัปเวอร์ชันใหม่ได้)" : "กำลังตัดต่อ"}{t.editDate ? ` · Deadline ${t.editDate}` : ""}{(t.revisionCount ?? 0) > 0 ? ` · แก้รอบที่ ${t.revisionCount}` : ""}</p>
+                  <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปดราฟ + ส่ง QC" : "อัปเวอร์ชันใหม่"} onDone={() => { onUploaded(); onClose(); }} />
+                </div>
+              ))}
+              {list.length === 0 && <p className="py-6 text-center text-sm text-gray-400">ไม่มีคลิปของลูกค้านี้</p>}
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

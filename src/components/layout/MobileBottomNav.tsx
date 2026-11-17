@@ -5,6 +5,8 @@ import Link from "@/components/ui/Link";
 import { usePathname, useRouter } from "next/navigation";
 import { CalendarDays, ClipboardCheck, StickyNote, UserCircle2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { NavBadge } from "@/components/layout/NavBadge";
+import { useReviewBadge } from "@/components/layout/useReviewBadge";
 
 // Phone tab bar (new UI): ลูกค้า · ปฏิทิน · (+) โน้ต · ตรวจดราฟ · โปรไฟล์.
 // The old menu lives under โปรไฟล์ → "เมนูเดิม" until the new pages replace it.
@@ -24,13 +26,14 @@ export function MobileBottomNav() {
   const [pending, setPending] = useState<string | null>(null);
   useEffect(() => setPending(null), [pathname]);
   const on = (match: string[], href?: string) => (pending ? pending === href : match.some((m) => pathname === m || pathname.startsWith(`${m}/`)));
+  const reviewCount = useReviewBadge();
   const notesActive = pending ? pending === "/v2/notes" : pathname.startsWith("/v2/notes");
 
   const Tab = ({ t }: { t: (typeof TABS)[number] }) => {
     const Icon = t.icon;
     return (
       <Link href={t.href} onClick={() => setPending(t.href)} className={cn("pp-tab flex flex-1 flex-col items-center gap-0.5 py-1.5 text-[11px] font-medium", on(t.match, t.href) ? "pp-tab-on text-brand-600" : "text-gray-500")}>
-        <Icon size={22} />
+        <span className="relative"><Icon size={22} />{t.href === "/v2/review" && <NavBadge n={reviewCount} />}</span>
         {t.label}
       </Link>
     );

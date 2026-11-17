@@ -30,6 +30,8 @@ import {
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { NavBadge } from "@/components/layout/NavBadge";
+import { useReviewBadge } from "@/components/layout/useReviewBadge";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "แดชบอร์ด", icon: LayoutDashboard },
@@ -61,6 +63,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const auth = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const reviewCount = useReviewBadge();
 
   useEffect(() => {
     try {
@@ -115,7 +118,7 @@ export function Sidebar() {
                 active ? "bg-brand-50 text-brand-700" : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
               )}
             >
-              <Icon className={cn("h-4.5 w-4.5", active && "text-brand-600")} size={18} />
+              <span className="relative"><Icon className={cn("h-4.5 w-4.5", active && "text-brand-600")} size={18} />{item.href === "/v2/review" && <NavBadge n={reviewCount} />}</span>
               <span className={cn("hidden", expanded && "lg:inline")}>{item.label}</span>
             </Link>
           );

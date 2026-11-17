@@ -2535,6 +2535,13 @@ export async function getClientCi(clientId: string): Promise<ClientCi> {
 }
 
 // logos for the client grid (one query)
+// clips waiting at QC (for the review badge): just who they belong to
+export async function listQcTaskOwners(): Promise<{ id: string; editorId: string | null; assigneeId: string | null }[]> {
+  const { data, error } = await supabase().from("tasks").select("id, editor_id, assignee_id").eq("type", "qc");
+  if (error) throw error;
+  return (data ?? []).map((r) => ({ id: r.id as string, editorId: (r.editor_id as string | null) ?? null, assigneeId: (r.assignee_id as string | null) ?? null }));
+}
+
 export async function listClientLogos(): Promise<Record<string, string>> {
   return memo("listClientLogos", listClientLogosRaw);
 }
