@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { caller } from "@/lib/draftsServer";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
+import { forgetLiveAccess } from "@/lib/auth/session";
 import { passwordError } from "@/lib/accountRules";
 
 export const dynamic = "force-dynamic";
@@ -27,5 +28,6 @@ export async function POST(request: NextRequest) {
     .update({ password_hash: bcrypt.hashSync(body.next, 10), must_change_password: false, updated_at: new Date().toISOString() })
     .eq("id", me.account_id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  forgetLiveAccess(c.staffId);
   return NextResponse.json({ ok: true });
 }

@@ -168,6 +168,7 @@ export function BulkTaskModal({
             </select>
           </label>
 
+          {type !== "plan" && (
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1 block text-xs font-medium text-gray-500">วันถ่าย</span>
@@ -178,6 +179,7 @@ export function BulkTaskModal({
               <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} className={field} />
             </label>
           </div>
+          )}
 
           {client && set && (
             <p className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">

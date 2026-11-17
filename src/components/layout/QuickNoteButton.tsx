@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, MessageSquarePlus, Search, X } from "lucide-react";
+import { Check, Search, StickyNote, X } from "lucide-react";
 import { NoteEditor } from "@/components/clients/NoteEditor";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { createClientNoteRow, listClients, listStaff } from "@/lib/supabase/queries";
@@ -78,7 +78,7 @@ export function QuickNoteButton() {
         aria-label="จดการคุยกับลูกค้า"
         title="จดการคุยกับลูกค้า"
       >
-        <MessageSquarePlus size={18} />
+        <StickyNote size={18} />
         <span className="hidden sm:inline">Note</span>
       </button>
       {done && (

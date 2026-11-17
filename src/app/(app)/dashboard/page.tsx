@@ -147,8 +147,6 @@ function DashboardPageInner() {
           return a.scheduledDate.localeCompare(b.scheduledDate);
         case "editDate":
           return (a.editDate ?? "9999").localeCompare(b.editDate ?? "9999");
-        case "difficulty":
-          return (b.editDifficulty ?? 0) - (a.editDifficulty ?? 0);
         case "editor": {
           const an = staffName(a.editorId ?? null);
           const bn = staffName(b.editorId ?? null);

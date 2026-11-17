@@ -5,8 +5,6 @@ import Link from "@/components/ui/Link";
 import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarDays, CheckCheck, Printer, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
-import { DIFFICULTY } from "@/components/dashboard/TaskTable";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { QueueModal, type QueueDraft } from "@/components/clients/QueueModal";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
@@ -40,7 +38,6 @@ export function ClientTaskBoard({
   onQueuesChange: (updater: (prev: Queue[]) => Queue[]) => void;
   onToast: (msg: string) => void;
 }) {
-  const hideDifficulty = useAuth().hideInternal === true;
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -299,23 +296,6 @@ export function ClientTaskBoard({
                             ))}
                           </select>
                         </td>
-                        {!hideDifficulty && (
-                          <td className="w-[68px] px-1.5 py-2">
-                            <select
-                              value={t.editDifficulty ?? ""}
-                              onChange={(e) => change(t, { editDifficulty: e.target.value ? Number(e.target.value) : null })}
-                              className={sel}
-                              title="ความยากในการตัด"
-                            >
-                              <option value="">ยาก: —</option>
-                              {DIFFICULTY.map((d) => (
-                                <option key={d.value} value={d.value}>
-                                  {d.value} {d.label}
-                                </option>
-                              ))}
-                            </select>
-                          </td>
-                        )}
                         <td className="px-2 py-2">
                           <div className="flex flex-col gap-1 text-[10px] text-gray-400">
                             <label className="flex items-center gap-1">

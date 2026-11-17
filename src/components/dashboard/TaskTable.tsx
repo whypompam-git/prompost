@@ -9,7 +9,6 @@ import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
 import { statusLabel, statusesFor } from "@/lib/workflow";
 import { isStem, pillClass, stemFromBg } from "@/lib/colors";
 import { useTaskSettings } from "@/lib/useTaskSettings";
-import { useAuth } from "@/lib/auth/AuthContext";
 import type { Client, Staff, Task, TaskStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +21,7 @@ export type TaskSortKey =
   | "dueDate"
   | "status"
   | "assignee"
-  | "editor"
-  | "difficulty";
+  | "editor";
 
 const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "title", label: "งาน" },
@@ -34,7 +32,6 @@ const SORT_COLUMNS: { key: TaskSortKey; label: string }[] = [
   { key: "status", label: "สถานะ" },
   { key: "assignee", label: "ผู้รับผิดชอบ" },
   { key: "editor", label: "Editor" },
-  { key: "difficulty", label: "ความยาก" },
 ];
 
 // Tiny "has a script" marker: an icon after the title, zero extra width when absent.
@@ -178,10 +175,8 @@ export function TaskTable({
     { value: "", label: "ยังไม่มอบหมาย" },
     ...staff.map((s) => ({ value: s.id, label: s.name })),
   ];
-  const hideDifficulty = useAuth().hideInternal === true; // outsourced positions never see it
   const editorOptions = [{ value: "", label: "ยังไม่มี Editor" }, ...staff.map((s) => ({ value: s.id, label: s.name }))];
-  const difficultyOptions = [{ value: "", label: "ยังไม่ระบุ" }, ...DIFFICULTY.map((d) => ({ value: String(d.value), label: `${d.value} · ${d.label}` }))];
-  const cols = SORT_COLUMNS.filter((c) => !(hideDifficulty && c.key === "difficulty"));
+  const cols = SORT_COLUMNS;
   const sortLabel = SORT_COLUMNS.find((c) => c.key === sortBy)?.label;
 
   return (
@@ -311,7 +306,7 @@ export function TaskTable({
                 />
                 <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
                 <TaskLinkButton label="File" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
-                <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
+                <TaskLinkButton tone="blue" label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
               </div>
             </div>
           );
@@ -420,22 +415,11 @@ export function TaskTable({
                       onChange={(v) => onUpdateTask(task.id, { editorId: v || null })}
                     />
                   </td>
-                  {!hideDifficulty && (
-                    <td className="px-5 py-3">
-                      <PillSelect
-                        label={task.editDifficulty ? `${task.editDifficulty} · ${DIFFICULTY[task.editDifficulty - 1].label}` : "—"}
-                        color={task.editDifficulty ? DIFFICULTY[task.editDifficulty - 1].color : "gray"}
-                        value={task.editDifficulty ? String(task.editDifficulty) : ""}
-                        options={difficultyOptions}
-                        onChange={(v) => onUpdateTask(task.id, { editDifficulty: v ? Number(v) : null })}
-                      />
-                    </td>
-                  )}
                   <td className="px-5 py-3">
                     <div className="flex gap-1.5">
                       <TaskLinkButton label="Ref" url={task.refLink} onSave={(url) => onUpdateTask(task.id, { refLink: url ?? "" })} />
                       <TaskLinkButton label="File" url={task.footageUrl} onSave={(url) => onUpdateTask(task.id, { footageUrl: url ?? "" })} />
-                      <TaskLinkButton label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
+                      <TaskLinkButton tone="blue" label="Final" url={task.finalUrl} onSave={(url) => onUpdateTask(task.id, { finalUrl: url ?? "" })} />
                     </div>
                   </td>
                   <td className="px-5 py-3 text-right">

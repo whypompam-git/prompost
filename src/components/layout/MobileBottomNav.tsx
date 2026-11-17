@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "@/components/ui/Link";
 import { usePathname, useRouter } from "next/navigation";
-import { CalendarDays, ClipboardCheck, PlusCircle, UserCircle2, Users } from "lucide-react";
+import { CalendarDays, ClipboardCheck, StickyNote, UserCircle2, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Phone tab bar (new UI): ลูกค้า · ปฏิทิน · (+) โน้ต · ตรวจดราฟ · โปรไฟล์.
@@ -50,7 +50,7 @@ export function MobileBottomNav() {
         className={cn("pp-tab flex flex-1 flex-col items-center gap-0.5 py-1 text-[11px] font-medium", notesActive ? "text-brand-600" : "text-brand-500")}
         aria-label="โน้ต"
       >
-        <PlusCircle size={28} />
+        <StickyNote size={28} />
         โน้ต
       </button>
       {TABS_RIGHT.map((t) => (

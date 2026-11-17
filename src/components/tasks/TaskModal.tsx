@@ -140,6 +140,7 @@ export function TaskModal({
             </select>
           </Field>
 
+          {type !== "plan" && (
           <div className="grid grid-cols-2 gap-3">
             <Field label="วันที่ถ่าย">
               <input
@@ -158,6 +159,7 @@ export function TaskModal({
               />
             </Field>
           </div>
+          )}
 
           <p className="text-xs text-gray-400">
             รายละเอียดอื่นๆ (สคริปต์, Ref Link, Shot, สิ่งที่ต้องเตรียม, ลิงก์ Footage/Final)

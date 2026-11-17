@@ -24,6 +24,8 @@ import {
   CalendarRange,
   StickyNote,
   Target,
+  ClipboardCheck,
+  UserCircle2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
@@ -48,6 +50,8 @@ const V2_ITEMS: { href: string; label: string; icon: typeof Target; ownerOnly?: 
   { href: "/v2/clients", label: "ลูกค้า (ใหม่)", icon: LayoutGrid },
   { href: "/v2/calendar", label: "ปฏิทิน", icon: CalendarRange },
   { href: "/v2/notes", label: "โน้ต", icon: StickyNote },
+  { href: "/v2/review", label: "ตรวจดราฟ", icon: ClipboardCheck },
+  { href: "/v2/me", label: "โปรไฟล์", icon: UserCircle2 },
   { href: "/v2/progress", label: "Progress Tracking", icon: Target, ownerOnly: true },
 ];
 

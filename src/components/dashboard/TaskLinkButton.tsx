@@ -15,8 +15,10 @@ export function TaskLinkButton({
   label,
   url,
   onSave,
+  tone = "orange",
 }: {
   label: string;
+  tone?: "orange" | "blue";
   url?: string;
   onSave: (url: string | undefined) => void;
 }) {
@@ -75,7 +77,9 @@ export function TaskLinkButton({
         className={cn(
           "flex select-none items-center gap-1 rounded-lg border px-2 py-1 text-xs font-medium",
           url
-            ? "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
+            ? tone === "blue"
+              ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
+              : "border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100"
             : "border-dashed border-gray-300 text-gray-400 hover:border-brand-300 hover:text-brand-600",
         )}
       >

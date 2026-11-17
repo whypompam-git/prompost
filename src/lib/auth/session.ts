@@ -80,6 +80,11 @@ export const cookieOptions = {
 type LiveAccess = Awaited<ReturnType<typeof fetchLiveAccessUncached>>;
 const LIVE_TTL_MS = 10_000;
 const liveCache = new Map<string, { at: number; value: Promise<LiveAccess> }>();
+// forget the cached lookup (e.g. right after the person changed their password)
+export function forgetLiveAccess(staffId: string) {
+  liveCache.delete(staffId);
+}
+
 export function fetchLiveAccess(staffId: string): Promise<LiveAccess> {
   const hit = liveCache.get(staffId);
   if (hit && Date.now() - hit.at < LIVE_TTL_MS) return hit.value;
@@ -92,7 +97,7 @@ export function fetchLiveAccess(staffId: string): Promise<LiveAccess> {
   return value;
 }
 
-async function fetchLiveAccessUncached(staffId: string): Promise<{
+export async function fetchLiveAccessUncached(staffId: string): Promise<{
   active: boolean;
   role: StaffRole;
   permissions: Permissions;

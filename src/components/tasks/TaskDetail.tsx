@@ -9,7 +9,6 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { TagInput } from "@/components/ui/TagInput";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
-import { DIFFICULTY } from "@/components/dashboard/TaskTable";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { WorkflowPanel } from "@/components/tasks/WorkflowPanel";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
@@ -335,26 +334,10 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 ))}
               </select>
             </div>
-            {!auth.hideInternal && (
-              <div>
-                <label className={labelClass}>ความยากในการตัด (เฉพาะทีมใน — Editor ที่ถูกซ่อนจะไม่เห็น)</label>
-                <select
-                  value={task.editDifficulty ?? ""}
-                  onChange={(e) => patch({ editDifficulty: e.target.value ? Number(e.target.value) : null })}
-                  className={inputClass}
-                >
-                  <option value="">ยังไม่ระบุ</option>
-                  {DIFFICULTY.map((d) => (
-                    <option key={d.value} value={d.value}>
-                      {d.value} · {d.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            {task.type !== "plan" && (
             <div>
               <label className={labelClass}>Deadline (วันตัดต่อ = ส่งลูกค้า)</label>
               <input
@@ -364,6 +347,8 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 className={inputClass}
               />
             </div>
+            )}
+            {task.type !== "plan" && (
             <div>
               <label className={labelClass}>วันที่ถ่าย</label>
               <input
@@ -373,6 +358,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
                 className={inputClass}
               />
             </div>
+            )}
             <div>
               <label className={labelClass}>วันที่โพส</label>
               <input
