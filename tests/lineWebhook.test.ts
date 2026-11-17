@@ -37,3 +37,12 @@ test("replies only to 'id' requests and to the bot joining", () => {
   assert.equal(repliesFor([{ type: "message", source: { groupId: "C" }, message: { type: "text", text: "id" } }]).length, 0);
   assert.equal(repliesFor([{ type: "message", replyToken: "t", message: { type: "text", text: "id" } }]).length, 0);
 });
+
+test("finds the PP-xxxxxx link code in a message", async () => {
+  const { extractLinkCode } = await import("../src/lib/lineWebhook.ts");
+  assert.equal(extractLinkCode("PP-123456"), "PP-123456");
+  assert.equal(extractLinkCode("รหัส pp-654321 ครับ"), "PP-654321");
+  assert.equal(extractLinkCode("PP-12345"), null);
+  assert.equal(extractLinkCode("XPP-123456"), null);
+  assert.equal(extractLinkCode(undefined), null);
+});

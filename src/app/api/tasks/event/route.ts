@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { applyQcRevision } from "@/lib/workflow";
-import { planNotifications, pushNotifications } from "@/lib/notify";
+import { notifyEvent } from "@/lib/notifyLine";
 
 export const dynamic = "force-dynamic";
 
@@ -59,20 +59,13 @@ export async function POST(request: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (!updated?.length) return NextResponse.json({ error: "task changed, refresh" }, { status: 409 });
     await db.from("task_revisions").insert({ task_id: task.id, round: result.revisionCount, brief: brief!.trim(), source: "qc" });
-    await pushNotifications(
-      db,
-      planNotifications({ kind: "qc_revise", ...names, brief: brief!.trim(), round: result.revisionCount }, ctx),
-      { taskId: task.id, clientId: task.client_id },
-    );
+    await notifyEvent(db, { kind: "qc_revise", ...names, brief: brief!.trim(), round: result.revisionCount }, ctx, { taskId: task.id, clientId: task.client_id });
     return NextResponse.json({ ok: true, type: result.type, status: result.status, revisionCount: result.revisionCount });
   }
 
-  const planned =
-    event === "assigned"
-      ? planNotifications({ kind: "assigned", ...names }, { ...ctx, newAssigneeId: task.assignee_id })
-      : event === "editor_assigned"
-      ? planNotifications({ kind: "editor_assigned", ...names }, { ...ctx, newAssigneeId: task.editor_id })
-      : planNotifications({ kind: "handoff", ...names, toStage: task.type }, ctx);
-  await pushNotifications(db, planned, { taskId: task.id, clientId: task.client_id });
+  const ref = { taskId: task.id, clientId: task.client_id };
+  if (event === "assigned") await notifyEvent(db, { kind: "assigned", ...names }, { ...ctx, newAssigneeId: task.assignee_id }, ref);
+  else if (event === "editor_assigned") await notifyEvent(db, { kind: "editor_assigned", ...names }, { ...ctx, newAssigneeId: task.editor_id }, ref);
+  else await notifyEvent(db, { kind: "handoff", ...names, toStage: task.type }, ctx, ref);
   return NextResponse.json({ ok: true });
 }

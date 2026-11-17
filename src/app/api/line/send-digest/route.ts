@@ -23,6 +23,7 @@ export async function POST(request: NextRequest) {
         .eq("id", channelId)
         .maybeSingle();
       if (!c) return NextResponse.json({ error: "ไม่พบช่องทางนี้" }, { status: 404 });
+      if (!c.group_id) return NextResponse.json({ sent: false, reason: "ยังไม่ได้เชื่อมกลุ่ม — พิมพ์รหัส PP-xxxxxx ในกลุ่มก่อน" });
       const text = await buildDigestText(ws, new Date(), { topics: c.topics, teamId: c.team_id });
       if (!send) return NextResponse.json({ configured: lineTokenSet(), text });
       if (!lineTokenSet()) return NextResponse.json({ sent: false, reason: "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN ใน Vercel" });

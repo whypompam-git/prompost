@@ -35,7 +35,18 @@ export function repliesFor(events: LineEvent[]): { replyToken: string; text: str
     const joined = e.type === "join";
     if (!asked && !joined) continue;
     const where = e.source?.groupId ? "กลุ่มนี้" : e.source?.roomId ? "ห้องนี้" : "แชทนี้";
-    out.push({ replyToken: e.replyToken, text: `ID ของ${where}\n${id}\n\n(นำไปตั้งเป็น LINE_TO ใน Vercel เพื่อให้บอทส่งสรุปเข้า${where})` });
+    out.push({
+      replyToken: e.replyToken,
+      text: joined
+        ? `สวัสดีครับ 👋 เชื่อม${where}กับ PromPost: ไปที่ ตั้งค่า → ระบบ → ช่องทางส่ง LINE → เชื่อมกลุ่มใหม่ แล้วพิมพ์รหัส PP-xxxxxx ที่ได้ลงใน${where}`
+        : `ID ของ${where}\n${id}`,
+    });
   }
   return out;
+}
+
+// "PP-123456" anywhere in a message: the one-time code that links this chat to a channel
+export function extractLinkCode(text: string | undefined): string | null {
+  const m = /\bPP-(\d{6})\b/i.exec(text ?? "");
+  return m ? `PP-${m[1]}` : null;
 }

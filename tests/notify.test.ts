@@ -49,3 +49,14 @@ test("hand-offs follow the Editor/ผู้รับผิดชอบ split", (
   // same person editing and approving gets it once, unless they caused it
   assert.equal(planNotifications({ ...base, kind: "handoff", toStage: "qc" }, { assigneeId: "a", editorId: "a" }).length, 1);
 });
+
+test("Editor LINE group gets editing events only", async () => {
+  const { editorLineText } = await import("../src/lib/notify.ts");
+  const base = { taskTitle: "คลิป 1", clientName: "ร้าน A" };
+  assert.match(editorLineText({ kind: "handoff", toStage: "qc", ...base })!, /รอตรวจ QC/);
+  assert.match(editorLineText({ kind: "qc_revise", round: 2, brief: "ตัดช่วงต้น", ...base })!, /รอบที่ 2[\s\S]*ตัดช่วงต้น/);
+  assert.match(editorLineText({ kind: "client_pass", ...base })!, /Drive/);
+  assert.equal(editorLineText({ kind: "assigned", ...base }), null);
+  assert.equal(editorLineText({ kind: "client_use", ...base }), null);
+  assert.equal(editorLineText({ kind: "handoff", toStage: "shoot", ...base }), null);
+});

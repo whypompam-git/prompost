@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, taskForCaller } from "@/lib/draftsServer";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
-import { planNotifications, pushNotifications } from "@/lib/notify";
+import { notifyEvent } from "@/lib/notifyLine";
 import { settle } from "@/lib/workflow";
 
 export const dynamic = "force-dynamic";
@@ -36,9 +36,10 @@ export async function POST(request: NextRequest) {
     const next = settle({ type: "edit", status: "done", footageUrl: task.footage_url, revisionCount: task.revision_count ?? 0 });
     await db.from("tasks").update({ type: next.type, status: next.status, updated_at: new Date().toISOString() }).eq("id", task.id).eq("type", "edit");
     const { data: client } = await db.from("clients").select("name, manager_id").eq("id", task.client_id).maybeSingle();
-    await pushNotifications(
+    await notifyEvent(
       db,
-      planNotifications({ kind: "handoff", taskTitle: task.title, clientName: client?.name ?? "", toStage: next.type }, { actorId: c.staffId, assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client?.manager_id ?? null }),
+      { kind: "handoff", taskTitle: task.title, clientName: client?.name ?? "", toStage: next.type },
+      { actorId: c.staffId, assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client?.manager_id ?? null },
       { taskId: task.id, clientId: task.client_id },
     );
   }

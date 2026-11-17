@@ -38,7 +38,7 @@ async function removeOrphanDrafts(db: SupabaseClient): Promise<number> {
 async function remindContractExpiry(db: WorkspaceDb, today: string): Promise<number> {
   const { data: rows, error } = await db.from("contracts").select(CONTRACT_COLUMNS).eq("status", "signed").not("end_date", "is", null);
   if (error || !rows?.length) return 0;
-  const contracts = rows.map(fromContractRow);
+  const contracts = (rows as Parameters<typeof fromContractRow>[0][]).map(fromContractRow);
   const renewed = new Set(contracts.map((c) => c.renewedFrom).filter((x): x is string => !!x));
   const due = expiryReminders(contracts, renewed, today);
   if (!due.length) return 0;
@@ -105,7 +105,8 @@ export async function GET(request: Request) {
       if (!lineTokenSet()) return NextResponse.json({ sent: false, reason: "LINE_CHANNEL_ACCESS_TOKEN not set" });
       const today = bangkokDay(now);
       const hour = bangkokHour(now);
-      for (const c of channels.filter((c: { send_hour: number; enabled: boolean; last_sent_on: string | null }) => channelDue(c, hour, today))) {
+      // a channel waiting for its group (link code not typed yet) has nowhere to send
+      for (const c of channels.filter((c: { group_id: string | null; send_hour: number; enabled: boolean; last_sent_on: string | null }) => c.group_id && channelDue(c, hour, today))) {
         try {
           const text = await buildDigestText(ws.id, now, { topics: c.topics, teamId: c.team_id });
           if (!text) results.push({ workspace: ws.handle, channel: c.name, sent: false, reason: "nothing to report" });

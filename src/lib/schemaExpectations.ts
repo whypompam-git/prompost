@@ -45,6 +45,6 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "ai_runs", columns: "id, kind, tokens_in, cost_thb", migration: "0042" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
   { table: "staff_goals", columns: "staff_id, target, mode, start_date, set_by", migration: "0050" },
-  { table: "staff", columns: "account_id", migration: "0052" },
   { table: "clients", columns: "workspace_id", migration: "0053" },
+  { table: "line_channels", columns: "link_code, link_expires_at", migration: "0060" },
 ];

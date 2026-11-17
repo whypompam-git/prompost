@@ -118,3 +118,27 @@ export async function pushNotifications(
     }
   }
 }
+
+// One-line LINE message for the Editor group (topic "editor"), or null when the event
+// isn't about editing work.
+export function editorLineText(e: NotifyEvent): string | null {
+  const who = `${e.clientName} · ${e.taskTitle}`;
+  const brief = e.brief ? `\n${ellipsis(e.brief, 600)}` : "";
+  switch (e.kind) {
+    case "handoff":
+      if (e.toStage === "edit") return `🎬 เข้าคิวตัดต่อ: ${who}`;
+      if (e.toStage === "qc") return `👀 ตัดเสร็จ รอตรวจ QC: ${who}`;
+      if (e.toStage === "pending") return `📤 ผ่าน QC ส่งให้ลูกค้าตรวจแล้ว: ${who}`;
+      return null;
+    case "qc_revise":
+      return `🔁 QC สั่งแก้ (รอบที่ ${e.round ?? 1}): ${who}${brief}`;
+    case "client_revise":
+      return e.toStage === "edit" ? `✏️ ลูกค้าสั่งแก้ (รอบที่ ${e.round ?? 1}): ${who}${brief}` : null;
+    case "client_pass":
+      return `✅ ลูกค้าอนุมัติ: ${who}\nEditor ส่งไฟล์ Final ขึ้น Drive แล้ววางลิงก์ในระบบ`;
+    case "editor_assigned":
+      return `🧑‍💻 มอบงานตัดต่อ: ${who}`;
+    default:
+      return null;
+  }
+}

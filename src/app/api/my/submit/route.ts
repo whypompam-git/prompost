@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { planNotifications, pushNotifications } from "@/lib/notify";
+import { notifyEvent } from "@/lib/notifyLine";
 import { isUuid } from "@/lib/aiApi";
 import { requireMe } from "@/lib/myWork";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
@@ -39,12 +39,10 @@ export async function POST(request: NextRequest) {
 
   const client = (Array.isArray(task.clients) ? task.clients[0] : task.clients) as { name: string; manager_id: string | null } | null;
   try {
-    await pushNotifications(
+    await notifyEvent(
       db,
-      planNotifications(
-        { kind: "handoff", taskTitle: task.title, clientName: client?.name ?? "", toStage: next.type },
-        { actorId: me.staffId, assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client?.manager_id ?? null },
-      ),
+      { kind: "handoff", taskTitle: task.title, clientName: client?.name ?? "", toStage: next.type },
+      { actorId: me.staffId, assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client?.manager_id ?? null },
       { taskId: task.id, clientId: task.client_id },
     );
   } catch (err) {

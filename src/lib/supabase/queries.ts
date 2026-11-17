@@ -2052,14 +2052,16 @@ export async function markNotificationsRead(ids: string[] | "all"): Promise<void
 export type LineChannel = {
   id: string;
   name: string;
-  groupId: string;
+  groupId: string | null; // null until someone types the link code in the group
   sendHour: number;
   topics: string[];
   teamId: string | null;
   enabled: boolean;
+  linkCode?: string | null;
+  linkExpiresAt?: string | null;
 };
-type LineChannelRow = { id: string; name: string; group_id: string; send_hour: number; topics: string[]; team_id: string | null; enabled: boolean };
-const LINE_CHANNEL_COLUMNS = "id, name, group_id, send_hour, topics, team_id, enabled";
+type LineChannelRow = { id: string; name: string; group_id: string | null; send_hour: number; topics: string[]; team_id: string | null; enabled: boolean; link_code?: string | null; link_expires_at?: string | null };
+const LINE_CHANNEL_COLUMNS = "id, name, group_id, send_hour, topics, team_id, enabled, link_code, link_expires_at";
 const fromLineChannelRow = (r: LineChannelRow): LineChannel => ({
   id: r.id,
   name: r.name,
@@ -2068,6 +2070,8 @@ const fromLineChannelRow = (r: LineChannelRow): LineChannel => ({
   topics: r.topics,
   teamId: r.team_id,
   enabled: r.enabled,
+  linkCode: r.link_code ?? null,
+  linkExpiresAt: r.link_expires_at ?? null,
 });
 
 export async function listLineChannels(): Promise<LineChannel[]> {
@@ -2077,9 +2081,9 @@ export async function listLineChannels(): Promise<LineChannel[]> {
 }
 
 export async function saveLineChannel(values: Omit<LineChannel, "id"> & { id?: string }): Promise<LineChannel> {
+  // the group itself is attached by the link code (webhook), never typed here
   const row = {
     name: values.name.trim(),
-    group_id: values.groupId.trim(),
     send_hour: values.sendHour,
     topics: values.topics,
     team_id: values.teamId,

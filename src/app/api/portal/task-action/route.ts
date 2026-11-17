@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { isUuid } from "@/lib/slug";
 import { applyClientAction, type ClientAction } from "@/lib/workflow";
-import { planNotifications, pushNotifications, type NotifyKind } from "@/lib/notify";
+import { type NotifyKind } from "@/lib/notify";
+import { notifyEvent } from "@/lib/notifyLine";
 import { alertTeamLine } from "@/lib/lineDigest";
 
 export const dynamic = "force-dynamic";
@@ -100,12 +101,10 @@ export async function POST(request: Request) {
     ).catch(() => 0);
   }
   try {
-    await pushNotifications(
+    await notifyEvent(
       workspaceDb(client.workspace_id),
-      planNotifications(
-        { kind: KIND[action as ClientAction], taskTitle: task.title, clientName: client.name, brief: brief?.trim(), round: result.revisionCount, toStage: result.type },
-        { assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client.manager_id },
-      ),
+      { kind: KIND[action as ClientAction], taskTitle: task.title, clientName: client.name, brief: brief?.trim(), round: result.revisionCount, toStage: result.type },
+      { assigneeId: task.assignee_id, editorId: task.editor_id, managerId: client.manager_id },
       { taskId: task.id, clientId: client.id },
     );
   } catch (err) {

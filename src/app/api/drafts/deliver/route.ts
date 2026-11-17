@@ -1,3 +1,4 @@
+import { alertLine } from "@/lib/lineDigest";
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
 import { caller, signedDraftUrl, taskForCaller } from "@/lib/draftsServer";
@@ -47,5 +48,7 @@ export async function POST(request: NextRequest) {
     await db.storage.from("drafts").remove(drafts.map((d) => d.path));
     await db.from("task_drafts").update({ removed_at: new Date().toISOString() }).in("id", drafts.map((d) => d.id));
   }
+  const { data: client } = await db.from("clients").select("name").eq("id", task.client_id).maybeSingle();
+  await alertLine(db, "editor", `📦 ส่งไฟล์ Final ขึ้น Drive แล้ว: ${client?.name ?? ""} · ${task.title}`).catch(() => 0);
   return NextResponse.json({ ok: true, removed: drafts?.length ?? 0 });
 }

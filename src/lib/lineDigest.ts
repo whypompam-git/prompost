@@ -87,12 +87,13 @@ export async function pushLine(text: string, to = process.env.LINE_TO): Promise<
   if (!res.ok) throw new Error(`LINE ${res.status}: ${(await res.text()).slice(0, 200)}`);
 }
 
-// Instant alert to the team's LINE group(s) — every enabled channel that follows
-// the "tasks" topic. Never throws: the action that triggered it already happened.
-export async function alertTeamLine(db: WorkspaceDb, text: string): Promise<number> {
-  if (!lineTokenSet() || !(await lineEnabledFor(db.workspaceId))) return 0;
-  const { data } = await db.from("line_channels").select("group_id, topics, enabled").eq("enabled", true);
-  const groups = [...new Set((data ?? []).filter((c) => (c.topics ?? []).includes("tasks")).map((c) => c.group_id as string))];
+// Instant alert to the workspace's LINE group(s) that follow a topic ("tasks" = client
+// requests for the team, "editor" = editing-work updates). Never throws: the action that
+// triggered it already happened.
+export async function alertLine(db: WorkspaceDb, topic: string, text: string | null): Promise<number> {
+  if (!text || !lineTokenSet() || !(await lineEnabledFor(db.workspaceId))) return 0;
+  const { data } = await db.from("line_channels").select("group_id, topics, enabled").eq("enabled", true).not("group_id", "is", null);
+  const groups = [...new Set((data ?? []).filter((c: { topics: string[] | null }) => (c.topics ?? []).includes(topic)).map((c: { group_id: string }) => c.group_id))];
   let sent = 0;
   for (const g of groups) {
     try {
@@ -104,6 +105,8 @@ export async function alertTeamLine(db: WorkspaceDb, text: string): Promise<numb
   }
   return sent;
 }
+
+export const alertTeamLine = (db: WorkspaceDb, text: string) => alertLine(db, "tasks", text);
 
 // LINE is a paid, shared bot: a workspace sends only when the platform owner switched it on.
 export async function lineEnabledFor(workspaceId: string): Promise<boolean> {

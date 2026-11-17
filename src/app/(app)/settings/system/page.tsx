@@ -77,37 +77,65 @@ function LineDigestCard() {
   );
 }
 
+// what a group can receive: the daily summary sections + instant Editor updates
+const LINE_TOPICS = [...DIGEST_TOPICS, { key: "editor", label: "อัปเดตงาน Editor (แจ้งทันที)" }] as const;
+const topicLabel = (k: string) => LINE_TOPICS.find((t) => t.key === k)?.label ?? k;
+
 const BLANK_CHANNEL: Omit<LineChannel, "id"> = {
   name: "",
-  groupId: "",
+  groupId: null,
   sendHour: 8,
-  topics: DIGEST_TOPICS.map((t) => t.key),
+  topics: ["tasks"],
   teamId: null,
   enabled: true,
 };
 
-// One row per LINE group: its own send hour, topics and (optionally) team.
+// One row per LINE group: its workspace (this one), what it receives, team and digest hour.
+// A new group is linked by typing a one-time code in it — no group IDs to copy.
 function LineChannelsCard() {
   const [channels, setChannels] = useState<LineChannel[] | null>(null);
   const [teams, setTeams] = useState<Team[]>([]);
   const [editing, setEditing] = useState<(Omit<LineChannel, "id"> & { id?: string }) | null>(null);
+  const [code, setCode] = useState<{ code: string; expiresAt: string; name: string } | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const reload = () => listLineChannels().then(setChannels).catch(() => setError("โหลดไม่ได้"));
   useEffect(() => {
-    listLineChannels().then(setChannels).catch(() => setError("โหลดไม่ได้ — ต้องรัน migration 0033 ก่อน"));
+    reload();
     listTeams().then(setTeams).catch(() => {});
   }, []);
+  // while a code is showing, watch for the group to be linked
+  useEffect(() => {
+    if (!code) return;
+    const t = setInterval(reload, 4000);
+    return () => clearInterval(t);
+  }, [code]);
+  useEffect(() => {
+    if (code && channels?.some((c) => c.name === code.name && c.groupId && !c.linkCode)) {
+      setMessage(`เชื่อมกลุ่ม "${code.name}" แล้ว ✅`);
+      setCode(null);
+    }
+  }, [channels, code]);
+
+  async function requestCode(body: Record<string, unknown>, name: string) {
+    const res = await fetch("/api/line/link", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return setMessage(data.error ?? "ขอรหัสไม่สำเร็จ");
+    setCode({ code: data.code, expiresAt: data.expiresAt, name });
+    setEditing(null);
+    setMessage("");
+    reload();
+  }
 
   async function save() {
     if (!editing) return;
-    if (!editing.name.trim() || !/^[CRU][0-9a-f]{32}$/i.test(editing.groupId.trim())) {
-      setMessage("ใส่ชื่อ และ Group ID ที่ขึ้นต้นด้วย C (พิมพ์ id ในกลุ่มเพื่อให้บอทตอบ)");
-      return;
-    }
+    if (!editing.name.trim()) return setMessage("ตั้งชื่อช่องทาง");
+    if (!editing.topics.length) return setMessage("เลือกอย่างน้อย 1 เรื่อง");
+    if (!editing.id) return requestCode({ name: editing.name, topics: editing.topics, teamId: editing.teamId, sendHour: editing.sendHour }, editing.name.trim());
     try {
       const saved = await saveLineChannel(editing);
-      setChannels((prev) => (editing.id ? (prev ?? []).map((c) => (c.id === saved.id ? saved : c)) : [...(prev ?? []), saved]));
+      setChannels((prev) => (prev ?? []).map((c) => (c.id === saved.id ? saved : c)));
       setEditing(null);
       setMessage("");
     } catch {
@@ -116,7 +144,7 @@ function LineChannelsCard() {
   }
 
   async function remove(c: LineChannel) {
-    if (!window.confirm(`ลบช่องทาง "${c.name}"?`)) return;
+    if (!window.confirm(`ลบช่องทาง "${c.name}"? (บอทจะไม่ส่งเข้ากลุ่มนี้อีก)`)) return;
     await deleteLineChannel(c.id);
     setChannels((prev) => (prev ?? []).filter((x) => x.id !== c.id));
   }
@@ -134,53 +162,71 @@ function LineChannelsCard() {
 
   const field = "rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
   const teamName = (id: string | null) => teams.find((t) => t.id === id)?.name;
+  const time = (iso: string) => new Date(iso).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
 
   return (
     <Card className="space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-gray-900">ช่องทางส่ง LINE (แยกกลุ่ม/เวลา/หัวข้อ)</p>
+          <p className="text-sm font-medium text-gray-900">ช่องทางส่ง LINE (แยกกลุ่มตามเรื่อง)</p>
           <p className="text-xs text-gray-500">
-            แต่ละช่องมีกลุ่ม LINE เวลาส่ง (เวลาไทย) หัวข้อ และทีมของตัวเอง ถ้ายังไม่มีช่องไหนเลย ระบบจะส่งสรุปรวมตอน 08:00 เข้ากลุ่มเดิม ·
-            เวลาที่ไม่ใช่ 08:00 ต้องตั้ง CRON_SECRET ใน GitHub secrets (ดู ENVIRONMENTS.md)
+            แต่ละกลุ่มรับเฉพาะงานของ Workspace นี้ และเฉพาะเรื่องที่เลือก — สรุปประจำวันส่งตามเวลาที่ตั้ง · อัปเดตงาน Editor แจ้งทันที
           </p>
         </div>
         <button
-          onClick={() => setEditing({ ...BLANK_CHANNEL })}
+          onClick={() => { setEditing({ ...BLANK_CHANNEL }); setCode(null); }}
           className="shrink-0 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600"
         >
-          + เพิ่มช่องทาง
+          + เชื่อมกลุ่มใหม่
         </button>
       </div>
       {error && <p className="text-xs text-amber-600">{error}</p>}
-      {(channels ?? []).map((c) => (
-        <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm">
-          <span className="font-medium text-gray-800">{c.name}</span>
-          <span className="text-xs text-gray-500">
-            {String(c.sendHour).padStart(2, "0")}:00 · {c.topics.map((k) => DIGEST_TOPICS.find((t) => t.key === k)?.label ?? k).join(", ")}
-            {teamName(c.teamId) && ` · ${teamName(c.teamId)}`}
-            {!c.enabled && " · ปิดอยู่"}
-          </span>
-          <span className="ml-auto flex gap-1.5">
-            <button onClick={() => test(c)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-white">ส่งทดสอบ</button>
-            <button onClick={() => setEditing({ ...c })} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-white">แก้ไข</button>
-            <button onClick={() => remove(c)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-white">ลบ</button>
-          </span>
+
+      {code && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
+          <p className="text-xs text-emerald-800">พิมพ์รหัสนี้ในกลุ่ม LINE "{code.name}"</p>
+          <p className="my-2 select-all font-mono text-3xl font-bold tracking-wider text-emerald-900">{code.code}</p>
+          <p className="text-[11px] text-emerald-700">
+            1) เชิญบอท "พร้อมโพส" เข้ากลุ่ม 2) พิมพ์รหัสส่งในกลุ่ม 3) บอทตอบว่าเชื่อมแล้ว · รหัสหมดอายุ {time(code.expiresAt)}
+          </p>
+          <p className="mt-2 text-[11px] text-emerald-600">กำลังรอกลุ่มเชื่อมต่อ…</p>
         </div>
-      ))}
+      )}
+
+      {(channels ?? []).map((c) => {
+        const waiting = !c.groupId;
+        const expired = waiting && (!c.linkExpiresAt || Date.parse(c.linkExpiresAt) < Date.now());
+        return (
+          <div key={c.id} className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-50 px-3 py-2 text-sm">
+            <span className="font-medium text-gray-800">{c.name}</span>
+            <span className="text-xs text-gray-500">
+              {c.topics.map(topicLabel).join(", ")}
+              {c.topics.some((t) => t !== "editor") && ` · สรุป ${String(c.sendHour).padStart(2, "0")}:00`}
+              {teamName(c.teamId) && ` · ${teamName(c.teamId)}`}
+              {!c.enabled && !waiting && " · ปิดอยู่"}
+            </span>
+            {waiting && (
+              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+                {expired ? "ยังไม่ได้เชื่อมกลุ่ม" : `รอพิมพ์รหัส ${c.linkCode}`}
+              </span>
+            )}
+            <span className="ml-auto flex gap-1.5">
+              {waiting ? (
+                <button onClick={() => requestCode({ channelId: c.id }, c.name)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-brand-600 hover:bg-white">ขอรหัสใหม่</button>
+              ) : (
+                <button onClick={() => test(c)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-white">ส่งทดสอบ</button>
+              )}
+              <button onClick={() => setEditing({ ...c })} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 hover:bg-white">แก้ไข</button>
+              <button onClick={() => remove(c)} className="rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-rose-600 hover:bg-white">ลบ</button>
+            </span>
+          </div>
+        );
+      })}
+
       {editing && (
         <div className="space-y-3 rounded-xl border border-brand-200 bg-brand-50/30 p-3">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="ชื่อช่อง เช่น กลุ่มการเงิน" className={field} />
-            <input value={editing.groupId} onChange={(e) => setEditing({ ...editing, groupId: e.target.value })} placeholder="Group ID (C...)" className={field} />
-            <label className="flex items-center gap-2 text-xs text-gray-600">
-              ส่งตอน
-              <select value={editing.sendHour} onChange={(e) => setEditing({ ...editing, sendHour: Number(e.target.value) })} className={field}>
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
-                ))}
-              </select>
-            </label>
+            <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="ชื่อกลุ่ม เช่น กลุ่ม Editor" className={field} />
             <label className="flex items-center gap-2 text-xs text-gray-600">
               เฉพาะทีม
               <select value={editing.teamId ?? ""} onChange={(e) => setEditing({ ...editing, teamId: e.target.value || null })} className={field}>
@@ -191,8 +237,9 @@ function LineChannelsCard() {
               </select>
             </label>
           </div>
+          <p className="text-xs font-medium text-gray-600">กลุ่มนี้จะได้รับ</p>
           <div className="flex flex-wrap gap-3 text-sm text-gray-700">
-            {DIGEST_TOPICS.map((t) => (
+            {LINE_TOPICS.map((t) => (
               <label key={t.key} className="flex items-center gap-1.5">
                 <input
                   type="checkbox"
@@ -204,14 +251,28 @@ function LineChannelsCard() {
                 {t.label}
               </label>
             ))}
-            <label className="ml-auto flex items-center gap-1.5">
+          </div>
+          {editing.topics.some((t) => t !== "editor") && (
+            <label className="flex items-center gap-2 text-xs text-gray-600">
+              ส่งสรุปประจำวันตอน
+              <select value={editing.sendHour} onChange={(e) => setEditing({ ...editing, sendHour: Number(e.target.value) })} className={field}>
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{String(h).padStart(2, "0")}:00</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {editing.id && (
+            <label className="flex items-center gap-1.5 text-sm text-gray-700">
               <input type="checkbox" checked={editing.enabled} onChange={(e) => setEditing({ ...editing, enabled: e.target.checked })} />
               เปิดใช้งาน
             </label>
-          </div>
+          )}
           <div className="flex justify-end gap-2">
             <button onClick={() => { setEditing(null); setMessage(""); }} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-white">ยกเลิก</button>
-            <button onClick={save} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">บันทึก</button>
+            <button onClick={save} className="rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-600">
+              {editing.id ? "บันทึก" : "สร้างรหัสเชื่อมกลุ่ม"}
+            </button>
           </div>
         </div>
       )}
