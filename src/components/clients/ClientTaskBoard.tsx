@@ -6,9 +6,10 @@ import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarDays, CheckCheck, Printer, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
+import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
 import { QueueModal, type QueueDraft } from "@/components/clients/QueueModal";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
-import { updateTaskRow, saveQueue, deleteQueue } from "@/lib/supabase/queries";
+import { updateTaskRow, saveQueue, deleteQueue, deleteTaskRow } from "@/lib/supabase/queries";
 import { patchTaskWithFlow } from "@/lib/taskFlow";
 import { STAGES, statusLabel, statusesFor } from "@/lib/workflow";
 import type { Client, Queue, Staff, Task, TaskStatus } from "@/lib/types";
@@ -132,6 +133,29 @@ export function ClientTaskBoard({
     onToast("บันทึกแล้ว");
   }
 
+  async function bulkDelete() {
+    const ids = [...selected];
+    if (!window.confirm(`ลบ ${ids.length} งานที่เลือกใช่ไหม?`)) return;
+    const removed = tasks.filter((t) => selected.has(t.id));
+    onTasksChange((p) => p.filter((t) => !selected.has(t.id)));
+    setSelected(new Set());
+    try {
+      await Promise.all(ids.map((id) => deleteTaskRow(id)));
+    } catch {
+      onTasksChange((p) => [...removed, ...p]);
+      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  function toggleGroup(g: Group) {
+    setSelected((p) => {
+      const n = new Set(p);
+      const all = g.tasks.length > 0 && g.tasks.every((t) => n.has(t.id));
+      g.tasks.forEach((t) => (all ? n.delete(t.id) : n.add(t.id)));
+      return n;
+    });
+  }
+
   function toggleSelect(id: string) {
     setSelected((p) => {
       const n = new Set(p);
@@ -159,18 +183,40 @@ export function ClientTaskBoard({
   return (
     <div className="space-y-3">
       {selected.size > 0 && (
-        <div className="sticky top-2 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-4 py-2 text-sm shadow">
-          <span className="font-medium text-brand-700">เลือก {selected.size} คลิป</span>
-          <button onClick={() => setAssignFor([...selected])} className="rounded-lg bg-brand-500 px-3 py-1 text-xs font-medium text-white hover:bg-brand-600">
-            จัดเข้าคิว…
-          </button>
-          <a href={`/print/scripts?ids=${[...selected].join(",")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-lg border border-brand-300 bg-white px-3 py-1 text-xs font-medium text-brand-700 hover:bg-brand-100">
-            <Printer size={12} /> พิมพ์สคริปต์ (A4 + QR)
-          </a>
-          <button onClick={() => setSelected(new Set())} className="ml-auto text-xs text-gray-500 hover:underline">
-            ล้างที่เลือก
-          </button>
-        </div>
+        <BulkActionBar
+          count={selected.size}
+          total={tasks.length}
+          onSelectAll={() => setSelected(new Set(tasks.map((t) => t.id)))}
+          clients={[client]}
+          staff={staff}
+          onPatch={(patch) => {
+            selected.forEach((id) => {
+              const t = tasks.find((x) => x.id === id);
+              if (t) void change(t, patch);
+            });
+            onToast("บันทึกแล้ว");
+          }}
+          onStage={(stage) => {
+            selected.forEach((id) => {
+              const t = tasks.find((x) => x.id === id);
+              if (t) changeStage(t, stage);
+            });
+            onToast("บันทึกแล้ว");
+          }}
+          onDelete={bulkDelete}
+          onClear={() => setSelected(new Set())}
+          extraLabel="คิว / พิมพ์"
+          extra={
+            <>
+              <button onClick={() => setAssignFor([...selected])} className="rounded-xl bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600">
+                จัดเข้าคิว…
+              </button>
+              <a href={`/print/scripts?ids=${[...selected].join(",")}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 rounded-xl border border-brand-300 bg-white px-4 py-2.5 text-sm font-medium text-brand-700 hover:bg-brand-50">
+                <Printer size={14} /> พิมพ์สคริปต์ (A4 + QR)
+              </a>
+            </>
+          }
+        />
       )}
 
       {groups.length === 0 && (
@@ -182,6 +228,13 @@ export function ClientTaskBoard({
         return (
           <div key={g.key} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card">
             <div className="flex flex-wrap items-center gap-2 bg-gray-50 px-4 py-2.5">
+              <input
+                type="checkbox"
+                aria-label={`เลือกทั้งหมดใน ${g.title}`}
+                checked={g.tasks.length > 0 && g.tasks.every((t) => selected.has(t.id))}
+                onChange={() => toggleGroup(g)}
+                disabled={g.tasks.length === 0}
+              />
               <button onClick={() => setOpen((p) => ({ ...p, [g.key]: !isOpen(g) }))} className="flex items-center gap-1.5 text-sm font-semibold text-gray-800">
                 {isOpen(g) ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
                 {g.title}
@@ -298,6 +351,7 @@ export function ClientTaskBoard({
                         </td>
                         <td className="px-2 py-2">
                           <div className="flex flex-col gap-1 text-[10px] text-gray-400">
+                            {t.type !== "plan" && (
                             <label className="flex items-center gap-1">
                               Deadline
                               <input
@@ -308,11 +362,25 @@ export function ClientTaskBoard({
                                 className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
                               />
                             </label>
+                            )}
+                            {(t.type === "approved" || t.type === "posted") && (
+                              <label className="flex items-center gap-1">
+                                วันโพส
+                                <input
+                                  type="date"
+                                  value={t.postDate ?? ""}
+                                  onChange={(e) => change(t, { postDate: e.target.value || undefined })}
+                                  className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
+                                />
+                              </label>
+                            )}
                           </div>
                         </td>
-                        <td className="w-40 px-2 py-2 text-right">
+                        <td className="w-56 px-2 py-2 text-right">
                           <span className="mr-1.5 inline-flex items-center">
+                            <TaskLinkButton label="Ref" url={t.refLink} onSave={(url) => change(t, { refLink: url ?? "" })} />
                             <TaskLinkButton label="File" url={t.footageUrl} onSave={(url) => change(t, { footageUrl: url ?? "" })} />
+                            <TaskLinkButton tone="blue" label="Final" url={t.finalUrl} onSave={(url) => change(t, { finalUrl: url ?? "" })} />
                           </span>
                           <button onClick={() => expand(t)} className="rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
                             {expanded === t.id ? "ปิด" : "สคริปต์"}

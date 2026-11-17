@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { PALETTE, type ColorStem } from "@/lib/colors";
+import { initials } from "@/components/v2/AppGrid";
+import { listClientLogos } from "@/lib/supabase/queries";
 import type { Client } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +21,10 @@ export function ClientMultiFilter({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [logos, setLogos] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (open) listClientLogos().then(setLogos).catch(() => {});
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -82,24 +89,31 @@ export function ClientMultiFilter({
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 md:grid-cols-8">
                 {shown.map((c) => {
                   const on = selected.includes(c.id);
+                  const logo = logos[c.id] || c.brandImages?.[0];
+                  const stem = (c.colorTag in PALETTE ? c.colorTag : "orange") as ColorStem;
                   return (
-                    <button
-                      key={c.id}
-                      onClick={() => toggle(c.id)}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm transition",
-                        on ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
-                      )}
-                    >
-                      {on && <Check size={13} />}
-                      {c.name}
+                    <button key={c.id} onClick={() => toggle(c.id)} className="flex flex-col items-center gap-1 rounded-xl p-1 text-center" aria-pressed={on}>
+                      <span className={cn("relative block aspect-square w-full max-w-[64px] overflow-hidden rounded-xl shadow-card transition", on ? "ring-2 ring-brand-500 ring-offset-2" : "opacity-90")}>
+                        {logo ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={logo} alt="" decoding="async" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className={cn("flex h-full w-full items-center justify-center text-base font-bold text-white", PALETTE[stem].solid)}>{initials(c.name)}</span>
+                        )}
+                        {on && (
+                          <span className="absolute inset-0 flex items-center justify-center bg-brand-500/45 text-white">
+                            <Check size={22} strokeWidth={3} />
+                          </span>
+                        )}
+                      </span>
+                      <span className="line-clamp-2 w-full text-[11px] font-medium leading-tight text-gray-700">{c.name}</span>
                     </button>
                   );
                 })}
-                {shown.length === 0 && <p className="py-6 text-sm text-gray-400">ไม่พบลูกค้าที่ค้นหา</p>}
+                {shown.length === 0 && <p className="col-span-full py-6 text-sm text-gray-400">ไม่พบลูกค้าที่ค้นหา</p>}
               </div>
             </div>
 

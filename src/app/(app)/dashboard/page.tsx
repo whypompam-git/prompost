@@ -408,6 +408,8 @@ function DashboardPageInner() {
       {selected.size > 0 && (
         <BulkActionBar
           count={selected.size}
+          total={visibleTasks.length}
+          onSelectAll={() => setSelected(new Set(visibleTasks.map((t) => t.id)))}
           clients={clients}
           staff={staff}
           onPatch={bulkPatch}
@@ -420,6 +422,7 @@ function DashboardPageInner() {
       {bulkOpen && (
         <BulkTaskModal
           clients={clients}
+          defaultClientId={clientFilter.length === 1 ? clientFilter[0] : undefined}
           tasks={tasks}
           sets={sets}
           onClose={() => setBulkOpen(false)}
@@ -430,6 +433,7 @@ function DashboardPageInner() {
         <TaskModal
           clients={clients}
           staff={staff}
+          defaultClientId={clientFilter.length === 1 ? clientFilter[0] : undefined}
           onClose={() => setCreating(false)}
           onSave={handleSave}
         />

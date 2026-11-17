@@ -183,6 +183,12 @@ export function TaskTable({
     <>
       {/* ── Phone: compact cards, fields in the order title → client → dates → type → status → assignee → links */}
       <div className="space-y-2.5 md:hidden">
+        {tasks.length > 0 && (
+          <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
+            <input type="checkbox" checked={tasks.every((t) => selected.has(t.id))} onChange={onToggleAll} />
+            เลือกทั้งหมด ({tasks.length})
+          </label>
+        )}
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <span>เรียงตาม</span>
           <select

@@ -25,17 +25,19 @@ export function BulkTaskModal({
   clients,
   tasks,
   sets = [],
+  defaultClientId,
   onClose,
   onSave,
 }: {
   clients: Client[];
   tasks: Task[];
   sets?: ContentSet[];
+  defaultClientId?: string;
   onClose: () => void;
   onSave: (values: BulkTaskValues) => Promise<void>;
 }) {
   const { types } = useTaskSettings();
-  const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [clientId, setClientId] = useState(defaultClientId ?? clients[0]?.id ?? "");
   const [count, setCount] = useState(10);
   const [startTouched, setStartTouched] = useState(false);
   const [startAtManual, setStartAtManual] = useState(1);
