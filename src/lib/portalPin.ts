@@ -20,7 +20,7 @@ export async function pinRow(clientId: string) {
   return data as { pin_hash: string; failed_attempts: number; locked_until: string | null; set_at: string } | null;
 }
 
-async function staffOfWorkspace(workspaceId: string): Promise<boolean> {
+export async function staffOfWorkspace(workspaceId: string): Promise<boolean> {
   const claims = await verifySession(cookies().get(SESSION_COOKIE)?.value ?? "");
   if (!claims) return false;
   const live = await fetchLiveAccess(claims.staffId);

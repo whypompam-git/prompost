@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ExternalLink, Film, X } from "lucide-react";
+import { Check, Download, ExternalLink, Film, X } from "lucide-react";
 import { driveDownload, drivePreview, driveThumb } from "@/lib/drive";
 
-export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string };
+export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean };
 
 const withScheme = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 
@@ -27,6 +27,11 @@ export function DriveGrid({ clips }: { clips: DriveClip[] }) {
                 <img src={thumb} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <span className="flex h-full w-full items-center justify-center text-gray-300"><Film size={26} /></span>
+              )}
+              {t.posted && (
+                <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-1 ring-white/70" title="โพสแล้ว">
+                  <Check size={12} strokeWidth={3} />
+                </span>
               )}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 pb-1.5 pt-6">
                 {t.subtitle && <span className="block truncate text-[10px] font-semibold text-white">{t.subtitle}</span>}

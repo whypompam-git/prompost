@@ -169,7 +169,7 @@ export default function V2MePage() {
         mineDone.length === 0 ? (
           <p className="py-12 text-center text-sm text-gray-400">ยังไม่มีงานที่เสร็จ</p>
         ) : (
-          <DriveGrid clips={mineDone.map((t) => ({ id: t.id, title: t.title, subtitle: clientName(t.clientId), finalUrl: t.finalUrl ?? null, coverUrl: t.coverUrl ?? null }))} />
+          <DriveGrid clips={mineDone.map((t) => ({ id: t.id, title: t.title, subtitle: clientName(t.clientId), finalUrl: t.finalUrl ?? null, coverUrl: t.coverUrl ?? null, posted: t.type === "posted" }))} />
         )
       ) : myClients.length === 0 ? (
         <p className="py-12 text-center text-sm text-gray-400">ยังไม่มีลูกค้าที่คุณเป็นผู้ดูแล</p>

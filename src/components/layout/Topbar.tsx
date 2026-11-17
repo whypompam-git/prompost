@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "@/components/ui/Link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, LogOut } from "lucide-react";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { QuickNoteButton } from "@/components/layout/QuickNoteButton";
@@ -19,7 +19,11 @@ export function Topbar({
   back?: string; // fallback route when there is no history to go back to
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const auth = useAuth();
+  // every page except the top-level tabs gets a back button (a phone app opened from the home screen has no browser back)
+  const ROOTS = ["/dashboard", "/v2/clients", "/v2/calendar", "/v2/notes", "/v2/review", "/v2/me", "/my-work", "/"];
+  const backTo = back ?? (ROOTS.includes(pathname) ? undefined : pathname.startsWith("/v2/") ? "/v2/clients" : "/dashboard");
   const [me, setMe] = useState<{ name: string; photoUrl?: string } | null>(null);
 
   useEffect(() => {
@@ -40,9 +44,9 @@ export function Topbar({
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
       <div className="flex min-w-0 items-center gap-2">
-        {back && (
+        {backTo && (
           <button
-            onClick={() => (window.history.length > 1 ? router.back() : router.push(back))}
+            onClick={() => (window.history.length > 1 ? router.back() : router.push(backTo))}
             className="-ml-2 rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
             aria-label="ย้อนกลับ"
           >

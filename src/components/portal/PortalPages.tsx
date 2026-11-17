@@ -1,4 +1,5 @@
-import { portalGate } from "@/lib/portalPin";
+import { portalGate, staffOfWorkspace } from "@/lib/portalPin";
+import { StaffBackBar } from "@/components/portal/StaffBackBar";
 import { PortalPinScreen } from "@/components/portal/PortalPinScreen";
 import { notFound } from "next/navigation";
 import { LinkRevoked } from "@/components/portal/LinkRevoked";
@@ -19,8 +20,10 @@ export async function PortalReviewPage({ clientKey, basePath }: { clientKey: str
   // the client's PIN (staff of this workspace skip it)
   const gate = await portalGate(portal.client);
   if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
+  const staffView = await staffOfWorkspace(portal.client.workspace_id);
   return (
     <div className="h-[100dvh] bg-gray-950 pb-16">
+      {staffView && <StaffBackBar />}
       <PortalReviewFeed clientKey={clientKey} />
       <PortalTabs basePath={basePath} active="review" badges={portal.badges} />
     </div>
@@ -34,6 +37,7 @@ export async function PortalPlanPage({ clientKey, basePath }: { clientKey: strin
   // the client's PIN (staff of this workspace skip it)
   const gate = await portalGate(portal.client);
   if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
+  const staffView = await staffOfWorkspace(portal.client.workspace_id);
   const { data } = await createAdminClient()
     .from("tasks")
     .select("id, title, script_text, ref_link, content_category, revision_count")
@@ -46,6 +50,7 @@ export async function PortalPlanPage({ clientKey, basePath }: { clientKey: strin
     .map((t) => ({ id: t.id, title: t.title, script: t.script_text, ref: t.ref_link, category: t.content_category }));
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-28 pt-8">
+      {staffView && <StaffBackBar />}
       <div className="mx-auto max-w-2xl space-y-5">
         <PortalHeader title="แผนคอนเทนต์" logo={portal.logo} subtitle={portal.client.name} />
         <PortalPlanDeck clientKey={clientKey} cards={cards} />
@@ -62,6 +67,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
   // the client's PIN (staff of this workspace skip it)
   const gate = await portalGate(portal.client);
   if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={portal.client.name} mode={gate} />;
+  const staffView = await staffOfWorkspace(portal.client.workspace_id);
   const { data } = await createAdminClient()
     .from("tasks")
     .select("id, title, type, final_url, cover_url, post_date, edit_date")
@@ -71,6 +77,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
   const files = data ?? [];
   return (
     <div className="min-h-screen bg-gray-50 pb-28 pt-8">
+      {staffView && <StaffBackBar />}
       <div className="mx-auto max-w-2xl space-y-5">
         <div className="px-4">
           <PortalHeader title="ไฟล์งาน" logo={portal.logo} subtitle={`${portal.client.name} · ${files.length} คลิป`} />
@@ -78,7 +85,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
         {files.length === 0 ? (
           <p className="mx-4 rounded-2xl bg-white p-10 text-center text-sm text-gray-400 shadow-card">ยังไม่มีคลิปที่อนุมัติแล้ว</p>
         ) : (
-          <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined }))} />
+          <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined, posted: t.type === "posted" }))} />
         )}
       </div>
       <PortalTabs basePath={basePath} active="files" badges={portal.badges} />

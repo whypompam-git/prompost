@@ -1,4 +1,5 @@
-import { portalGate } from "@/lib/portalPin";
+import { portalGate, staffOfWorkspace } from "@/lib/portalPin";
+import { StaffBackBar } from "@/components/portal/StaffBackBar";
 import { PortalPinScreen } from "@/components/portal/PortalPinScreen";
 import { notFound } from "next/navigation";
 import Link from "@/components/ui/Link";
@@ -28,6 +29,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
   // the client's PIN (staff of this workspace skip it)
   const gate = await portalGate(client);
   if (gate !== "open") return <PortalPinScreen clientKey={clientKey} clientName={client.name} mode={gate} />;
+  const staffView = await staffOfWorkspace(client.workspace_id);
 
   const { data: tasks } = await supabase
     .from("tasks")
@@ -84,6 +86,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-28 pt-8">
+      {staffView && <StaffBackBar />}
       <div className="mx-auto max-w-2xl space-y-5">
         <PortalHeader title={client.name} logo={portal?.logo} subtitle="ยินดีต้อนรับ" />
 
