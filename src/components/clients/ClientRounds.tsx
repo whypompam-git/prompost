@@ -214,7 +214,7 @@ export function ClientRounds({ client, onChanged }: { client: Client; onChanged?
               {ri.map((x) => invoiceRow(x, r.id))}
               {rr.map((x) => receiptRow(x, r.id))}
               {rf.map((f) => (
-                <Row key={f.id} icon={<Paperclip size={15} />} title={f.name} sub={`ไฟล์ที่ลูกค้าส่งมา · ${dateLabel(f.createdAt)}${f.sizeBytes ? ` · ${Math.max(1, Math.round(f.sizeBytes / 1024))} KB` : ""}`} open={`/api/round-files?id=${f.id}`}
+                <Row key={f.id} iconOnly={false} icon={<Paperclip size={15} />} title={f.name} sub={`ไฟล์ที่ลูกค้าส่งมา · ${dateLabel(f.createdAt)}${f.sizeBytes ? ` · ${Math.max(1, Math.round(f.sizeBytes / 1024))} KB` : ""}`} open={`/api/round-files?id=${f.id}`}
                   onDelete={() => confirmDelete(`ไฟล์ ${f.name}`, () => deleteRoundFile(f.id))} />
               ))}
               {count === 0 && <p className="px-4 py-4 text-center text-xs text-gray-400">ยังไม่มีเอกสารในแพ็คเกจนี้ กดปุ่มด้านล่างเพื่อสร้าง</p>}
@@ -309,14 +309,14 @@ function UploadBtn({ onPick, disabled }: { onPick: (f: File | undefined) => void
   );
 }
 
-function Row({ icon, title, sub, amount, extra, print, link, open, feedback, move, onDelete }: {
-  icon: React.ReactNode; title: string; sub: string; amount?: number; extra?: React.ReactNode; print?: string; link?: string; open?: string; feedback?: string; move?: React.ReactNode; onDelete: () => void;
+function Row({ iconOnly = true, icon, title, sub, amount, extra, print, link, open, feedback, move, onDelete }: {
+  iconOnly?: boolean; icon: React.ReactNode; title: string; sub: string; amount?: number; extra?: React.ReactNode; print?: string; link?: string; open?: string; feedback?: string; move?: React.ReactNode; onDelete: () => void;
 }) {
   return (
     <div className="px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-gray-400">{icon}</span>
-        <div className="min-w-[11rem] flex-1"><p className="truncate text-sm font-medium text-gray-800">{title}</p><p className="truncate text-xs text-gray-400">{sub}</p></div>
+        <div className={`flex-1 ${iconOnly ? "min-w-[5rem]" : "min-w-[11rem]"}`}><p className={`truncate text-sm font-medium text-gray-800 ${iconOnly ? "hidden sm:block" : ""}`}>{title}</p><p className="truncate text-xs text-gray-400">{sub}</p></div>
         {extra}{move}
         {amount !== undefined && <p className="text-sm font-semibold tabular-nums text-gray-900">฿{currency(amount)}</p>}
         <div className="flex items-center">
