@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { th } from "date-fns/locale";
 import { CalendarDays, CheckCheck, Printer, ChevronDown, ChevronRight, Pencil, Trash2, Users } from "lucide-react";
 import { TaskLinkButton } from "@/components/dashboard/TaskLinkButton";
+import { PostDateField } from "@/components/tasks/PostDateField";
 import { BulkActionBar } from "@/components/dashboard/BulkActionBar";
 import { QueueModal, type QueueDraft } from "@/components/clients/QueueModal";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
@@ -364,15 +365,10 @@ export function ClientTaskBoard({
                             </label>
                             )}
                             {(t.type === "approved" || t.type === "posted") && (
-                              <label className="flex items-center gap-1">
-                                วันโพส
-                                <input
-                                  type="date"
-                                  value={t.postDate ?? ""}
-                                  onChange={(e) => change(t, { postDate: e.target.value || undefined })}
-                                  className="rounded border border-gray-200 px-1 py-0.5 text-[11px] text-gray-700 focus:outline-none"
-                                />
-                              </label>
+                              <div className="flex flex-col gap-0.5">
+                                <span>วันโพส</span>
+                                <PostDateField compact postDate={t.postDate} postBy={t.postBy} onChange={(p) => change(t, p)} />
+                              </div>
                             )}
                           </div>
                         </td>

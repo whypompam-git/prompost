@@ -9,11 +9,14 @@ import { PALETTE, pillClass, type ColorStem } from "@/lib/colors";
 import type { CalendarChip, ChipGroup } from "@/lib/calendarChips";
 import { cn } from "@/lib/utils";
 
-const GROUP_COLOR: Record<ChipGroup, ColorStem> = { plan: "violet", shoot: "sky", edit: "orange", other: "gray" };
+const GROUP_COLOR: Record<ChipGroup, ColorStem> = { plan: "violet", shoot: "sky", edit: "orange", revise: "rose", delivered: "emerald", post: "teal", other: "gray" };
 const LEGEND: { group: ChipGroup; label: string }[] = [
   { group: "plan", label: "Plan" },
   { group: "shoot", label: "ถ่าย (ตามคิว)" },
   { group: "edit", label: "ตัดต่อ/ส่งงาน (Deadline = วันตัดต่อ)" },
+  { group: "revise", label: "ลูกค้าสั่งแก้ (วันที่รับบรีฟ — ลากย้ายได้)" },
+  { group: "delivered", label: "ส่งลูกค้าแล้ว" },
+  { group: "post", label: "วันโพส" },
   { group: "other", label: "งานอื่นๆ" },
 ];
 const WEEKDAYS = ["จ.", "อ.", "พ.", "พฤ.", "ศ.", "ส.", "อา."];

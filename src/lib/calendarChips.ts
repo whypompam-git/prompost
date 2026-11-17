@@ -3,7 +3,7 @@
 // not started yet, so they never appear. Pure + unit-tested.
 import type { Client, Queue, Staff, Task } from "./types.ts";
 
-export type ChipGroup = "plan" | "shoot" | "edit" | "other";
+export type ChipGroup = "plan" | "shoot" | "edit" | "revise" | "delivered" | "post" | "other";
 
 export type CalendarChip = {
   key: string;
@@ -18,14 +18,14 @@ export type CalendarChip = {
   taskIds: string[]; // clips in this chip (dragging the chip moves them)
 };
 
-const GROUP_LABEL: Record<Exclude<ChipGroup, "other">, string> = { plan: "Plan", shoot: "ถ่าย", edit: "ตัดต่อ" };
+const GROUP_LABEL: Record<Exclude<ChipGroup, "other">, string> = { plan: "Plan", shoot: "ถ่าย", edit: "ตัดต่อ", revise: "แก้", delivered: "ส่งแล้ว", post: "โพส" };
 
 // One chip per clip stage — delivery is not shown any more (the delivery date
 // is the same as the edit date):
 //   plan             → its date (วันถ่าย, still a placeholder until the client picks)
 //   shoot            → the queue's shoot date
 //   edit / QC        → its วันตัดต่อ (edit_date), when the editors work on it
-function placements(t: Task, queues: Map<string, Queue>): { group: ChipGroup; date: string | undefined }[] {
+function placements(t: Task, queues: Map<string, Queue>, revisedOn: Map<string, string>): { group: ChipGroup; date: string | undefined }[] {
   const out: { group: ChipGroup; date: string | undefined }[] = [];
   switch (t.type) {
     case "plan":
@@ -35,9 +35,25 @@ function placements(t: Task, queues: Map<string, Queue>): { group: ChipGroup; da
       out.push({ group: "shoot", date: t.queueId ? queues.get(t.queueId)?.shootDate : t.scheduledDate });
       break;
     case "edit":
-    case "qc":
+    case "qc": {
       // the delivery deadline is the edit date; clips without one yet fall back to their due date so none go missing
-      out.push({ group: "edit", date: t.editDate ?? t.dueDate ?? undefined });
+      const planned = t.editDate ?? t.dueDate ?? undefined;
+      if (t.type === "edit" && (t.revisionCount ?? 0) > 0) {
+        // sent back for changes: it shows on the day the brief came in until the editor plans a later day
+        const briefDay = revisedOn.get(t.id);
+        const day = briefDay && (!planned || planned < briefDay) ? briefDay : planned;
+        out.push({ group: "revise", date: day });
+      } else {
+        out.push({ group: "edit", date: planned });
+      }
+      break;
+    }
+    case "pending":
+    case "approved":
+    case "posted":
+      // already sent to the client: shown on the day it was delivered (the edit date)
+      out.push({ group: "delivered", date: t.editDate ?? t.dueDate ?? undefined });
+      if ((t.type === "approved" || t.type === "posted") && t.postDate) out.push({ group: "post", date: t.postDate });
       break;
     case "other":
       if (t.status !== "done") out.push({ group: "other", date: t.scheduledDate });
@@ -46,14 +62,15 @@ function placements(t: Task, queues: Map<string, Queue>): { group: ChipGroup; da
   return out;
 }
 
-export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clients: Client[]; staff: Staff[] }): CalendarChip[] {
+export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clients: Client[]; staff: Staff[]; revisedOn?: Map<string, string> }): CalendarChip[] {
+  const revisedOn = input.revisedOn ?? new Map<string, string>();
   const queues = new Map(input.queues.map((q) => [q.id, q]));
   const clientName = (id: string) => input.clients.find((c) => c.id === id)?.name ?? "—";
   const staffName = (id: string) => input.staff.find((s) => s.id === id)?.name;
   const chips = new Map<string, CalendarChip & { names: Set<string> }>();
 
   for (const t of input.tasks) {
-    for (const p of placements(t, queues)) {
+    for (const p of placements(t, queues, revisedOn)) {
     if (!p.date) continue;
     if (p.group === "other") {
       chips.set(`task:${t.id}`, { key: `task:${t.id}`, date: p.date, clientId: t.clientId, queueId: null, group: "other", count: 1, label: t.title, crew: [], names: new Set(), href: `/tasks/${t.id}`, taskIds: [t.id] });
@@ -84,7 +101,7 @@ export function buildCalendarChips(input: { tasks: Task[]; queues: Queue[]; clie
     }
     chip.count += 1;
     chip.taskIds.push(t.id);
-    if (p.group === "edit") {
+    if (p.group === "edit" || p.group === "revise") {
       const who = t.type === "edit" ? (t.editorId ?? t.assigneeId) : t.assigneeId;
       if (who && staffName(who)) chip.names.add(staffName(who)!);
     }

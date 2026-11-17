@@ -86,7 +86,8 @@ export interface Task {
   scriptText?: string; // typed in-app; **bold** / __underline__ markers, see ScriptEditor
   shots?: string[]; // free-typed, remembered/suggested across tasks
   equipment?: string[]; // free-typed, remembered/suggested across tasks
-  postDate?: string; // ISO date — "วันที่โพส"
+  postDate?: string; // ISO date — "วันที่โพส" (can be a future date = the planned post day)
+  postBy?: "us" | "client"; // who posts it
   finalUrl?: string; // Google Drive link — final delivered video
   coverUrl?: string; // uploaded clip cover image — shown next to Final on the client link
   queueId?: string | null; // shoot batch (คิว) this clip belongs to

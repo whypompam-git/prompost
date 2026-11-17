@@ -4,14 +4,29 @@ import { useState } from "react";
 import { Check, Download, ExternalLink, Film, X } from "lucide-react";
 import { driveDownload, drivePreview, driveThumb } from "@/lib/drive";
 
-export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean };
+export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean; postDate?: string | null; postBy?: string | null };
 
 const withScheme = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 
 // Instagram-style grid of finished clips. Tapping one plays it right here (Drive's
 // player) with download and "open in Drive" buttons.
-export function DriveGrid({ clips }: { clips: DriveClip[] }) {
+export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { clientKey: string } }) {
   const [open, setOpen] = useState<DriveClip | null>(null);
+  const [dates, setDates] = useState<Record<string, string | null>>({});
+  const [saving, setSaving] = useState(false);
+  const postOf = (c: DriveClip) => (c.id in dates ? dates[c.id] : c.postDate) ?? null;
+  async function savePostDate(c: DriveClip, value: string | null) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/portal/post-date", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientKey: postApi!.clientKey, taskId: c.id, postDate: value }) });
+      if (!res.ok) throw new Error();
+      setDates((p) => ({ ...p, [c.id]: value }));
+    } catch {
+      window.alert("บันทึกวันโพสไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
+    }
+  }
   const preview = open ? drivePreview(open.finalUrl) : undefined;
   const download = open ? driveDownload(open.finalUrl) : undefined;
 
@@ -31,6 +46,11 @@ export function DriveGrid({ clips }: { clips: DriveClip[] }) {
               {t.posted && (
                 <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-1 ring-white/70" title="โพสแล้ว">
                   <Check size={12} strokeWidth={3} />
+                </span>
+              )}
+              {!t.posted && postOf(t) && (
+                <span className="absolute left-1.5 top-1.5 rounded-full bg-sky-600/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                  โพส {new Date(postOf(t)!).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
                 </span>
               )}
               <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 to-transparent px-1.5 pb-1.5 pt-6">
@@ -56,6 +76,19 @@ export function DriveGrid({ clips }: { clips: DriveClip[] }) {
               <p className="p-6 text-center text-sm text-white/70">ลิงก์นี้ไม่ใช่ไฟล์ Google Drive — เปิดดูจากปุ่มด้านล่าง</p>
             )}
           </div>
+          {postApi && !open.posted && (
+            <div className="mx-3 mb-2 flex flex-wrap items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-white">
+              <span className="font-semibold">วันที่จะโพส</span>
+              <input
+                type="date"
+                disabled={saving}
+                value={postOf(open) ?? ""}
+                onChange={(e) => savePostDate(open, e.target.value || null)}
+                className="rounded-lg border border-white/30 bg-white px-2 py-1 text-sm text-gray-900"
+              />
+              <span className="text-white/60">{postOf(open) ? "ทีมงานเห็นวันนี้แล้ว" : "ยังไม่ได้ตั้ง (ลูกค้าตั้งวันเองได้)"}</span>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
             {download ? (
               <a href={download} className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-semibold text-gray-900"><Download size={16} /> ดาวน์โหลด</a>

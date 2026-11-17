@@ -57,3 +57,28 @@ test("edit clips without an edit date fall back to the due date instead of vanis
   const chips = buildCalendarChips({ tasks: [task({ type: "edit", queueId: "q1", editDate: null, dueDate: "2026-11-15" })], queues, clients, staff });
   assert.equal(chips.find((c) => c.group === "edit")?.date, "2026-11-15");
 });
+
+test("delivered clips (pending / approved / posted) appear on their delivery day; planned post days get their own chip", () => {
+  const tasks = [
+    task({ type: "pending", status: "waiting", editDate: "2026-11-10" }),
+    task({ type: "approved", status: "done", editDate: "2026-11-10", postDate: "2026-11-20" }),
+    task({ type: "posted", status: "done", editDate: "2026-11-12" }),
+  ];
+  const chips = buildCalendarChips({ tasks, queues, clients, staff });
+  const delivered = chips.filter((c) => c.group === "delivered");
+  assert.deepEqual(delivered.map((c) => [c.date, c.count]), [["2026-11-10", 2], ["2026-11-12", 1]]);
+  assert.equal(chips.filter((c) => c.group === "post").length, 1);
+  assert.equal(chips.find((c) => c.group === "post")!.date, "2026-11-20");
+});
+
+test("a clip sent back for changes shows on the brief day, or on the later day the editor planned", () => {
+  const revisedOn = new Map<string, string>();
+  const a = task({ type: "edit", queueId: "q1", editDate: "2026-11-05", revisionCount: 1 });
+  const b = task({ type: "edit", queueId: "q1", editDate: "2026-11-30", revisionCount: 2 });
+  revisedOn.set(a.id, "2026-11-10");
+  revisedOn.set(b.id, "2026-11-10");
+  const chips = buildCalendarChips({ tasks: [a, b], queues, clients, staff, revisedOn });
+  const revise = chips.filter((c) => c.group === "revise");
+  assert.deepEqual(revise.map((c) => c.date).sort(), ["2026-11-10", "2026-11-30"]);
+  assert.equal(chips.some((c) => c.group === "edit"), false);
+});

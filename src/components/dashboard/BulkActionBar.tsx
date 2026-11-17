@@ -122,7 +122,15 @@ export function BulkActionBar({
           <>
             {date("วันถ่าย", "scheduledDate")}
             {date("Deadline (วันตัดต่อ)", "editDate")}
-            {date("วันโพส", "postDate")}
+            {date("วันโพส (ตั้งล่วงหน้าได้)", "postDate")}
+            <label className="block">
+              <span className="mb-1 block text-xs font-medium text-gray-500">คนโพส</span>
+              <select className={sel} value="" onChange={(e) => e.target.value && onPatch({ postBy: e.target.value as "us" | "client" })}>
+                <option value="">เลือก…</option>
+                <option value="us">เราโพสให้</option>
+                <option value="client">ลูกค้าโพสเอง</option>
+              </select>
+            </label>
           </>
         )}
         {group === "other" && (

@@ -426,6 +426,7 @@ type TaskRow = {
   shots: string[] | null;
   equipment: string[] | null;
   post_date: string | null;
+  post_by: "us" | "client" | null;
   final_url: string | null;
   cover_url: string | null;
   start_time: string | null;
@@ -442,7 +443,7 @@ type TaskRow = {
 };
 
 const TASK_COLUMNS =
-  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order, edit_date, editor_id, edit_difficulty";
+  "id, client_id, title, type, status, assignee_id, scheduled_date, due_date, notes, footage_url, ref_link, content_category, script_text, shots, equipment, post_date, final_url, cover_url, start_time, end_time, shot_by, shot_team_id, revision_count, revision_brief, queue_id, shoot_order, edit_date, editor_id, edit_difficulty, post_by";
 
 const fromTaskRow = (r: TaskRow): Task => ({
   id: r.id,
@@ -461,6 +462,7 @@ const fromTaskRow = (r: TaskRow): Task => ({
   shots: r.shots ?? [],
   equipment: r.equipment ?? [],
   postDate: r.post_date ?? undefined,
+  postBy: r.post_by ?? "us",
   finalUrl: r.final_url ?? undefined,
   coverUrl: r.cover_url ?? undefined,
   startTime: r.start_time?.slice(0, 5) ?? undefined,
@@ -624,6 +626,7 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.shots !== undefined) patch.shots = values.shots;
   if (values.equipment !== undefined) patch.equipment = values.equipment;
   if (values.postDate !== undefined) patch.post_date = values.postDate || null;
+  if (values.postBy !== undefined) patch.post_by = values.postBy;
   if (values.finalUrl !== undefined) patch.final_url = values.finalUrl;
   if (values.coverUrl !== undefined) patch.cover_url = values.coverUrl || null;
   if (values.startTime !== undefined) patch.start_time = values.startTime || null;
@@ -2058,6 +2061,15 @@ export async function listTaskRevisions(taskId: string): Promise<TaskRevision[]>
     source: r.source,
     createdAt: r.created_at,
   }));
+}
+
+// the day the latest revision brief of each clip came in (for the calendar's "แก้" chips)
+export async function listRevisionDays(): Promise<Map<string, string>> {
+  const { data, error } = await supabase().from("task_revisions").select("task_id, created_at").order("created_at", { ascending: true });
+  if (error) throw error;
+  const out = new Map<string, string>();
+  for (const r of (data ?? []) as { task_id: string; created_at: string }[]) out.set(r.task_id, r.created_at.slice(0, 10));
+  return out;
 }
 
 export type AppNotification = {

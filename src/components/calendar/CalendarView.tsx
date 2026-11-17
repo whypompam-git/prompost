@@ -23,7 +23,7 @@ import { TaskModal, type TaskFormValues } from "@/components/tasks/TaskModal";
 import { TaskManageSheet } from "@/components/calendar/TaskManageSheet";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { buildCalendarChips } from "@/lib/calendarChips";
-import { createTaskRow, listClients, listQueues, listStaff, listTasksLite, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
+import { createTaskRow, listClients, listQueues, listRevisionDays, listStaff, listTasksLite, saveQueue, updateTaskRow } from "@/lib/supabase/queries";
 import type { CalendarChip } from "@/lib/calendarChips";
 import type { Client, Queue, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -44,6 +44,7 @@ export function CalendarView() {
   const [clients, setClients] = useState<Client[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [queues, setQueues] = useState<Queue[]>([]);
+  const [revisedOn, setRevisedOn] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
   const [modalState, setModalState] = useState<ModalState>("closed");
   const [view, setView] = useState<ViewKind>("month");
@@ -54,8 +55,9 @@ export function CalendarView() {
   }, []);
 
   useEffect(() => {
-    Promise.all([listTasksLite(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[])])
-      .then(([t, c, s, q]) => {
+    Promise.all([listTasksLite(), listClients(), listStaff(), listQueues().catch(() => [] as Queue[]), listRevisionDays().catch(() => new Map<string, string>())])
+      .then(([t, c, s, q, rv]) => {
+        setRevisedOn(rv);
         setQueues(q);
         setTasks(t);
         setClients(c);
@@ -70,7 +72,7 @@ export function CalendarView() {
     setModalState("closed");
   }
 
-  const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff }), [tasks, queues, clients, staff]);
+  const chips = useMemo(() => buildCalendarChips({ tasks, queues, clients, staff, revisedOn }), [tasks, queues, clients, staff, revisedOn]);
 
   // the month view shows the chosen month only; use the arrows to go to the next one
   // (it used to scroll on and on and jumped down by itself when the page opened)
@@ -97,7 +99,8 @@ export function CalendarView() {
         await saveQueue({ ...queue, shootDate: date });
         return;
       }
-      const patch = chip.group === "edit" ? { editDate: date } : { scheduledDate: date };
+      const patch = chip.group === "edit" || chip.group === "revise" ? { editDate: date } : chip.group === "post" ? { postDate: date } : chip.group === "delivered" ? {} : { scheduledDate: date };
+      if (Object.keys(patch).length === 0) return; // delivery day is history: nothing to move
       setTasks((prev) => prev.map((t) => (ids.has(t.id) ? { ...t, ...patch } : t)));
       await Promise.all([...ids].map((id) => updateTaskRow(id, patch)));
     } catch (err) {

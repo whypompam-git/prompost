@@ -70,7 +70,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
   const staffView = await staffOfWorkspace(portal.client.workspace_id);
   const { data } = await createAdminClient()
     .from("tasks")
-    .select("id, title, type, final_url, cover_url, post_date, edit_date")
+    .select("id, title, type, final_url, cover_url, post_date, post_by, edit_date")
     .eq("client_id", portal.client.id)
     .in("type", ["approved", "posted"])
     .order("edit_date", { ascending: false });
@@ -85,7 +85,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
         {files.length === 0 ? (
           <p className="mx-4 rounded-2xl bg-white p-10 text-center text-sm text-gray-400 shadow-card">ยังไม่มีคลิปที่อนุมัติแล้ว</p>
         ) : (
-          <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined, posted: t.type === "posted" }))} />
+          <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined, posted: t.type === "posted", postDate: t.post_date, postBy: t.post_by }))} postApi={staffView ? undefined : { clientKey }} />
         )}
       </div>
       <PortalTabs basePath={basePath} active="files" badges={portal.badges} />

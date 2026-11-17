@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { TagInput } from "@/components/ui/TagInput";
 import { ScriptEditor } from "@/components/ui/ScriptEditor";
+import { PostDateField } from "@/components/tasks/PostDateField";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { WorkflowPanel } from "@/components/tasks/WorkflowPanel";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
@@ -360,13 +361,8 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
             </div>
             )}
             <div>
-              <label className={labelClass}>วันที่โพส</label>
-              <input
-                type="date"
-                value={task.postDate ?? ""}
-                onChange={(e) => patch({ postDate: e.target.value })}
-                className={inputClass}
-              />
+              <label className={labelClass}>วันที่โพส (ตั้งล่วงหน้าได้) / คนโพส</label>
+              <PostDateField postDate={task.postDate} postBy={task.postBy} onChange={(p) => patch(p)} />
             </div>
           </div>
 
