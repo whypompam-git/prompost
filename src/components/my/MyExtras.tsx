@@ -172,7 +172,7 @@ type Profile = {
   name: string;
   photoUrl: string | null;
   position: string;
-  done: { id: string; title: string; finalUrl: string | null; coverUrl: string | null; clientName: string }[];
+  done: { id: string; title: string; finalUrl: string | null; coverUrl: string | null; posted?: boolean; clientName: string }[];
   vouchers: { id: string; description: string; net: number; paidAt: string | null; token: string; signed: boolean }[];
 };
 
@@ -260,7 +260,7 @@ export function MyProfile({ contract, inProgress }: { contract: { contractNo: st
         <p className="py-8 text-center text-sm text-gray-400">ยังไม่มีงานที่ลูกค้าอนุมัติ</p>
       ) : (
         <div className="-mx-4 sm:mx-0">
-          <DriveGrid clips={p.done.map((t) => ({ id: t.id, title: t.title, subtitle: t.clientName, finalUrl: t.finalUrl, coverUrl: t.coverUrl }))} />
+          <DriveGrid clips={p.done.map((t) => ({ id: t.id, title: t.title, subtitle: t.clientName, finalUrl: t.finalUrl, coverUrl: t.coverUrl, posted: t.posted }))} />
         </div>
       )}
     </div>

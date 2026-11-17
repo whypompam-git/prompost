@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     position: staff?.position ?? "",
     done: (done ?? []).map((t) => {
       const c = Array.isArray(t.clients) ? t.clients[0] : t.clients;
-      return { id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, clientName: (c as { name: string } | null)?.name ?? "" };
+      return { id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, posted: t.type === "posted", clientName: (c as { name: string } | null)?.name ?? "" };
     }),
     vouchers: (vouchers ?? []).map((v) => ({ id: v.id, description: v.description, net: Number(v.net), paidAt: v.paid_at, token: v.receipt_token, signed: Boolean(v.payee_signed_at) })),
   });

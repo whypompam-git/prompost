@@ -1,24 +1,16 @@
-"use client";
+import Image from "next/image";
+import { APP_LOGO_SRC } from "@/config/branding";
 
-import { useState } from "react";
-
-// Placeholder while a page loads: soft shimmering blocks shaped like content. Several of
-// these can mount one after another during a single navigation (route loading, then the page's
-// own loading), so the shimmer starts at the same point of a shared clock every time —
-// otherwise each remount restarts it and the grey blocks flicker.
+// Shown while a page loads: the PromPost logo with a soft orange glow turning around it.
+// One steady element (no blocks that restart and flicker as several loading states follow
+// each other during a single navigation).
 export function LoadingView() {
-  const [phase] = useState(() => `-${Date.now() % 1600}ms`);
-  const style = { animationDelay: phase };
   return (
-    <div className="flex-1 space-y-3 p-4 sm:p-6" aria-busy="true" aria-label="กำลังโหลด" suppressHydrationWarning>
-      <div className="pp-skel h-6 w-40 rounded-lg" style={style} />
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
-        {Array.from({ length: 6 }, (_, i) => (
-          <div key={i} className="pp-skel aspect-square rounded-2xl" style={style} />
-        ))}
+    <div className="flex flex-1 items-center justify-center p-8" aria-busy="true" aria-label="กำลังโหลด">
+      <div className="pp-glow relative flex h-24 w-24 items-center justify-center">
+        <span className="pp-glow-ring" aria-hidden="true" />
+        <Image src={APP_LOGO_SRC} alt="" width={64} height={64} priority className="relative h-16 w-16 rounded-2xl shadow-card" />
       </div>
-      <div className="pp-skel h-20 rounded-2xl" style={style} />
-      <div className="pp-skel h-20 rounded-2xl" style={style} />
       <span className="sr-only">กำลังโหลด...</span>
     </div>
   );
