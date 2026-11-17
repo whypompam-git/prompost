@@ -114,7 +114,7 @@ export default function V2ShootPage() {
                   disabled={busy === queue.id || done === 0}
                   className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3.5 py-2 text-sm font-semibold text-white disabled:opacity-40"
                 >
-                  <Send size={14} /> {busy === queue.id ? "กำลังส่ง…" : "สรุปคิว ส่ง LINE"}
+                  <Send size={14} /> {busy === queue.id ? "กำลังสร้าง…" : "สรุปคิว คัดลอกไป LINE"}
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -154,7 +154,7 @@ export default function V2ShootPage() {
       {summary && (
         <div className="fixed inset-0 z-50 flex items-end bg-black/40" onClick={() => setSummary(null)}>
           <div className="w-full rounded-t-2xl bg-white p-5 pb-10 sm:mx-auto sm:max-w-lg" onClick={(e) => e.stopPropagation()}>
-            <p className="text-base font-semibold text-gray-900">{summary.sent ? `ส่งเข้า LINE กลุ่มแล้ว (${summary.sent} กลุ่ม)` : "ยังไม่ได้ส่ง LINE (ไม่มีช่อง LINE ที่รับหัวข้องาน)"}</p>
+            <p className="text-base font-semibold text-gray-900">สรุปการถ่าย — คัดลอกไปวางใน LINE</p>
             <pre className="mt-3 max-h-[50vh] overflow-y-auto whitespace-pre-wrap rounded-xl bg-gray-50 p-3 text-sm text-gray-800">{summary.text}</pre>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button

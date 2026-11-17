@@ -208,7 +208,7 @@ export function TaskDetail({ mode }: { mode: "content" | "edit" }) {
           </div>
         </div>
 
-        <WorkflowPanel task={task} staff={staff} teams={teams} queues={queues} onPatch={patch} onReload={reloadTask} />
+        <WorkflowPanel task={task} staff={staff} teams={teams} queues={queues} onPatch={patch} onReload={reloadTask} clientName={clients.find((c) => c.id === task.clientId)?.name} />
 
         {(task.type === "edit" || task.type === "qc") && (
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-gray-100 bg-white p-4 shadow-card">

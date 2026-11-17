@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
     "",
     ...shot.map((t, i) => `${i + 1}. ${t.title}`),
   ].join("\n");
-  const sent = send === false ? 0 : await alertTeamLine(db, text);
+  // sending to LINE automatically is paused: the text is returned to copy and paste
+  const sent = send === true ? await alertTeamLine(db, text) : 0;
   return NextResponse.json({ ok: true, text, sent });
 }

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, MessageCircle, RefreshCw, Send, XCircle } from "lucide-react";
+import { CheckCircle2, MessageCircle, RefreshCw, XCircle } from "lucide-react";
+import { DigestCopyButton } from "@/components/layout/DigestCopyButton";
 import { Topbar } from "@/components/layout/Topbar";
 import { SettingsTabs } from "@/components/settings/SettingsTabs";
 import { Card } from "@/components/ui/Card";
@@ -57,10 +58,7 @@ function LineDigestCard() {
         <button onClick={() => call(false)} disabled={busy} className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-50">
           ดูตัวอย่างสรุปวันนี้
         </button>
-        <button onClick={() => window.confirm("ส่งสรุปวันนี้เข้ากลุ่ม LINE ตอนนี้เลย?") && call(true)} disabled={busy} className="flex items-center gap-1.5 rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600 disabled:opacity-50">
-          <Send size={12} />
-          ส่งเข้า LINE ตอนนี้
-        </button>
+        <DigestCopyButton />
         {configured !== null && (
           <span className={configured ? "text-xs text-emerald-600" : "text-xs text-amber-600"}>
             {configured ? "ตั้งค่า LINE แล้ว" : "ยังไม่ได้ตั้งค่า LINE"}

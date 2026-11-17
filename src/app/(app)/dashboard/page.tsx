@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Layers } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
+import { DigestCopyButton } from "@/components/layout/DigestCopyButton";
 import { ClientMultiFilter } from "@/components/dashboard/ClientMultiFilter";
 import { ClientUpdates } from "@/components/dashboard/ClientUpdates";
 import { StaffFilter } from "@/components/dashboard/StaffFilter";
@@ -297,6 +298,9 @@ function DashboardPageInner() {
 
       <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
         <ClientUpdates tasks={tasks} clients={clients} />
+        <div className="flex justify-end">
+          <DigestCopyButton />
+        </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="inline-flex rounded-lg border border-gray-200 bg-white p-0.5 text-sm font-medium">
             {([["team", "งานทีม"], ["mine", "งานของฉัน"]] as const).map(([key, label]) => (

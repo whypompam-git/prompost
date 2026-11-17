@@ -7,6 +7,8 @@ import { listTaskRevisions, type TaskRevision } from "@/lib/supabase/queries";
 import { notifyTaskEvent } from "@/lib/taskFlow";
 import type { Queue, Staff, Task, Team } from "@/lib/types";
 import { stageInfo } from "@/lib/workflow";
+import { LineCopyBox } from "@/components/ui/LineCopyBox";
+import { lineTextsForTask } from "@/lib/lineText";
 
 const SHOT_STAGES = new Set(["shoot", "edit", "qc", "pending", "approved", "posted"]);
 const inputClass =
@@ -24,7 +26,9 @@ export function WorkflowPanel({
   queues,
   onPatch,
   onReload,
+  clientName,
 }: {
+  clientName?: string;
   task: Task;
   staff: Staff[];
   teams: Team[];
@@ -173,6 +177,8 @@ export function WorkflowPanel({
         </div>
       )}
 
+      <LineMessages task={task} staff={staff} clientName={clientName ?? ""} />
+
       {revisions.length > 0 && (
         <div>
           <p className={labelClass}>ประวัติการแก้</p>
@@ -189,5 +195,35 @@ export function WorkflowPanel({
         </div>
       )}
     </Card>
+  );
+}
+
+// Messages to paste into LINE for the clip's current stage (the system writes, a person sends).
+function LineMessages({ task, staff, clientName }: { task: Task; staff: Staff[]; clientName: string }) {
+  const name = (id?: string | null) => staff.find((x) => x.id === id)?.name ?? null;
+  const texts = lineTextsForTask({
+    clientName,
+    title: task.title,
+    stage: task.type,
+    editorName: name(task.editorId),
+    assigneeName: name(task.assigneeId),
+    editDate: task.editDate,
+    footageUrl: task.footageUrl,
+    refLink: task.refLink,
+    finalUrl: task.finalUrl,
+    notes: task.notes,
+    scriptText: task.scriptText,
+    revisionCount: task.revisionCount,
+    revisionBrief: task.revisionBrief,
+    link: typeof window !== "undefined" ? `${window.location.origin}/tasks/${task.id}` : null,
+  });
+  if (texts.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className={labelClass}>ข้อความสำหรับ LINE</p>
+      {texts.map((t) => (
+        <LineCopyBox key={`${t.key}:${task.type}:${task.revisionCount ?? 0}`} label={t.label} text={t.text} />
+      ))}
+    </div>
   );
 }
