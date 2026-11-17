@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bot, Building2, MessageCircle, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
+import { ArchiveRestore, Bot, Building2, MessageCircle, Search, ShieldCheck, Trash2, UserPlus, Users } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,33 @@ const thDate = (iso: string) => new Date(iso).toLocaleDateString("th-TH", { day:
 export default function AdminPage() {
   const [d, setD] = useState<Data | null>(null);
   const [denied, setDenied] = useState("");
-  const [tab, setTab] = useState<"ws" | "acc">("ws");
+  const [tab, setTab] = useState<"ws" | "acc" | "restore">("ws");
+  const [q, setQ] = useState("");
+  const [found, setFound] = useState<{ file: string; takenAt: string; clients: { id: string; name: string; nameEn: string | null; slug: string | null; tasks: number; existsNow: boolean }[] }[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [msg, setMsg] = useState("");
+
+  async function search() {
+    setSearching(true);
+    setMsg("");
+    setFound(null);
+    const res = await fetch(`/api/admin/backups?q=${encodeURIComponent(q.trim())}`, { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    setSearching(false);
+    if (!res.ok) return setMsg(data.error ?? "ค้นหาไม่สำเร็จ");
+    setFound(data.results);
+  }
+
+  async function restore(file: string, c: { id: string; name: string; tasks: number }) {
+    if (!window.confirm(`กู้ "${c.name}" (งาน ${c.tasks} ชิ้น) จาก ${file}? ข้อมูลที่ยังอยู่จะไม่ถูกเขียนทับ — ไฟล์ดราฟวิดีโอที่ลบไปแล้วกู้ไม่ได้`)) return;
+    setBusy(c.id);
+    const res = await fetch("/api/admin/backups/restore", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ file, clientId: c.id }) });
+    const data = await res.json().catch(() => ({}));
+    setBusy(null);
+    if (!res.ok) return window.alert(data.error ?? "กู้ไม่สำเร็จ");
+    setMsg(`กู้ "${c.name}" แล้ว: ${Object.entries(data.restored as Record<string, number>).map(([t, n]) => `${t} ${n}`).join(", ")}`);
+    search();
+  }
   const [busy, setBusy] = useState<string | null>(null);
 
   async function load() {
@@ -73,14 +99,53 @@ export default function AdminPage() {
     <>
       <Topbar title="ผู้ดูแลระบบ" subtitle="ทุก Workspace และทุกบัญชีในระบบ" />
       <div className="flex-1 space-y-4 p-4 sm:p-6">
-        <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 text-sm font-medium sm:w-80">
+        <div className="grid grid-cols-3 gap-1 rounded-xl bg-gray-100 p-1 text-sm font-medium sm:w-[28rem]">
           <button onClick={() => setTab("ws")} className={cn("flex items-center justify-center gap-1.5 rounded-lg py-2", tab === "ws" ? "bg-white shadow-sm" : "text-gray-500")}>
             <Building2 size={15} /> Workspace ({d.workspaces.length})
           </button>
           <button onClick={() => setTab("acc")} className={cn("flex items-center justify-center gap-1.5 rounded-lg py-2", tab === "acc" ? "bg-white shadow-sm" : "text-gray-500")}>
             <Users size={15} /> บัญชี ({d.accounts.length})
           </button>
+          <button onClick={() => setTab("restore")} className={cn("flex items-center justify-center gap-1.5 rounded-lg py-2", tab === "restore" ? "bg-white shadow-sm" : "text-gray-500")}>
+            <ArchiveRestore size={15} /> กู้ข้อมูล
+          </button>
         </div>
+
+        {tab === "restore" && (
+          <div className="space-y-3">
+            <p className="text-xs text-gray-500">ค้นลูกค้าใน backup ทุกไฟล์ (ชื่อไทย / อังกฤษ / ชื่อลิงก์) เพื่อดูว่าหายไปเมื่อไหร่ และกู้กลับพร้อมงานทั้งหมด</p>
+            <div className="flex gap-2">
+              <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && q.trim().length >= 2 && search()} placeholder="ชื่อลูกค้า" className="flex-1 rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+              <button disabled={searching || q.trim().length < 2} onClick={search} className="flex items-center gap-1 rounded-xl bg-brand-500 px-4 text-sm font-semibold text-white disabled:opacity-50">
+                <Search size={15} /> {searching ? "กำลังค้น…" : "ค้นหา"}
+              </button>
+            </div>
+            {msg && <p className="text-sm text-emerald-700">{msg}</p>}
+            {found && (
+              <div className="divide-y divide-gray-100 rounded-2xl border border-gray-100 bg-white shadow-card">
+                {found.map((f) => (
+                  <div key={f.file} className="px-4 py-3">
+                    <p className="text-xs font-medium text-gray-500">{f.file} · ถ่ายเมื่อ {new Date(f.takenAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</p>
+                    {f.clients.length === 0 && <p className="mt-1 text-sm text-gray-400">ไม่พบ</p>}
+                    {f.clients.map((c) => (
+                      <div key={c.id} className="mt-1.5 flex items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-sm text-gray-900">
+                          {c.name} {c.nameEn && <span className="text-gray-400">({c.nameEn})</span>} · งาน {c.tasks}
+                          {c.existsNow ? <span className="ml-1 text-emerald-600">· ยังอยู่ในระบบ</span> : <span className="ml-1 text-rose-600">· ถูกลบไปแล้ว</span>}
+                        </p>
+                        {!c.existsNow && (
+                          <button disabled={busy === c.id} onClick={() => restore(f.file, c)} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                            กู้จากไฟล์นี้
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {tab === "ws" && (
           <div className="grid gap-3 lg:grid-cols-2">
