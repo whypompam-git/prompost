@@ -54,6 +54,7 @@ const TABLES = new Set([
   "queues",
   "quotations",
   "receipts",
+  "round_files",
   "staff",
   "task_revisions",
   "task_settings",
@@ -72,6 +73,7 @@ const FINANCIAL_TABLES = new Set([
   "invoices",
   "quotations",
   "receipts",
+  "round_files",
   "transactions",
 ]);
 

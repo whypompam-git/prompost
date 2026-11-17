@@ -5,7 +5,7 @@ export type Dump = { takenAt: string; tables: Record<string, Record<string, unkn
 type Row = Record<string, unknown>;
 
 // rows that belong to the client directly (client_id), parents before children
-const CLIENT_TABLES = ["queues", "client_packages", "quotations", "invoices", "receipts", "tasks", "client_notes", "client_ci", "client_context"];
+const CLIENT_TABLES = ["queues", "client_packages", "quotations", "invoices", "receipts", "round_files", "tasks", "client_notes", "client_ci", "client_context"];
 // rows that belong to the client's tasks (task_id)
 const TASK_TABLES = ["task_drafts", "task_revisions", "draft_comments"];
 

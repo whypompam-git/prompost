@@ -34,6 +34,7 @@ import type {
   TaskSettings,
   TaskStatus,
   Transaction,
+  RoundFile,
 } from "../types";
 
 // Thin data-access layer over the schema in supabase/migrations/0001_init.sql.
@@ -1078,10 +1079,11 @@ type InvoiceRow = {
   payment_note: string | null;
   notes: string | null;
   share_token: string;
+  client_package_id: string | null;
 };
 
 const INVOICE_COLUMNS =
-  "id, client_id, invoice_no, items, vat_percent, wht_percent, status, created_at, due_date, payment_note, notes, share_token";
+  "id, client_id, invoice_no, items, vat_percent, wht_percent, status, created_at, due_date, payment_note, notes, share_token, client_package_id";
 
 const fromInvoiceRow = (r: InvoiceRow): Invoice => ({
   id: r.id,
@@ -1096,6 +1098,7 @@ const fromInvoiceRow = (r: InvoiceRow): Invoice => ({
   paymentNote: r.payment_note ?? undefined,
   notes: r.notes ?? undefined,
   shareToken: r.share_token,
+  clientPackageId: r.client_package_id,
 });
 
 export function listInvoices(): Promise<Invoice[]> {
@@ -1120,6 +1123,7 @@ export async function createInvoiceRow(values: {
   dueDate?: string;
   paymentNote?: string;
   notes?: string;
+  clientPackageId?: string | null;
 }): Promise<Invoice> {
   const invoiceNo = await nextDocNo("invoices", "IV");
   const { data, error } = await supabase()
@@ -1133,6 +1137,7 @@ export async function createInvoiceRow(values: {
       due_date: values.dueDate || null,
       payment_note: values.paymentNote,
       notes: values.notes,
+      client_package_id: values.clientPackageId ?? null,
       ...(values.issuedAt ? { created_at: values.issuedAt } : {}),
     })
     .select(INVOICE_COLUMNS)
@@ -1180,6 +1185,49 @@ export async function updateReceiptRow(
 export async function updateInvoiceStatus(id: string, status: Invoice["status"]): Promise<void> {
   const { error } = await supabase().from("invoices").update({ status }).eq("id", id);
   if (error) throw error;
+}
+
+// ── Files filed under a package round (PO, slips, signed quotes sent by the client) ──
+type RoundFileRow = { id: string; client_id: string; client_package_id: string; name: string; path: string; content_type: string | null; size_bytes: number | null; created_at: string };
+const ROUND_FILE_COLUMNS = "id, client_id, client_package_id, name, path, content_type, size_bytes, created_at";
+const fromRoundFileRow = (r: RoundFileRow): RoundFile => ({
+  id: r.id,
+  clientId: r.client_id,
+  clientPackageId: r.client_package_id,
+  name: r.name,
+  path: r.path,
+  contentType: r.content_type ?? undefined,
+  sizeBytes: r.size_bytes ?? undefined,
+  createdAt: r.created_at,
+});
+
+export async function listRoundFiles(clientId: string): Promise<RoundFile[]> {
+  const { data, error } = await supabase().from("round_files").select(ROUND_FILE_COLUMNS).eq("client_id", clientId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data as RoundFileRow[]).map(fromRoundFileRow);
+}
+
+// Straight into the PRIVATE bucket through a signed upload URL, then one row that files it
+// under the round. Opening it later goes through /api/round-files (staff only).
+export async function addRoundFile(clientId: string, clientPackageId: string, file: File): Promise<RoundFile> {
+  const ext = file.name.includes(".") ? (file.name.split(".").pop() ?? "bin") : "bin";
+  const res = await fetch("/api/storage/sign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bucket: "round-files", ext }) });
+  if (!res.ok) throw new Error(`ขอลิงก์อัปโหลดไม่สำเร็จ (${res.status})`);
+  const { path, token } = (await res.json()) as { path: string; token: string };
+  const up = await supabase().storage.from("round-files").uploadToSignedUrl(path, token, file, { contentType: file.type || undefined });
+  if (up.error) throw up.error;
+  const { data, error } = await supabase()
+    .from("round_files")
+    .insert({ client_id: clientId, client_package_id: clientPackageId, name: file.name.slice(0, 200), path, content_type: file.type || null, size_bytes: file.size })
+    .select(ROUND_FILE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return fromRoundFileRow(data as RoundFileRow);
+}
+
+export async function deleteRoundFile(id: string): Promise<void> {
+  const res = await fetch(`/api/round-files?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(((await res.json().catch(() => ({}))) as { error?: string }).error ?? "ลบไฟล์ไม่สำเร็จ");
 }
 
 export async function deleteInvoiceRow(id: string): Promise<void> {
@@ -1523,13 +1571,7 @@ export async function assignPackageToClient(clientId: string, packageId: string)
     .single();
   if (error) throw error;
 
-  await createQuotationRow({
-    clientId,
-    items: [{ description: pkg.name, qty: 1, unitPrice: pkg.price }],
-    vatPercent: 0,
-    whtPercent: 0,
-  });
-
+  // no quotation is made here: the team creates each document from the package card
   return fromClientPackageRow(data as ClientPackageRow);
 }
 

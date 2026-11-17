@@ -1,38 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BalanceSummary } from "@/components/billing/BalanceSummary";
-import { effectivePayments, looseBalance, roundBalance, type Round } from "@/lib/billing";
+import { ClientRounds } from "@/components/clients/ClientRounds";
 import { slugify } from "@/lib/slug";
 import { useParams, useRouter } from "next/navigation";
-import { format } from "date-fns";
-import { th } from "date-fns/locale";
-import { FileText, Package as PackageIcon, Plus, Printer, Receipt as ReceiptIcon, Save, X } from "lucide-react";
+import { Package as PackageIcon, Save } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
-import { CopyLinkButton } from "@/components/ui/CopyLinkButton";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
 import { PortalPinStatus } from "@/components/clients/PortalPinStatus";
-import { calcQuotationTotals } from "@/lib/accounting";
-import {
-  getClient,
-  assignPackageToClient,
-  listClientPackages,
-  unassignClientPackage,
-  listPackages,
-  listInvoices,
-  listQuotations,
-  listReceipts,
-  listTransactions,
-  updateClientRow,
-  listStaff,
-} from "@/lib/supabase/queries";
-import type { Client, ClientPackage, EntityType, Package, PaymentStatus, Quotation, Receipt, Invoice, Staff, Transaction } from "@/lib/types";
+import { getClient, updateClientRow, listStaff } from "@/lib/supabase/queries";
+import type { Client, EntityType, PaymentStatus, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const currency = (n: number) => n.toLocaleString("th-TH", { minimumFractionDigits: 0 });
-const dateLabel = (iso: string) => format(new Date(iso), "d MMM yyyy", { locale: th });
 
 const inputClass =
   "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
@@ -43,13 +24,6 @@ export default function ClientInfoPage() {
   const router = useRouter();
 
   const [client, setClient] = useState<Client | null>(null);
-  const [myPackages, setMyPackages] = useState<{ assignment: ClientPackage; pkg: Package | undefined }[]>([]);
-  const [quotations, setQuotations] = useState<Quotation[]>([]);
-  const [receipts, setReceipts] = useState<Receipt[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [allPackages, setAllPackages] = useState<Package[]>([]);
-  const [assigning, setAssigning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -60,23 +34,10 @@ export default function ClientInfoPage() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getClient(params.id), listClientPackages(), listPackages(), listQuotations(), listReceipts(), listInvoices(), listTransactions().catch(() => [] as Transaction[])])
-      .then(([c, assignments, packages, q, r, inv, tx]) => {
-        setTransactions(tx.filter((x) => x.clientId === params.id));
-        setInvoices(inv.filter((x) => x.clientId === params.id));
-        setAllPackages(packages);
-        if (!c) {
-          setNotFound(true);
-          return;
-        }
-        setClient(c);
-        setMyPackages(
-          assignments
-            .filter((a) => a.clientId === params.id)
-            .map((a) => ({ assignment: a, pkg: packages.find((p) => p.id === a.packageId) })),
-        );
-        setQuotations(q.filter((x) => x.clientId === params.id));
-        setReceipts(r.filter((x) => x.clientId === params.id));
+    getClient(params.id)
+      .then((c) => {
+        if (!c) setNotFound(true);
+        else setClient(c);
       })
       .catch((err) => {
         console.error(err);
@@ -85,53 +46,8 @@ export default function ClientInfoPage() {
       .finally(() => setLoading(false));
   }, [params.id]);
 
-  // billed / paid / left for the client's CURRENT round: the quotation (package + extras)
-  // against everything received — receipts and deposits booked in accounting. Without a
-  // round (old clients) it falls back to invoices vs receipts.
-  const rounds: Round[] = myPackages.map((m) => ({ id: m.assignment.id, clientId: m.assignment.clientId, packageName: m.pkg?.name, amount: m.assignment.amount, assignedAt: m.assignment.assignedAt }));
-  const current = [...rounds].sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))[0];
-  const balance = current
-    ? roundBalance(
-        current,
-        quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
-        effectivePayments(rounds, receipts.map((r) => ({ id: r.id, clientId: r.clientId, clientPackageId: r.clientPackageId, amount: r.amount, createdAt: r.createdAt })), transactions),
-      )
-    : looseBalance(
-        quotations.map((q) => ({ id: q.id, clientId: q.clientId, clientPackageId: q.clientPackageId, status: q.status, createdAt: q.createdAt, items: q.items, vatPercent: q.vatPercent, whtPercent: q.whtPercent })),
-        invoices,
-        receipts,
-        transactions,
-      );
-
   function patch(fields: Partial<Client>) {
     setClient((prev) => (prev ? { ...prev, ...fields } : prev));
-  }
-
-  async function addPackage(pkg: Package) {
-    if (!client) return;
-    if (!window.confirm(`เพิ่มแพ็คเกจ "${pkg.name}" ให้ ${client.name}?`)) return;
-    setAssigning(true);
-    try {
-      const created = await assignPackageToClient(client.id, pkg.id);
-      setMyPackages((prev) => [{ assignment: created, pkg }, ...prev]);
-    } catch (err) {
-      console.error(err);
-      window.alert("เพิ่มแพ็คเกจไม่สำเร็จ ลองใหม่อีกครั้ง");
-    } finally {
-      setAssigning(false);
-    }
-  }
-
-  async function removePackage(assignmentId: string) {
-    if (!window.confirm("เอาแพ็คเกจนี้ออกจากลูกค้า? (งานที่สร้างไปแล้วจะไม่ถูกลบ)")) return;
-    const prev = myPackages;
-    setMyPackages((cur) => cur.filter((x) => x.assignment.id !== assignmentId));
-    try {
-      await unassignClientPackage(assignmentId);
-    } catch (err) {
-      console.error(err);
-      setMyPackages(prev);
-    }
   }
 
   async function handleSave() {
@@ -188,8 +104,6 @@ export default function ClientInfoPage() {
             {saving ? "กำลังบันทึก..." : "บันทึก"}
           </button>
         </div>
-
-        <BalanceSummary {...balance} />
 
         <Card className="space-y-4">
           <div>
@@ -321,115 +235,9 @@ export default function ClientInfoPage() {
         <section>
           <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
             <PackageIcon size={15} />
-            แพ็คเกจที่ซื้อ
+            แพ็คเกจและเอกสาร
           </h2>
-          <Card className="space-y-2">
-            {myPackages.map(({ assignment, pkg }) => (
-              <div key={assignment.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{pkg?.name ?? "—"}</p>
-                  <p className="text-xs text-gray-400">เริ่มใช้ {dateLabel(assignment.assignedAt)}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  {pkg && <p className="text-sm font-semibold text-gray-900">฿{currency(pkg.price)}</p>}
-                  <button
-                    onClick={() => removePackage(assignment.id)}
-                    className="rounded-full p-1 text-gray-300 hover:bg-rose-50 hover:text-rose-500"
-                    aria-label="เอาแพ็คเกจออก"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-            {myPackages.length === 0 && (
-              <p className="py-4 text-center text-sm text-gray-400">ยังไม่มีแพ็คเกจ — เลือกด้านล่างได้เลย</p>
-            )}
-            {allPackages.length > 0 && (
-              <div className="border-t border-gray-50 pt-3">
-                <p className="mb-2 text-xs font-medium text-gray-500">เลือกแพ็คเกจให้ลูกค้า</p>
-                <div className="flex flex-wrap gap-2">
-                  {allPackages.map((p) => (
-                    <button
-                      key={p.id}
-                      disabled={assigning}
-                      onClick={() => addPackage(p)}
-                      className="flex items-center gap-1.5 rounded-full border border-brand-200 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 disabled:opacity-50"
-                    >
-                      <Plus size={12} />
-                      {p.name}
-                      {p.clipCount > 0 && <span className="opacity-70">· {p.clipCount} คลิป</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Card>
-        </section>
-
-        <section>
-          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-            <FileText size={15} />
-            ใบเสนอราคา
-          </h2>
-          <Card className="space-y-2">
-            {quotations.map((q) => {
-              const totals = calcQuotationTotals(q.items, q.vatPercent, q.whtPercent);
-              return (
-                <div key={q.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800">{q.quoteNo}</p>
-                    <p className="text-xs text-gray-400">{dateLabel(q.createdAt)}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-gray-900">฿{currency(totals.total)}</p>
-                    <a
-                      href={`/print/quotation/${q.id}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                    >
-                      <Printer size={14} />
-                    </a>
-                    <CopyLinkButton path={`/quote/${q.shareToken}`} label="ลิงก์" />
-                  </div>
-                </div>
-              );
-            })}
-            {quotations.length === 0 && (
-              <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีใบเสนอราคา</p>
-            )}
-          </Card>
-        </section>
-
-        <section>
-          <h2 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-            <ReceiptIcon size={15} />
-            ใบเสร็จรับเงิน
-          </h2>
-          <Card className="space-y-2">
-            {receipts.map((r) => (
-              <div key={r.id} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-                <div>
-                  <p className="text-sm font-medium text-gray-800">{r.receiptNo}</p>
-                  <p className="text-xs text-gray-400">{dateLabel(r.createdAt)}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-gray-900">฿{currency(r.amount)}</p>
-                  <a
-                    href={`/print/receipt/${r.id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                  >
-                    <Printer size={14} />
-                  </a>
-                  <CopyLinkButton path={`/receipt/${r.shareToken}`} label="ลิงก์" />
-                </div>
-              </div>
-            ))}
-            {receipts.length === 0 && <p className="py-6 text-center text-sm text-gray-400">ยังไม่มีใบเสร็จ</p>}
-          </Card>
+          <ClientRounds client={client} />
         </section>
       </div>
     </>

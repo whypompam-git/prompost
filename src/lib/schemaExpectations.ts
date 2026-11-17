@@ -46,4 +46,6 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
   { table: "clients", columns: "workspace_id", migration: "0053" },
   { table: "line_channels", columns: "link_code, link_expires_at", migration: "0060" },
+  { table: "invoices", columns: "client_package_id", migration: "0061" },
+  { table: "round_files", columns: "id, client_id, client_package_id, name, path", migration: "0061" },
 ];

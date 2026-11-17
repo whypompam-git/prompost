@@ -176,6 +176,18 @@ export interface Invoice {
   paymentNote?: string;
   notes?: string;
   shareToken: string; // /invoice/:shareToken
+  clientPackageId?: string | null; // package purchase (round) this invoice belongs to
+}
+
+export interface RoundFile {
+  id: string;
+  clientId: string;
+  clientPackageId: string;
+  name: string;
+  path: string;
+  contentType?: string;
+  sizeBytes?: number;
+  createdAt: string;
 }
 
 export interface AgencySettings {
