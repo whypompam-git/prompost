@@ -1,8 +1,8 @@
-name: Weekly data backup
+name: Daily data backup
 
 on:
   schedule:
-    - cron: "0 20 * * 6" # Saturday 20:00 UTC = Sunday 03:00 Bangkok
+    - cron: "0 20 * * *" # every day 20:00 UTC = 03:00 Bangkok
   workflow_dispatch:
 
 jobs:

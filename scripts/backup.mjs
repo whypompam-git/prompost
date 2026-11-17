@@ -8,7 +8,7 @@
 // buckets and are not copied by this script.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.SUPABASE_SECRET_KEY;
-const KEEP = 8;
+const KEEP = 30; // a month of daily backups
 const BUCKET = "backups";
 if (!url || !key) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SECRET_KEY");
 
