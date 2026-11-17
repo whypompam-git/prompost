@@ -2,6 +2,8 @@
 // page probes each with a zero-row select, so a migration that hasn't been
 // applied shows up as a named missing column instead of a blank page.
 // Add to this list whenever a migration adds a column the app reads.
+// Only tables the browser reads through /api/sb belong here — server-only tables (draft videos,
+// comments, goals, logins, …) are refused by the proxy by design and would show as "missing".
 export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: string }[] = [
   { table: "staff", columns: "bank_name, bank_account_no, bank_account_name", migration: "0018" },
   { table: "content_sets", columns: "id, name, items", migration: "0017" },
@@ -19,8 +21,6 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "contract_templates", columns: "kind, content", migration: "0043" },
   { table: "notes", columns: "id, author_id, client_id, body, pinned, deleted_at", migration: "0046" },
   { table: "client_ci", columns: "client_id, logo_url, colors, fonts", migration: "0046" },
-  { table: "task_drafts", columns: "id, task_id, version, path, removed_at", migration: "0047" },
-  { table: "draft_comments", columns: "id, task_id, at_seconds, body, from_client, resolved_at", migration: "0047" },
   { table: "agency_settings", columns: "business_type, owner_name", migration: "0043" },
   { table: "contract_payments", columns: "id, contract_id, amount, net, receipt_token, payee_signed_at", migration: "0043" },
   { table: "tasks", columns: "contract_id", migration: "0043" },
@@ -44,7 +44,6 @@ export const SCHEMA_EXPECTATIONS: { table: string; columns: string; migration: s
   { table: "ai_playbooks", columns: "key, title, content", migration: "0042" },
   { table: "ai_runs", columns: "id, kind, tokens_in, cost_thb", migration: "0042" },
   { table: "doc_counters", columns: "kind, year, last_no", migration: "0029" },
-  { table: "staff_goals", columns: "staff_id, target, mode, start_date, set_by", migration: "0050" },
   { table: "clients", columns: "workspace_id", migration: "0053" },
   { table: "line_channels", columns: "link_code, link_expires_at", migration: "0060" },
 ];
