@@ -316,7 +316,7 @@ function Row({ icon, title, sub, amount, extra, print, link, open, feedback, mov
     <div className="px-4 py-2.5">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <span className="text-gray-400">{icon}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-sm font-medium text-gray-800">{title}</p><p className="truncate text-xs text-gray-400">{sub}</p></div>
+        <div className="min-w-[11rem] flex-1"><p className="truncate text-sm font-medium text-gray-800">{title}</p><p className="truncate text-xs text-gray-400">{sub}</p></div>
         {extra}{move}
         {amount !== undefined && <p className="text-sm font-semibold tabular-nums text-gray-900">฿{currency(amount)}</p>}
         <div className="flex items-center">
