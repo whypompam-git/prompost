@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/Link";
-import { Check, CheckCircle2, Download, Gauge, Heart, ListChecks, Loader2, Maximize, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
+import { Check, CheckCircle2, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { initials } from "@/components/v2/AppGrid";
@@ -130,22 +130,6 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
     if (video.current) video.current.playbackRate = n;
   }
 
-  // full screen with the player's own controls (iPhone uses its native player)
-  function fullscreen() {
-    const v = video.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
-    if (!v) return;
-    if (v.requestFullscreen) {
-      v.requestFullscreen().then(() => (v.controls = true)).catch(() => {});
-      const off = () => {
-        if (!document.fullscreenElement) {
-          v.controls = false;
-          document.removeEventListener("fullscreenchange", off);
-        }
-      };
-      document.addEventListener("fullscreenchange", off);
-    } else v.webkitEnterFullscreen?.();
-  }
-
   const canWrite = variant !== "editor" && Boolean(h.onComment);
   const reviseLabel = variant === "client" ? `ส่งให้แก้ (${open.length} ข้อ)` : `ส่งกลับให้แก้ (${open.length} ข้อ)`;
 
@@ -191,43 +175,33 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
       )}
       {paused && panel === "none" && <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl text-white/80">▶</span>}
 
-      {/* right rail */}
-      <div className="absolute bottom-32 right-2 z-20 flex flex-col items-center gap-5 text-white">
+      {/* right rail: smaller and lower — ผ่าน sits at the middle of the screen (easiest for a thumb), the rest below it */}
+      <div className="absolute right-2 top-1/2 z-20 flex flex-col items-center gap-3.5 text-white">
+        {h.onPass && (
+          <button onClick={() => setPanel("confirm")} className="flex flex-col items-center gap-0.5" aria-label="ผ่าน">
+            {variant === "client" ? <CheckCircle2 size={26} className="drop-shadow" /> : <Heart size={26} className="drop-shadow" />}
+            <span className="text-[10px] font-semibold">ผ่าน</span>
+          </button>
+        )}
+        <button onClick={showComments} className="relative flex flex-col items-center gap-0.5" aria-label="คอมเมนต์">
+          <MessageCircle size={24} className="drop-shadow" />
+          <span className="text-[10px] font-semibold">{variant === "editor" ? `${open.length} ข้อ` : open.length || "คอมเมนต์"}</span>
+        </button>
+        <button onClick={nextSpeed} className="flex flex-col items-center gap-0.5" aria-label="ความเร็ว">
+          <Gauge size={22} className="drop-shadow" />
+          <span className="text-[10px] font-semibold">{speed}×</span>
+        </button>
         {variant === "team" ? (
           <Link href={`/v2/clients/${item.clientId}/ci`} aria-label="CI Brand ของลูกค้า">
-            <Avatar item={item} size="h-12 w-12 border-2 border-white" />
+            <Avatar item={item} size="h-8 w-8 border-2 border-white" />
           </Link>
         ) : variant === "editor" ? (
-          <button onClick={() => h.onOpenCi?.(item)} className="flex flex-col items-center gap-1" aria-label="CI Brand ของลูกค้า">
-            <Avatar item={item} size="h-12 w-12 border-2 border-white" />
-            <span className="flex items-center gap-0.5 text-[10px] font-semibold"><Palette size={11} /> CI</span>
+          <button onClick={() => h.onOpenCi?.(item)} className="flex flex-col items-center gap-0.5" aria-label="CI Brand ของลูกค้า">
+            <Avatar item={item} size="h-8 w-8 border-2 border-white" />
+            <span className="flex items-center gap-0.5 text-[9px] font-semibold"><Palette size={10} /> CI</span>
           </button>
         ) : (
-          <Avatar item={item} size="h-12 w-12 border-2 border-white" />
-        )}
-        {h.onPass && (
-          <button onClick={() => setPanel("confirm")} className="flex flex-col items-center gap-1" aria-label="ผ่าน">
-            {variant === "client" ? <CheckCircle2 size={32} className="drop-shadow" /> : <Heart size={32} className="drop-shadow" />}
-            <span className="text-[11px] font-semibold">ผ่าน</span>
-          </button>
-        )}
-        <button onClick={showComments} className="relative flex flex-col items-center gap-1" aria-label="คอมเมนต์">
-          <MessageCircle size={30} className="drop-shadow" />
-          <span className="text-[11px] font-semibold">{variant === "editor" ? `${open.length} ข้อ` : open.length || "คอมเมนต์"}</span>
-        </button>
-        <button onClick={fullscreen} className="flex flex-col items-center gap-1" aria-label="เต็มจอ">
-          <Maximize size={28} className="drop-shadow" />
-          <span className="text-[11px] font-semibold">เต็มจอ</span>
-        </button>
-        <button onClick={nextSpeed} className="flex flex-col items-center gap-1" aria-label="ความเร็ว">
-          <Gauge size={28} className="drop-shadow" />
-          <span className="text-[11px] font-semibold">{speed}×</span>
-        </button>
-        {variant === "team" && item.draft.downloadUrl && (
-          <a href={item.draft.downloadUrl} className="flex flex-col items-center gap-1" aria-label="ดาวน์โหลด">
-            <Download size={30} className="drop-shadow" />
-            <span className="text-[11px] font-semibold">โหลด</span>
-          </a>
+          <Avatar item={item} size="h-8 w-8 border-2 border-white" />
         )}
       </div>
 
@@ -395,7 +369,7 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
 }
 
 // Vertical snap-scrolling feed; the slide in view plays, the others pause.
-export function ReviewFeed({ items, variant = "team", ...h }: { items: FeedItem[]; variant?: FeedVariant } & Handlers) {
+export function ReviewFeed({ items, variant = "team", onFeedScroll, ...h }: { items: FeedItem[]; variant?: FeedVariant; onFeedScroll?: () => void } & Handlers) {
   const box = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const [overlay, setOverlay] = useState(false);
@@ -446,7 +420,7 @@ export function ReviewFeed({ items, variant = "team", ...h }: { items: FeedItem[
   const isClient = variant === "client";
   return (
     <div className="relative h-full">
-      <div ref={box} className="h-full snap-y snap-mandatory overflow-y-auto">
+      <div ref={box} onScroll={onFeedScroll} className="h-full snap-y snap-mandatory overflow-y-auto">
         {items.map((it, i) => (
           <div key={`${it.taskId}-${it.draft.id}`} data-i={i} className="h-full">
             <Slide item={it} active={i === active} variant={variant} index={i} total={items.length} h={h} onOverlay={setOverlay} />

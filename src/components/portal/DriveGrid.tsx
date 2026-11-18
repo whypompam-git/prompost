@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Download, ExternalLink, Film, X } from "lucide-react";
 import { SOCIAL_LABEL, driveDownload, drivePreview, driveThumb, socialEmbed, socialKind } from "@/lib/drive";
 
 export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean; postDate?: string | null; postBy?: string | null };
 
+const TILE: Record<"tiktok" | "facebook" | "instagram" | "youtube", string> = {
+  tiktok: "from-gray-900 to-pink-600",
+  facebook: "from-blue-600 to-blue-800",
+  instagram: "from-fuchsia-600 via-rose-500 to-amber-400",
+  youtube: "from-red-600 to-red-800",
+};
 const withScheme = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 
 // Instagram-style grid of finished clips. Tapping one plays it right here (Drive's
@@ -14,6 +20,18 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
   const [open, setOpen] = useState<DriveClip | null>(null);
   const [dates, setDates] = useState<Record<string, string | null>>({});
   const [saving, setSaving] = useState(false);
+  // social links: ask for a thumbnail (and a player id for short TikTok links)
+  const [social, setSocial] = useState<Record<string, { thumb: string | null; embed: string | null }>>({});
+  useEffect(() => {
+    for (const c of clips) {
+      if (!c.finalUrl || c.coverUrl || !socialKind(c.finalUrl) || c.id in social) continue;
+      fetch(`/api/public/social-thumb?url=${encodeURIComponent(c.finalUrl.startsWith("http") ? c.finalUrl : `https://${c.finalUrl}`)}`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((j) => setSocial((p) => ({ ...p, [c.id]: j ?? { thumb: null, embed: null } })))
+        .catch(() => setSocial((p) => ({ ...p, [c.id]: { thumb: null, embed: null } })));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clips]);
   const postOf = (c: DriveClip) => (c.id in dates ? dates[c.id] : c.postDate) ?? null;
   async function savePostDate(c: DriveClip, value: string | null) {
     setSaving(true);
@@ -27,24 +45,24 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
       setSaving(false);
     }
   }
-  const social = open ? socialKind(open.finalUrl) : undefined;
-  const preview = open ? (drivePreview(open.finalUrl) ?? socialEmbed(open.finalUrl)) : undefined;
+  const socialOf = open ? socialKind(open.finalUrl) : undefined;
+  const preview = open ? (drivePreview(open.finalUrl) ?? socialEmbed(open.finalUrl) ?? social[open.id]?.embed ?? undefined) : undefined;
   const download = open ? driveDownload(open.finalUrl) : undefined;
 
   return (
     <>
       <div className="grid grid-cols-3 gap-0.5 sm:grid-cols-4">
         {clips.map((t) => {
-          const thumb = t.coverUrl || driveThumb(t.finalUrl);
+          const thumb = t.coverUrl || driveThumb(t.finalUrl) || social[t.id]?.thumb;
           return (
             <button key={t.id} onClick={() => t.finalUrl && setOpen(t)} disabled={!t.finalUrl} className="relative block aspect-[9/16] overflow-hidden bg-gray-200 text-left">
               {thumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={thumb} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
-                <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-300">
+                <span className={`flex h-full w-full flex-col items-center justify-center gap-1 ${socialKind(t.finalUrl) ? `bg-gradient-to-br ${TILE[socialKind(t.finalUrl)!]} text-white` : "text-gray-300"}`}>
                   <Film size={26} />
-                  {socialKind(t.finalUrl) && <span className="text-[10px] font-semibold text-gray-400">{SOCIAL_LABEL[socialKind(t.finalUrl)!]}</span>}
+                  {socialKind(t.finalUrl) && <span className="text-xs font-bold tracking-wide">{SOCIAL_LABEL[socialKind(t.finalUrl)!]}</span>}
                 </span>
               )}
               {t.posted && (
@@ -77,7 +95,7 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
             {preview ? (
               <iframe src={preview} className="h-full w-full" allow="autoplay; fullscreen" allowFullScreen title={open.title} />
             ) : (
-              <p className="p-6 text-center text-sm text-white/70">{social ? `ลิงก์ ${SOCIAL_LABEL[social]} นี้เล่นในหน้านี้ไม่ได้` : "ลิงก์นี้ไม่ใช่ไฟล์ Google Drive"} — เปิดดูจากปุ่มด้านล่าง</p>
+              <p className="p-6 text-center text-sm text-white/70">{socialOf ? `ลิงก์ ${SOCIAL_LABEL[socialOf]} นี้เล่นในหน้านี้ไม่ได้` : "ลิงก์นี้ไม่ใช่ไฟล์ Google Drive"} — เปิดดูจากปุ่มด้านล่าง</p>
             )}
           </div>
           {postApi && !open.posted && (
@@ -99,9 +117,9 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
             ) : (
               <span />
             )}
-            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 py-3 text-sm font-semibold text-white"><ExternalLink size={16} /> {social ? `เปิดใน ${SOCIAL_LABEL[social]}` : "เปิดใน Drive"}</a>
+            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 py-3 text-sm font-semibold text-white"><ExternalLink size={16} /> {socialOf ? `เปิดใน ${SOCIAL_LABEL[socialOf]}` : "เปิดใน Drive"}</a>
           </div>
-          <p className="pb-3 text-center text-[11px] text-white/40">{social ? "ถ้าเล่นไม่ได้ โพสต์ต้องตั้งเป็นสาธารณะ" : "ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”"}</p>
+          <p className="pb-3 text-center text-[11px] text-white/40">{socialOf ? "ถ้าเล่นไม่ได้ โพสต์ต้องตั้งเป็นสาธารณะ" : "ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”"}</p>
         </div>
       )}
     </>

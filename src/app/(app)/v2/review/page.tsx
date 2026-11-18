@@ -28,6 +28,8 @@ export default function V2ReviewPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  // the client "stories" fold away once you start swiping the clips, so the clip gets the whole screen
+  const [stories, setStories] = useState(true);
 
   const load = useCallback(async () => {
     try {
@@ -104,6 +106,9 @@ export default function V2ReviewPage() {
           <button onClick={() => setUploadOpen(true)} className="flex items-center gap-1 rounded-lg bg-brand-500 px-2.5 py-1.5 text-xs font-semibold text-white">
             <Upload size={13} /> อัปดราฟ
           </button>
+          {tab === "review" && clients.length > 0 && !stories && (
+            <button onClick={() => setStories(true)} className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-600">ลูกค้า ▾</button>
+          )}
           <div className="ml-auto grid grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
             <button onClick={() => setTab("review")} className={cn("rounded-md px-3 py-1.5", tab === "review" ? "bg-white text-brand-700 shadow-sm" : "text-gray-500")}>
               รอ QC ({items.length})
@@ -113,7 +118,7 @@ export default function V2ReviewPage() {
             </button>
           </div>
         </div>
-        {tab === "review" && clients.length > 0 && (
+        {tab === "review" && clients.length > 0 && stories && (
           <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
             <button onClick={() => setFilter("all")} className="flex w-16 shrink-0 flex-col items-center gap-1">
               <span className={cn("rounded-full p-[3px]", filter === "all" ? "bg-gradient-to-tr from-amber-400 via-rose-500 to-fuchsia-600" : "bg-gray-200")}>
@@ -151,7 +156,7 @@ export default function V2ReviewPage() {
               <p className="max-w-xs text-center text-xs text-white/40">Editor อัปโหลดดราฟได้จากหน้างานของคลิป แล้วคลิปจะมาขึ้นที่นี่</p>
             </div>
           ) : (
-            <ReviewFeed items={shown} variant="team" onPass={pass} onComment={comment} onRevise={revise} />
+            <ReviewFeed items={shown} variant="team" onFeedScroll={() => setStories(false)} onPass={pass} onComment={comment} onRevise={revise} />
           )
         ) : (
           <DeliverList items={deliver} onDone={(id) => setDeliver((p) => p.filter((x) => x.taskId !== id))} />
