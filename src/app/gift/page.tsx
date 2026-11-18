@@ -7,12 +7,12 @@ import { createClient } from "@/lib/supabase/client";
 import { problemText, type CartProblem } from "@/lib/shop";
 
 type Product = { id: string; name: string; description: string; price: number; stock: number; maxPerPerson: number; imageUrl: string | null };
-type Shop = { title: string; intro: string; lineNote: string; isOpen: boolean; products: Product[] };
-type Done = { code: string; name: string; phone: string; address: string; total: number; status: string; createdAt: string; items: { name: string; price: number; qty: number }[]; lineNote: string };
+type Shop = { title: string; intro: string; lineNote: string; lineUrl: string; isOpen: boolean; products: Product[] };
+type Done = { code: string; name: string; phone: string; address: string; total: number; status: string; createdAt: string; items: { name: string; price: number; qty: number }[]; lineNote: string; lineUrl: string };
 
 const baht = (n: number) => `฿${n.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`;
 const GOLD = "bg-gradient-to-r from-[#b8923a] via-[#f0d68a] to-[#b8923a] text-[#1a1405]";
-const input = "w-full rounded-xl border border-[#d4af37]/25 bg-[#141414] px-4 py-3 text-sm text-[#f5f1e6] placeholder:text-[#f5f1e6]/30 focus:border-[#d4af37] focus:outline-none";
+const input = "w-full rounded-xl border border-[#d4af37]/25 bg-[#141414] px-4 py-3 text-base text-[#f5f1e6] placeholder:text-[#f5f1e6]/30 focus:border-[#d4af37] focus:outline-none";
 const CART_KEY = "gift-cart-v1";
 
 export default function GiftPage() {
@@ -171,47 +171,48 @@ export default function GiftPage() {
       <header className="text-center">
         <p className="font-[family-name:var(--font-serif)] text-4xl font-semibold tracking-[0.35em] text-[#d4af37]">{(shop?.title ?? "GIFT").toUpperCase()}</p>
         <div className="mx-auto mt-3 h-px w-24 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent" />
-        {shop?.intro && step === 1 && <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#f5f1e6]/70">{shop.intro}</p>}
+        {shop?.intro && step === 1 && <p className="mt-4 whitespace-pre-line text-base leading-relaxed text-[#f5f1e6]/80">{shop.intro}</p>}
       </header>
 
       <Steps step={step} />
 
-      {msg && <p className="mb-4 rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-3 text-sm text-[#f0d68a]">{msg}</p>}
+      {msg && <p className="mb-4 rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-3 text-base text-[#f0d68a]">{msg}</p>}
 
       {step === 1 && (
         <section>
-          {loadErr && <p className="py-10 text-center text-sm text-[#f5f1e6]/60">โหลดไม่สำเร็จ <button className="text-[#d4af37] underline" onClick={loadShop}>ลองใหม่</button></p>}
-          {!shop && !loadErr && <p className="py-10 text-center text-sm text-[#f5f1e6]/50">กำลังโหลด…</p>}
-          {shop && !shop.isOpen && <p className="rounded-xl border border-[#d4af37]/30 py-8 text-center text-sm text-[#f5f1e6]/70">ปิดรับออเดอร์ชั่วคราว</p>}
-          {shop && shop.isOpen && products.length === 0 && <p className="py-10 text-center text-sm text-[#f5f1e6]/50">ยังไม่มีสินค้า</p>}
-          <div className="space-y-4">
+          {loadErr && <p className="py-10 text-center text-base text-[#f5f1e6]/60">โหลดไม่สำเร็จ <button className="text-[#d4af37] underline" onClick={loadShop}>ลองใหม่</button></p>}
+          {!shop && !loadErr && <p className="py-10 text-center text-base text-[#f5f1e6]/50">กำลังโหลด…</p>}
+          {shop && !shop.isOpen && <p className="rounded-xl border border-[#d4af37]/30 py-8 text-center text-base text-[#f5f1e6]/70">ปิดรับออเดอร์ชั่วคราว</p>}
+          {shop && shop.isOpen && products.length === 0 && <p className="py-10 text-center text-base text-[#f5f1e6]/50">ยังไม่มีสินค้า</p>}
+          <div className="grid grid-cols-2 gap-3">
             {shop?.isOpen && products.map((p) => {
               const q = cart[p.id] ?? 0;
               const out = p.stock <= 0;
               const cap = Math.min(p.stock, p.maxPerPerson);
               return (
-                <article key={p.id} className="overflow-hidden rounded-2xl border border-[#d4af37]/20 bg-[#111]">
+                <article key={p.id} className="flex flex-col overflow-hidden rounded-2xl border border-[#d4af37]/20 bg-[#111]">
                   {p.imageUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={p.imageUrl} alt={p.name} className={`aspect-[4/3] w-full object-cover ${out ? "opacity-40 grayscale" : ""}`} />
+                    <img src={p.imageUrl} alt={p.name} loading="lazy" className={`aspect-square w-full object-cover ${out ? "opacity-40 grayscale" : ""}`} />
                   )}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <h2 className="text-base font-medium">{p.name}</h2>
-                      <p className="shrink-0 font-[family-name:var(--font-serif)] text-xl font-semibold text-[#d4af37]">{baht(p.price)}</p>
-                    </div>
-                    {p.description && <p className="mt-1 whitespace-pre-line text-xs leading-relaxed text-[#f5f1e6]/60">{p.description}</p>}
-                    <div className="mt-3 flex items-center justify-between">
-                      <p className="text-[11px] text-[#f5f1e6]/50">{out ? "สินค้าหมด" : `เหลือ ${p.stock} ชิ้น · จำกัดคนละ ${p.maxPerPerson} ชิ้น`}</p>
+                  <div className="flex flex-1 flex-col p-3">
+                    <h2 className="text-base font-medium leading-snug">{p.name}</h2>
+                    {p.description && <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-sm leading-snug text-[#f5f1e6]/65">{p.description}</p>}
+                    <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold leading-none text-[#d4af37]">{baht(p.price)}</p>
+                    <p className={`mt-2 text-sm font-medium ${out ? "text-red-400" : p.stock <= 3 ? "text-orange-300" : "text-[#f0d68a]"}`}>
+                      {out ? "หมดแล้ว" : `เหลือ ${p.stock} ชิ้น`}
+                    </p>
+                    <p className="text-[13px] text-[#f5f1e6]/55">จำกัดคนละ {p.maxPerPerson} ชิ้น</p>
+                    <div className="mt-auto pt-3">
                       {out ? (
-                        <span className="rounded-full border border-[#f5f1e6]/20 px-3 py-1 text-xs text-[#f5f1e6]/40">หมด</span>
+                        <span className="block rounded-full border border-[#f5f1e6]/20 py-2 text-center text-sm text-[#f5f1e6]/40">สินค้าหมด</span>
                       ) : q === 0 ? (
-                        <button onClick={() => setQty(p, 1)} className={`rounded-full px-5 py-1.5 text-sm font-semibold ${GOLD}`}>เพิ่ม</button>
+                        <button onClick={() => setQty(p, 1)} className={`w-full rounded-full py-2.5 text-base font-semibold ${GOLD}`}>เพิ่ม</button>
                       ) : (
-                        <div className="flex items-center gap-3 rounded-full border border-[#d4af37]/50 px-1.5 py-1">
-                          <button aria-label="ลด" onClick={() => setQty(p, q - 1)} className="flex h-7 w-7 items-center justify-center rounded-full text-[#d4af37] hover:bg-[#d4af37]/15"><Minus size={16} /></button>
-                          <span className="w-5 text-center text-sm font-semibold tabular-nums">{q}</span>
-                          <button aria-label="เพิ่ม" disabled={q >= cap} onClick={() => setQty(p, q + 1)} className="flex h-7 w-7 items-center justify-center rounded-full text-[#d4af37] hover:bg-[#d4af37]/15 disabled:opacity-30"><Plus size={16} /></button>
+                        <div className="flex items-center justify-between rounded-full border border-[#d4af37]/50 px-1.5 py-1">
+                          <button aria-label="ลด" onClick={() => setQty(p, q - 1)} className="flex h-9 w-9 items-center justify-center rounded-full text-[#d4af37] hover:bg-[#d4af37]/15"><Minus size={18} /></button>
+                          <span className="text-lg font-semibold tabular-nums">{q}</span>
+                          <button aria-label="เพิ่ม" disabled={q >= cap} onClick={() => setQty(p, q + 1)} className="flex h-9 w-9 items-center justify-center rounded-full text-[#d4af37] hover:bg-[#d4af37]/15 disabled:opacity-30"><Plus size={18} /></button>
                         </div>
                       )}
                     </div>
@@ -225,21 +226,21 @@ export default function GiftPage() {
 
       {step === 2 && qr && (
         <section className="space-y-5">
-          <button onClick={() => setStep(1)} className="flex items-center gap-1 text-sm text-[#d4af37]"><ChevronLeft size={16} /> กลับไปแก้ตะกร้า</button>
+          <button onClick={() => setStep(1)} className="flex items-center gap-1 text-base text-[#d4af37]"><ChevronLeft size={16} /> กลับไปแก้ตะกร้า</button>
           <div className="rounded-2xl border border-[#d4af37]/20 bg-[#111] p-4">
             {lines.map((l) => (
-              <div key={l.id} className="flex justify-between py-1 text-sm"><span>{l.name} × {l.qty}</span><span className="tabular-nums">{baht(l.price * l.qty)}</span></div>
+              <div key={l.id} className="flex justify-between py-1 text-base"><span>{l.name} × {l.qty}</span><span className="tabular-nums">{baht(l.price * l.qty)}</span></div>
             ))}
             <div className="mt-2 flex justify-between border-t border-[#d4af37]/20 pt-3 font-semibold"><span>ยอดชำระ</span><span className="font-[family-name:var(--font-serif)] text-2xl text-[#d4af37]">{baht(qr.total)}</span></div>
           </div>
 
           <div className="rounded-2xl border border-[#d4af37]/20 bg-[#111] p-4 text-center">
-            <p className="mb-3 text-sm text-[#f5f1e6]/70">สแกนจ่ายผ่านพร้อมเพย์ แล้วแนบสลิปด้านล่าง</p>
+            <p className="mb-3 text-base text-[#f5f1e6]/80">สแกนจ่ายผ่านพร้อมเพย์ แล้วแนบสลิปด้านล่าง</p>
             {qr.img ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={qr.img} alt="PromptPay QR" className="mx-auto w-56 rounded-xl bg-white p-2" />
             ) : (
-              <p className="py-6 text-sm text-[#f0d68a]">ร้านยังไม่ได้ตั้งค่าพร้อมเพย์ ติดต่อร้านก่อนชำระ</p>
+              <p className="py-6 text-base text-[#f0d68a]">ร้านยังไม่ได้ตั้งค่าพร้อมเพย์ ติดต่อร้านก่อนชำระ</p>
             )}
           </div>
 
@@ -252,7 +253,7 @@ export default function GiftPage() {
 
           <div>
             <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => pickSlip(e.target.files?.[0])} />
-            <button onClick={() => fileRef.current?.click()} className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-[#d4af37]/50 py-5 text-sm text-[#d4af37]">
+            <button onClick={() => fileRef.current?.click()} className="flex w-full flex-col items-center gap-2 rounded-2xl border border-dashed border-[#d4af37]/50 py-5 text-base text-[#d4af37]">
               {slip ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={slip.preview} alt="สลิป" className="max-h-48 rounded-lg" />
@@ -271,13 +272,13 @@ export default function GiftPage() {
         <div className="fixed inset-x-0 bottom-0 border-t border-[#d4af37]/25 bg-[#0a0a0a]/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
           <div className="mx-auto flex max-w-lg items-center gap-4">
             <div className="flex-1">
-              <p className="flex items-center gap-1.5 text-xs text-[#f5f1e6]/60"><ShoppingBag size={14} /> {count} ชิ้น</p>
+              <p className="flex items-center gap-1.5 text-sm text-[#f5f1e6]/70"><ShoppingBag size={14} /> {count} ชิ้น</p>
               <p className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[#d4af37]">{baht(step === 2 && qr ? qr.total : total)}</p>
             </div>
             {step === 1 ? (
-              <button disabled={busy} onClick={goPay} className={`rounded-full px-7 py-3 text-sm font-semibold disabled:opacity-50 ${GOLD}`}>{busy ? "กำลังเช็คสต็อก…" : "ไปชำระเงิน"}</button>
+              <button disabled={busy} onClick={goPay} className={`rounded-full px-7 py-3 text-base font-semibold disabled:opacity-50 ${GOLD}`}>{busy ? "กำลังเช็คสต็อก…" : "ไปชำระเงิน"}</button>
             ) : (
-              <button disabled={busy || !formOk} onClick={submit} className={`rounded-full px-7 py-3 text-sm font-semibold disabled:opacity-40 ${GOLD}`}>{busy ? "กำลังส่ง…" : "ยืนยันการสั่งซื้อ"}</button>
+              <button disabled={busy || !formOk} onClick={submit} className={`rounded-full px-7 py-3 text-base font-semibold disabled:opacity-40 ${GOLD}`}>{busy ? "กำลังส่ง…" : "ยืนยันการสั่งซื้อ"}</button>
             )}
           </div>
         </div>
@@ -289,13 +290,13 @@ export default function GiftPage() {
 function Steps({ step }: { step: 1 | 2 | 3 }) {
   const items = ["เลือกของ", "ชำระเงิน", "สำเร็จ"];
   return (
-    <ol className="my-7 flex items-center justify-center gap-2 text-[11px]">
+    <ol className="my-7 flex items-center justify-center gap-2 text-sm">
       {items.map((t, i) => {
         const n = i + 1;
         const on = n <= step;
         return (
           <li key={t} className="flex items-center gap-2">
-            <span className={`flex h-6 w-6 items-center justify-center rounded-full border text-[11px] font-semibold ${on ? "border-[#d4af37] bg-[#d4af37] text-black" : "border-[#f5f1e6]/25 text-[#f5f1e6]/40"}`}>{n < step ? <Check size={13} /> : n}</span>
+            <span className={`flex h-6 w-6 items-center justify-center rounded-full border text-xs font-semibold ${on ? "border-[#d4af37] bg-[#d4af37] text-black" : "border-[#f5f1e6]/25 text-[#f5f1e6]/40"}`}>{n < step ? <Check size={13} /> : n}</span>
             <span className={on ? "text-[#f0d68a]" : "text-[#f5f1e6]/40"}>{t}</span>
             {n < 3 && <span className="h-px w-5 bg-[#d4af37]/30" />}
           </li>
@@ -311,19 +312,26 @@ function Receipt({ d }: { d: Done }) {
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#d4af37] text-black"><Check size={30} /></div>
       <h2 className="font-[family-name:var(--font-serif)] text-2xl text-[#f0d68a]">ชำระเงินสำเร็จ</h2>
       <div className="rounded-2xl border border-[#d4af37]/40 bg-[#111] p-5 text-left">
-        <p className="text-center text-[11px] uppercase tracking-widest text-[#f5f1e6]/50">รหัสออเดอร์</p>
+        <p className="text-center text-sm uppercase tracking-widest text-[#f5f1e6]/50">รหัสออเดอร์</p>
         <p className="text-center font-[family-name:var(--font-serif)] text-3xl font-semibold tracking-widest text-[#d4af37]">{d.code}</p>
         <div className="my-4 h-px bg-[#d4af37]/20" />
         {d.items.map((i, idx) => (
-          <div key={idx} className="flex justify-between py-1 text-sm"><span>{i.name} × {i.qty}</span><span className="tabular-nums">{baht(i.price * i.qty)}</span></div>
+          <div key={idx} className="flex justify-between py-1 text-base"><span>{i.name} × {i.qty}</span><span className="tabular-nums">{baht(i.price * i.qty)}</span></div>
         ))}
         <div className="mt-2 flex justify-between border-t border-[#d4af37]/20 pt-3 font-semibold"><span>รวม</span><span className="text-[#d4af37]">{baht(d.total)}</span></div>
-        <div className="mt-4 space-y-0.5 text-sm text-[#f5f1e6]/80">
+        <div className="mt-4 space-y-0.5 text-base text-[#f5f1e6]/90">
           <p>{d.name} · {d.phone}</p>
-          <p className="whitespace-pre-line text-xs text-[#f5f1e6]/60">{d.address}</p>
+          <p className="whitespace-pre-line text-sm text-[#f5f1e6]/70">{d.address}</p>
         </div>
       </div>
-      <p className="rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-3 text-sm text-[#f0d68a]">แคปหน้านี้ แล้วส่งแจ้งใน {d.lineNote} เพื่อยืนยันออเดอร์</p>
+      <div className="space-y-3 rounded-xl border border-[#d4af37]/40 bg-[#d4af37]/10 px-4 py-4 text-base text-[#f0d68a]">
+        <p>แคปหน้านี้ แล้วส่งแจ้งใน {d.lineNote} เพื่อยืนยันออเดอร์</p>
+        {d.lineUrl && (
+          <a href={d.lineUrl} target="_blank" rel="noopener noreferrer" className={`block rounded-full py-3 text-center text-base font-semibold ${GOLD}`}>
+            เปิด {d.lineNote} ใน LINE
+          </a>
+        )}
+      </div>
     </section>
   );
 }

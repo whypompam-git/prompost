@@ -10,6 +10,7 @@ export async function GET() {
     title: settings.title,
     intro: settings.intro,
     lineNote: settings.lineNote,
+    lineUrl: settings.lineUrl,
     isOpen: settings.isOpen,
     products: products.map((p) => ({ id: p.id, name: p.name, description: p.description, price: p.price, stock: p.stock, maxPerPerson: p.maxPerPerson, imageUrl: p.imageUrl })),
   });

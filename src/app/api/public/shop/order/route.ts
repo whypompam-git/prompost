@@ -64,5 +64,5 @@ export async function GET(request: Request) {
   if (!o) return NextResponse.json({ error: "not found" }, { status: 404 });
   const { data: items } = await db.from("shop_order_items").select("name, price, qty").eq("order_id", o.id);
   const settings = await loadSettings(SHOP_WORKSPACE_ID);
-  return NextResponse.json({ code: o.code, name: o.name, phone: o.phone, address: o.address, total: Number(o.total), status: o.status, createdAt: o.created_at, items: items ?? [], lineNote: settings.lineNote });
+  return NextResponse.json({ code: o.code, name: o.name, phone: o.phone, address: o.address, total: Number(o.total), status: o.status, createdAt: o.created_at, items: items ?? [], lineNote: settings.lineNote, lineUrl: settings.lineUrl });
 }

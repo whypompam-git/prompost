@@ -1,6 +1,8 @@
+import { createHash, randomBytes } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 import { workspaceDb, PROMPOST_WORKSPACE_ID } from "@/lib/supabase/workspaceDb";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { ShopProduct } from "@/lib/shop";
 
 // SERVER-ONLY. The public /gift page sells for one workspace (the owner's own).
@@ -36,6 +38,7 @@ export async function loadSettings(ws: string) {
     intro: (data?.intro as string) || "",
     promptpayId: (data?.promptpay_id as string) || "",
     lineNote: (data?.line_note as string) || "LINE HOPS",
+    lineUrl: (data?.line_url as string) || "",
     isOpen: data?.is_open !== false,
   };
 }
@@ -62,4 +65,20 @@ export async function saleStaff(request: NextRequest) {
   if (!live || !live.active) return NextResponse.json({ error: "account disabled" }, { status: 401 });
   if (live.ownOnly || !(live.role === "owner" || live.permissions.accounting)) return NextResponse.json({ error: "no access" }, { status: 403 });
   return live;
+}
+
+
+export const hashStockToken = (t: string) => createHash("sha256").update(t).digest("hex");
+export const newStockToken = () => randomBytes(24).toString("hex");
+
+// A valid, unexpired, unrevoked stock link → its workspace; otherwise null.
+export async function stockLinkWorkspace(token: string): Promise<{ ws: string; id: string } | null> {
+  if (!/^[0-9a-f]{48}$/.test(token)) return null;
+  const { data } = await createAdminClient()
+    .from("shop_stock_links")
+    .select("id, workspace_id, expires_at, revoked_at")
+    .eq("token_hash", hashStockToken(token))
+    .maybeSingle();
+  if (!data || data.revoked_at || new Date(data.expires_at as string).getTime() < Date.now()) return null;
+  return { ws: data.workspace_id as string, id: data.id as string };
 }

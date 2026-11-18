@@ -17,8 +17,10 @@ export async function PUT(request: NextRequest) {
   const s = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
   const promptpayId = s(b.promptpayId, 30).replace(/[^\d]/g, "");
   if (promptpayId && ![10, 13].includes(promptpayId.length)) return NextResponse.json({ error: "พร้อมเพย์ต้องเป็นเบอร์โทร 10 หลัก หรือเลขบัตรประชาชน 13 หลัก" }, { status: 400 });
+  const lineUrl = s(b.lineUrl, 300);
+  if (lineUrl && !/^https:\/\//.test(lineUrl)) return NextResponse.json({ error: "ลิงก์ LINE ต้องขึ้นต้นด้วย https://" }, { status: 400 });
   const { error } = await workspaceDb(me.workspaceId).from("shop_settings").upsert(
-    { workspace_id: me.workspaceId, title: s(b.title, 60) || "Gift", intro: s(b.intro, 600), promptpay_id: promptpayId, line_note: s(b.lineNote, 60) || "LINE HOPS", is_open: b.isOpen !== false, updated_at: new Date().toISOString() },
+    { workspace_id: me.workspaceId, title: s(b.title, 60) || "Gift", intro: s(b.intro, 600), promptpay_id: promptpayId, line_note: s(b.lineNote, 60) || "LINE HOPS", line_url: lineUrl, is_open: b.isOpen !== false, updated_at: new Date().toISOString() },
     { onConflict: "workspace_id" },
   );
   if (error) return NextResponse.json({ error: "บันทึกไม่สำเร็จ" }, { status: 500 });

@@ -13,7 +13,7 @@ type Order = {
   id: string; code: string; name: string; phone: string; address: string; note: string; total: number;
   hasSlip: boolean; status: string; createdAt: string; items: { name: string; price: number; qty: number }[];
 };
-type Settings = { title: string; intro: string; promptpayId: string; lineNote: string; isOpen: boolean };
+type Settings = { title: string; intro: string; promptpayId: string; lineNote: string; lineUrl: string; isOpen: boolean };
 
 const field = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300";
 const baht = (n: number) => `฿${n.toLocaleString("th-TH", { maximumFractionDigits: 2 })}`;
@@ -76,6 +76,7 @@ export default function SalePage() {
         {tab === "orders" && <Orders orders={orders} onChange={reload} />}
         {tab === "products" && <Products products={products} onChange={reload} />}
         {tab === "settings" && settings && <SettingsForm initial={settings} onSaved={reload} />}
+        {tab === "settings" && <StockLinks />}
       </div>
     </div>
   );
@@ -285,8 +286,88 @@ function SettingsForm({ initial, onSaved }: { initial: Settings; onSaved: () => 
       <label className="block text-xs text-gray-500">ข้อความต้อนรับ<textarea className={field} rows={3} value={s.intro} onChange={(e) => setS({ ...s, intro: e.target.value })} /></label>
       <label className="block text-xs text-gray-500">พร้อมเพย์ (เบอร์โทร 10 หลัก หรือเลขบัตรประชาชน 13 หลัก)<input className={field} inputMode="numeric" value={s.promptpayId} onChange={(e) => setS({ ...s, promptpayId: e.target.value })} /></label>
       <label className="block text-xs text-gray-500">ให้ลูกค้าแคปหน้าสำเร็จส่งที่<input className={field} value={s.lineNote} onChange={(e) => setS({ ...s, lineNote: e.target.value })} /></label>
+      <label className="block text-xs text-gray-500">ลิงก์ LINE (ขึ้นต้น https:// ลูกค้ากดได้จากหน้าสำเร็จ)<input className={field} placeholder="https://line.me/R/ti/p/@..." value={s.lineUrl} onChange={(e) => setS({ ...s, lineUrl: e.target.value })} /></label>
       <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={s.isOpen} onChange={(e) => setS({ ...s, isOpen: e.target.checked })} /> เปิดรับออเดอร์</label>
       <button disabled={busy} onClick={save} className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white disabled:opacity-40">{busy ? "กำลังบันทึก…" : ok ? "บันทึกแล้ว ✓" : "บันทึก"}</button>
+    </Card>
+  );
+}
+
+type StockLink = { id: string; label: string; expiresAt: string; revokedAt: string | null; lastUsedAt: string | null; createdAt: string };
+
+// Temporary links that let a helper change stock (nothing else) without logging in.
+function StockLinks() {
+  const [links, setLinks] = useState<StockLink[]>([]);
+  const [label, setLabel] = useState("");
+  const [hours, setHours] = useState("24");
+  const [fresh, setFresh] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const load = useCallback(() => api<{ links: StockLink[] }>("/api/sale/stock-links").then((d) => setLinks(d.links)).catch(() => {}), []);
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function create() {
+    try {
+      const d = await api<{ path: string }>("/api/sale/stock-links", { method: "POST", body: JSON.stringify({ label, hours: Number(hours) }) });
+      setFresh(`${window.location.origin}${d.path}`);
+      setCopied(false);
+      setLabel("");
+      load();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "สร้างลิงก์ไม่สำเร็จ");
+    }
+  }
+  async function revoke(l: StockLink) {
+    if (!window.confirm("ยกเลิกลิงก์นี้? คนที่ถือลิงก์จะเข้าไม่ได้ทันที")) return;
+    await api(`/api/sale/stock-links?id=${l.id}`, { method: "DELETE" }).catch(() => {});
+    load();
+  }
+  const now = Date.now();
+
+  return (
+    <Card className="space-y-3 p-4">
+      <div>
+        <p className="text-sm font-semibold">ลิงก์จัดการสต็อกชั่วคราว (สำหรับแอดมินช่วยดูแล)</p>
+        <p className="text-xs text-gray-500">คนที่ได้ลิงก์ปรับจำนวนสต็อกได้อย่างเดียว ไม่เห็นออเดอร์ ที่อยู่ หรือเบอร์ลูกค้า ลิงก์หมดอายุเอง และยกเลิกได้ทุกเมื่อ</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <input className={cn(field, "flex-1")} placeholder="ชื่อคนที่ให้ (จำไว้เอง เช่น น้องเอ)" value={label} onChange={(e) => setLabel(e.target.value)} />
+        <select value={hours} onChange={(e) => setHours(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-2 text-sm">
+          <option value="6">6 ชั่วโมง</option>
+          <option value="24">1 วัน</option>
+          <option value="72">3 วัน</option>
+          <option value="168">7 วัน</option>
+          <option value="720">30 วัน</option>
+        </select>
+        <button onClick={create} className="rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white">สร้างลิงก์</button>
+      </div>
+      {fresh && (
+        <div className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs text-amber-800">คัดลอกลิงก์นี้ส่งให้เลย จะแสดงครั้งเดียวเท่านั้น (ปิดแล้วดูซ้ำไม่ได้ ต้องสร้างใหม่)</p>
+          <p className="break-all rounded bg-white px-2 py-1.5 font-mono text-xs">{fresh}</p>
+          <button onClick={() => navigator.clipboard.writeText(fresh).then(() => setCopied(true)).catch(() => {})} className="rounded-lg border border-amber-300 bg-white px-3 py-1.5 text-xs font-medium">{copied ? "คัดลอกแล้ว ✓" : "คัดลอกลิงก์"}</button>
+        </div>
+      )}
+      {links.length > 0 && (
+        <ul className="divide-y divide-gray-100 text-sm">
+          {links.map((l) => {
+            const dead = !!l.revokedAt || new Date(l.expiresAt).getTime() < now;
+            return (
+              <li key={l.id} className="flex items-center gap-2 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className={cn("truncate", dead && "text-gray-400 line-through")}>{l.label || "(ไม่ได้ตั้งชื่อ)"}</p>
+                  <p className="text-[11px] text-gray-400">
+                    {l.revokedAt ? "ยกเลิกแล้ว" : dead ? "หมดอายุแล้ว" : `หมดอายุ ${new Date(l.expiresAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}`}
+                    {l.lastUsedAt && ` · ใช้ล่าสุด ${new Date(l.lastUsedAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}`}
+                  </p>
+                </div>
+                {!dead && <button onClick={() => revoke(l)} className="rounded-lg border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50">ยกเลิก</button>}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Card>
   );
 }
