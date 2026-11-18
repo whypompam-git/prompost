@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { Film, Upload } from "lucide-react";
-import { uploadDraft } from "@/lib/supabase/queries";
+import { startDraftUpload, useUpload } from "@/lib/uploadManager";
 import { cn } from "@/lib/utils";
 
 // Drafts are for checking on a phone — 1080p is plenty; the 4K master goes to Drive later.
@@ -12,34 +12,26 @@ const MAX_MB = 500;
 
 // Upload a draft video for a clip (editors). Goes straight to storage with a
 // progress bar; a clip still in editing then moves on to QC by itself.
-export function DraftUploadButton({ taskId, label = "อัปโหลดดราฟ", onDone, className }: { taskId: string; label?: string; onDone?: () => void; className?: string }) {
+export function DraftUploadButton({ taskId, label = "อัปโหลดดราฟ", title, onDone, className }: { taskId: string; label?: string; title?: string; onDone?: () => void; className?: string }) {
   const input = useRef<HTMLInputElement>(null);
-  const [pct, setPct] = useState<number | null>(null);
+  const up = useUpload(taskId);
+  const pct = up?.status === "uploading" ? up.pct : null;
 
   async function pick(file?: File) {
     if (!file) return;
     const mb = file.size / 1048576;
+    const reset = () => {
+      if (input.current) input.current.value = "";
+    };
     if (mb > MAX_MB) {
       window.alert(`ไฟล์ใหญ่ ${mb.toFixed(0)} MB เกินที่ระบบรับได้ (${MAX_MB} MB)\n\n${DRAFT_TIP}`);
-      if (input.current) input.current.value = "";
-      return;
+      return reset();
     }
     const big = mb > WARN_MB ? `\n\n⚠️ ไฟล์ค่อนข้างใหญ่ (เกิน ${WARN_MB} MB) จะอัปช้าและลูกค้าเปิดบนมือถือได้ช้า แนะนำ: ${DRAFT_TIP}\n\nยังต้องการอัปไฟล์นี้ต่อไหม?` : "";
-    if (!window.confirm(`อัปโหลด "${file.name}" (${mb.toFixed(0)} MB) เป็นดราฟให้ทีมตรวจ?${big}`)) {
-      if (input.current) input.current.value = "";
-      return;
-    }
-    setPct(0);
-    try {
-      await uploadDraft(taskId, file, setPct);
-      onDone?.();
-      window.alert("อัปโหลดแล้ว ส่งให้ทีมตรวจเรียบร้อย");
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : "อัปโหลดไม่สำเร็จ");
-    } finally {
-      setPct(null);
-      if (input.current) input.current.value = "";
-    }
+    if (!window.confirm(`อัปโหลด "${file.name}" (${mb.toFixed(0)} MB) เป็นดราฟให้ทีมตรวจ?${big}`)) return reset();
+    reset();
+    // the upload carries on in the background (see the banner) — you can open other clips meanwhile
+    void startDraftUpload(taskId, file, title ?? file.name, onDone);
   }
 
   return (

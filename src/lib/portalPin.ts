@@ -15,6 +15,12 @@ type PortalClient = { id: string; workspace_id: string };
 const PIN_DAYS = 30;
 const key = () => new TextEncoder().encode(process.env.SESSION_SECRET ?? "");
 
+// Businesses of one customer (clients.parent_id) share the main client's PIN and cookie.
+export async function pinOwnerId(clientId: string): Promise<string> {
+  const { data } = await createAdminClient().from("clients").select("parent_id").eq("id", clientId).maybeSingle();
+  return (data?.parent_id as string | null) ?? clientId;
+}
+
 export async function pinRow(clientId: string) {
   const { data } = await createAdminClient().from("client_portal_pins").select("pin_hash, failed_attempts, locked_until, set_at").eq("client_id", clientId).maybeSingle();
   return data as { pin_hash: string; failed_attempts: number; locked_until: string | null; set_at: string } | null;
@@ -29,13 +35,14 @@ export async function staffOfWorkspace(workspaceId: string): Promise<boolean> {
 
 export async function portalGate(client: PortalClient): Promise<PortalGate> {
   if (await staffOfWorkspace(client.workspace_id)) return "open";
-  const row = await pinRow(client.id);
+  const owner = await pinOwnerId(client.id);
+  const row = await pinRow(owner);
   if (!row) return "set";
-  const token = cookies().get(portalCookieName(client.id))?.value;
+  const token = cookies().get(portalCookieName(owner))?.value;
   if (!token) return "enter";
   try {
     const { payload } = await jwtVerify(token, key());
-    return payload.typ === "portal" && payload.clientId === client.id && payload.v === row.set_at ? "open" : "enter";
+    return payload.typ === "portal" && payload.clientId === owner && payload.v === row.set_at ? "open" : "enter";
   } catch {
     return "enter";
   }

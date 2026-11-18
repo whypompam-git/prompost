@@ -10,7 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientSubNav } from "@/components/clients/ClientSubNav";
 import { PortalPinStatus } from "@/components/clients/PortalPinStatus";
-import { getClient, updateClientRow, listStaff } from "@/lib/supabase/queries";
+import { getClient, listClients, updateClientRow, listStaff } from "@/lib/supabase/queries";
 import type { Client, EntityType, Staff } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,7 @@ export default function ClientInfoPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [allClients, setAllClients] = useState<Client[]>([]);
   const [staffList, setStaffList] = useState<Staff[]>([]);
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function ClientInfoPage() {
   }, []);
 
   useEffect(() => {
+    listClients().then(setAllClients).catch(() => {});
     getClient(params.id)
       .then((c) => {
         if (!c) setNotFound(true);
@@ -188,6 +190,30 @@ export default function ClientInfoPage() {
           <div className="sm:w-1/2">
             <label className={labelClass}>{taxIdLabel}</label>
             <input value={client.taxId ?? ""} onChange={(e) => patch({ taxId: e.target.value })} className={inputClass} />
+          </div>
+
+          <div className="sm:w-1/2">
+            <label className={labelClass}>ประเภท (งานของเราเอง = ตรวจ QC ภายในแล้วผ่านเลย ไม่ต้องรอลูกค้า)</label>
+            <input
+              list="client-categories"
+              value={client.category ?? ""}
+              onChange={(e) => patch({ category: e.target.value })}
+              placeholder="เว้นว่าง = ลูกค้าทั่วไป · หรือเลือก/พิมพ์ เช่น พร้อมโพส"
+              className={inputClass}
+            />
+            <datalist id="client-categories">
+              {["พร้อมโพส", "Tradetalk", "พอม", "นุ่น", "งานวิ่ง"].map((c) => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+
+          <div className="sm:w-1/2">
+            <label className={labelClass}>เป็นอีกธุรกิจของลูกค้า (ลิงก์และ PIN ใช้ร่วมกับลูกค้าหลัก)</label>
+            <select value={client.parentId ?? ""} onChange={(e) => patch({ parentId: e.target.value || undefined })} className={inputClass}>
+              <option value="">ไม่ใช่ — เป็นลูกค้าหลักเอง</option>
+              {allClients.filter((c) => c.id !== client.id && !c.parentId).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
           </div>
 
           <div className="sm:w-1/2">

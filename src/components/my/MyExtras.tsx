@@ -102,7 +102,7 @@ export function UploadSheet({ tasks, onClose, onDone }: { tasks: MyTask[]; onClo
                 {t.type === "qc" ? "ส่งตรวจแล้ว (อัปเวอร์ชันใหม่ได้)" : t.revisionCount > 0 ? `ต้องแก้ (รอบที่ ${t.revisionCount})` : "กำลังตัดต่อ"}
                 {t.editDate ? ` · ส่งภายใน ${t.editDate}` : ""}
               </p>
-              <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปดราฟ + ส่งงาน" : "อัปเวอร์ชันใหม่"} onDone={() => { onDone(); onClose(); }} />
+              <DraftUploadButton taskId={t.id} title={`${t.clientName} · ${t.title}`} label={t.type === "edit" ? "อัปดราฟ + ส่งงาน" : "อัปเวอร์ชันใหม่"} onDone={onDone} />
             </div>
           ))}
         </div>

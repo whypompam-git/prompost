@@ -10,6 +10,7 @@ import type { Client, Task } from "@/lib/types";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/components/v2/ReviewFeed";
 import { getTask } from "@/lib/supabase/queries";
+import { isInternalClient } from "@/lib/workflow";
 import { notifyTaskEvent, patchTaskWithFlow } from "@/lib/taskFlow";
 import { cn } from "@/lib/utils";
 
@@ -71,7 +72,7 @@ export default function V2ReviewPage() {
     }
     await patchTaskWithFlow(t, { status: "done" });
     setItems((prev) => prev.filter((i) => i.taskId !== item.taskId));
-    flash("ผ่านแล้ว ส่งให้ลูกค้าตรวจ");
+    flash(isInternalClient(item.clientId) ? "ผ่านแล้ว (งานของเราเอง ข้ามลูกค้า)" : "ผ่านแล้ว ส่งให้ลูกค้าตรวจ");
   }
 
   async function comment(item: FeedItem, at: number | null, body: string) {

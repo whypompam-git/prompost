@@ -22,6 +22,8 @@ export interface Client {
   brandBrief?: string; // free text — brand guidelines/brief for editors
   brandImages: string[]; // reference images (logo, mood board, ...) — public URLs
   managerId?: string; // staff member responsible for this client
+  category?: string; // "" = customer; else our own work (พร้อมโพส, Tradetalk, …): clips skip the client approval
+  parentId?: string; // another business of the same customer (this one sits under the main client)
 }
 
 export type StaffRole = "owner" | "staff";

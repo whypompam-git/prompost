@@ -7,6 +7,7 @@ import { OfflineStatus } from "@/components/OfflineStatus";
 import { NavProgress } from "@/components/layout/NavProgress";
 import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { Suspense } from "react";
+import { UploadBanner } from "@/components/v2/UploadBanner";
 import { MyWork } from "@/components/my/MyWork";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { SESSION_COOKIE, fetchLiveAccess, fetchLiveAccessUncached, forgetLiveAccess, verifySession } from "@/lib/auth/session";
@@ -46,6 +47,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <AuthProvider auth={auth}>
         <PullToRefresh />
         <MyWork name={auth.name} />
+        <UploadBanner />
       </AuthProvider>
     );
   }
@@ -54,6 +56,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <AuthProvider auth={auth}>
       <div className="flex min-h-screen">
         <PullToRefresh />
+        <UploadBanner />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>

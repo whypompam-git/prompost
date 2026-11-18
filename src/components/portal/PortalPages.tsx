@@ -25,7 +25,7 @@ export async function PortalReviewPage({ clientKey, basePath }: { clientKey: str
     <div className="h-[100dvh] bg-gray-950 pb-16">
       {staffView && <StaffBackBar />}
       <PortalReviewFeed clientKey={clientKey} />
-      <PortalTabs basePath={basePath} active="review" badges={portal.badges} />
+      <PortalTabs basePath={basePath} active="review" badges={portal.badges} brands={portal.brands} />
     </div>
   );
 }
@@ -55,7 +55,7 @@ export async function PortalPlanPage({ clientKey, basePath }: { clientKey: strin
         <PortalHeader title="แผนคอนเทนต์" logo={portal.logo} subtitle={portal.client.name} />
         <PortalPlanDeck clientKey={clientKey} cards={cards} />
       </div>
-      <PortalTabs basePath={basePath} active="plan" badges={portal.badges} />
+      <PortalTabs basePath={basePath} active="plan" badges={portal.badges} brands={portal.brands} />
     </div>
   );
 }
@@ -88,7 +88,7 @@ export async function PortalFilesPage({ clientKey, basePath }: { clientKey: stri
           <DriveGrid clips={files.map((t) => ({ id: t.id, title: t.title, finalUrl: t.final_url, coverUrl: t.cover_url, note: t.type === "posted" ? "โพสแล้ว · แตะเพื่อเล่น" : undefined, posted: t.type === "posted", postDate: t.post_date, postBy: t.post_by }))} postApi={staffView ? undefined : { clientKey }} />
         )}
       </div>
-      <PortalTabs basePath={basePath} active="files" badges={portal.badges} />
+      <PortalTabs basePath={basePath} active="files" badges={portal.badges} brands={portal.brands} />
     </div>
   );
 }

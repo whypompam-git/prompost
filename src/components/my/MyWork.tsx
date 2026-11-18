@@ -192,7 +192,7 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
       {editable && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
           {/* main way: upload the draft video — the team reviews it in the system */}
-          <DraftUploadButton taskId={t.id} label={t.type === "edit" ? "อัปโหลดดราฟ + ส่งงาน" : "อัปโหลดดราฟใหม่"} onDone={onChange} className="w-full justify-center sm:w-auto" />
+          <DraftUploadButton taskId={t.id} title={`${t.clientName} · ${t.title}`} label={t.type === "edit" ? "อัปโหลดดราฟ + ส่งงาน" : "อัปโหลดดราฟใหม่"} onDone={onChange} className="w-full justify-center sm:w-auto" />
           <span className="w-full text-[11px] text-gray-400 sm:w-auto">หรือวางลิงก์ Drive แล้วกดส่งงาน</span>
           <input
             value={finalDraft}
@@ -318,7 +318,10 @@ export function MyWork({ name }: { name: string }) {
   }, [tasks]);
 
   // first visit: jump to what needs attention (sent-back work first, then to-do)
-  const active: MyBucket | "all" = filter ?? (grouped.revise.length > 0 ? "revise" : grouped.deliver.length > 0 ? "deliver" : grouped.todo.length > 0 ? "todo" : "all");
+  // chosen once and then kept: a clip moving to "ส่งตรวจ" must not throw the screen to another tab
+  const firstPick = useRef<MyBucket | "all" | null>(null);
+  if (tasks && firstPick.current === null) firstPick.current = grouped.revise.length > 0 ? "revise" : grouped.deliver.length > 0 ? "deliver" : grouped.todo.length > 0 ? "todo" : "all";
+  const active: MyBucket | "all" = filter ?? firstPick.current ?? "all";
 
   return (
     <div className="min-h-screen bg-gray-50">

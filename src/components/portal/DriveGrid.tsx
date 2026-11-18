@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Download, ExternalLink, Film, X } from "lucide-react";
-import { driveDownload, drivePreview, driveThumb } from "@/lib/drive";
+import { SOCIAL_LABEL, driveDownload, drivePreview, driveThumb, socialEmbed, socialKind } from "@/lib/drive";
 
 export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean; postDate?: string | null; postBy?: string | null };
 
@@ -27,7 +27,8 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
       setSaving(false);
     }
   }
-  const preview = open ? drivePreview(open.finalUrl) : undefined;
+  const social = open ? socialKind(open.finalUrl) : undefined;
+  const preview = open ? (drivePreview(open.finalUrl) ?? socialEmbed(open.finalUrl)) : undefined;
   const download = open ? driveDownload(open.finalUrl) : undefined;
 
   return (
@@ -41,7 +42,10 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={thumb} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-gray-300"><Film size={26} /></span>
+                <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-gray-300">
+                  <Film size={26} />
+                  {socialKind(t.finalUrl) && <span className="text-[10px] font-semibold text-gray-400">{SOCIAL_LABEL[socialKind(t.finalUrl)!]}</span>}
+                </span>
               )}
               {t.posted && (
                 <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-1 ring-white/70" title="โพสแล้ว">
@@ -73,7 +77,7 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
             {preview ? (
               <iframe src={preview} className="h-full w-full" allow="autoplay; fullscreen" allowFullScreen title={open.title} />
             ) : (
-              <p className="p-6 text-center text-sm text-white/70">ลิงก์นี้ไม่ใช่ไฟล์ Google Drive — เปิดดูจากปุ่มด้านล่าง</p>
+              <p className="p-6 text-center text-sm text-white/70">{social ? `ลิงก์ ${SOCIAL_LABEL[social]} นี้เล่นในหน้านี้ไม่ได้` : "ลิงก์นี้ไม่ใช่ไฟล์ Google Drive"} — เปิดดูจากปุ่มด้านล่าง</p>
             )}
           </div>
           {postApi && !open.posted && (
@@ -95,9 +99,9 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
             ) : (
               <span />
             )}
-            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 py-3 text-sm font-semibold text-white"><ExternalLink size={16} /> เปิดใน Drive</a>
+            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 py-3 text-sm font-semibold text-white"><ExternalLink size={16} /> {social ? `เปิดใน ${SOCIAL_LABEL[social]}` : "เปิดใน Drive"}</a>
           </div>
-          <p className="pb-3 text-center text-[11px] text-white/40">ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”</p>
+          <p className="pb-3 text-center text-[11px] text-white/40">{social ? "ถ้าเล่นไม่ได้ โพสต์ต้องตั้งเป็นสาธารณะ" : "ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”"}</p>
         </div>
       )}
     </>

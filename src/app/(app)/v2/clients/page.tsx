@@ -34,12 +34,16 @@ export default function V2ClientsPage() {
     return s;
   }, [tasks]);
 
+  // groups: customers, and each of our own channels (พร้อมโพส, Tradetalk, …)
+  const [group, setGroup] = useState<string>("all");
+  const categories = useMemo(() => [...new Set(clients.map((c) => c.category).filter((x): x is string => Boolean(x)))].sort((a, b) => a.localeCompare(b, "th")), [clients]);
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
+      .filter((c) => group === "all" || (group === "customer" ? !c.category : c.category === group))
       .filter((c) => !q || c.name.toLowerCase().includes(q) || (c.nameEn ?? "").toLowerCase().includes(q))
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.name.localeCompare(b.name, "th"));
-  }, [clients, query]);
+  }, [clients, query, group]);
 
   return (
     <>
@@ -54,12 +58,21 @@ export default function V2ClientsPage() {
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
           />
         </label>
+        {categories.length > 0 && (
+          <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1">
+            {([["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ...categories.map((c) => [c, c])] as [string, string][]).map(([k, label]) => (
+              <button key={k} onClick={() => setGroup(k)} className={`shrink-0 rounded-full border px-3 py-1 text-xs font-medium ${group === k ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {loading ? (
           <LoadingView />
         ) : (
           <AppGrid>
             {shown.map((c) => (
-              <ClientTile key={c.id} href={`/v2/clients/${c.id}`} name={c.name} logo={logos[c.id] || c.brandImages?.[0]} color={c.colorTag} alert={needs.has(c.id)} />
+              <ClientTile key={c.id} href={`/v2/clients/${c.id}`} name={c.parentId ? `${clients.find((x) => x.id === c.parentId)?.name ?? ""} · ${c.name}` : c.name} logo={logos[c.id] || c.brandImages?.[0]} color={c.colorTag} alert={needs.has(c.id)} />
             ))}
           </AppGrid>
         )}

@@ -5,7 +5,9 @@ import { cn } from "@/lib/utils";
 export type PortalTab = "dashboard" | "review" | "plan" | "files" | "info";
 
 // The client link's tab bar (bottom of the screen): หน้าแรก · ตรวจงาน · แผนคอนเทนต์ · ไฟล์งาน · ข้อมูล
-export function PortalTabs({ basePath, active, badges = {} }: { basePath: string; active: PortalTab; badges?: Partial<Record<PortalTab, number>> }) {
+export type PortalBrand = { id: string; name: string; path: string; current: boolean };
+
+export function PortalTabs({ basePath, active, badges = {}, brands = [] }: { basePath: string; active: PortalTab; badges?: Partial<Record<PortalTab, number>>; brands?: PortalBrand[] }) {
   const tabs: { key: PortalTab; label: string; href: string; icon: typeof Home }[] = [
     { key: "dashboard", label: "หน้าแรก", href: basePath, icon: Home },
     { key: "review", label: "ตรวจงาน", href: `${basePath}/review`, icon: ClipboardCheck },
@@ -15,6 +17,15 @@ export function PortalTabs({ basePath, active, badges = {} }: { basePath: string
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
+      {brands.length > 1 && (
+        <div className="mx-auto flex max-w-2xl gap-1.5 overflow-x-auto border-b border-gray-100 px-3 py-1.5">
+          {brands.map((b) => (
+            <Link key={b.id} href={b.path} className={cn("shrink-0 rounded-full border px-3 py-1 text-xs font-medium", b.current ? "border-brand-500 bg-brand-500 text-white" : "border-gray-200 bg-white text-gray-600")}>
+              {b.name}
+            </Link>
+          ))}
+        </div>
+      )}
       <div className="mx-auto flex h-16 max-w-2xl items-center justify-around">
         {tabs.map((t) => {
           const Icon = t.icon;

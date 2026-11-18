@@ -73,7 +73,7 @@ export async function PortalInfoView({ clientKey, basePath }: { clientKey: strin
   return (
     <div className="min-h-screen bg-gray-50 px-4 pb-28 pt-8">
       {staffView && <StaffBackBar />}
-      <PortalTabs basePath={basePath} active="info" badges={portal?.badges} />
+      <PortalTabs basePath={basePath} active="info" badges={portal?.badges} brands={portal?.brands} />
       <div className="mx-auto max-w-2xl space-y-6">
         <PortalHeader title={client.name} logo={portal?.logo} subtitle="ข้อมูลลูกค้า" />
 

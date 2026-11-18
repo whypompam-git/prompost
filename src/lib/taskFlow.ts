@@ -3,9 +3,9 @@
 // Client-side glue between the staff UI and the pipeline rules: apply the
 // automatic hand-offs before saving, and tell the server what happened so it
 // can notify the right people.
-import { updateTaskRow } from "@/lib/supabase/queries";
+import { listClients, updateTaskRow } from "@/lib/supabase/queries";
 import type { Task } from "@/lib/types";
-import { enterStage, settle } from "@/lib/workflow";
+import { enterStage, isInternalClient, settle } from "@/lib/workflow";
 
 export type TaskEventName = "assigned" | "editor_assigned" | "stage_changed" | "qc_revise";
 
@@ -30,7 +30,8 @@ export async function notifyTaskEvent(
 // `next` is the task as the person left it. Returns what was actually saved
 // (the hand-off may have moved it on, e.g. edit Done -> QC In Review).
 export async function saveTaskWithFlow(prev: Task, next: Task): Promise<Task> {
-  const s = settle({ type: next.type, status: next.status, footageUrl: next.footageUrl, revisionCount: next.revisionCount });
+  await listClients().catch(() => []); // (cached) learns which clients are our own work
+  const s = settle({ type: next.type, status: next.status, footageUrl: next.footageUrl, revisionCount: next.revisionCount, skipClient: isInternalClient(next.clientId) });
   const saved: Task = { ...next, type: s.type, status: s.status };
   await updateTaskRow(saved.id, saved);
   announceChanges(prev, saved);
@@ -39,6 +40,7 @@ export async function saveTaskWithFlow(prev: Task, next: Task): Promise<Task> {
 
 // For quick edits that only touch some fields (dashboard dropdowns, bulk bar).
 export async function patchTaskWithFlow(prev: Task, fields: Partial<Task>): Promise<Task> {
+  await listClients().catch(() => []);
   const patch = flowPatch(prev, fields);
   await updateTaskRow(prev.id, patch);
   const saved: Task = { ...prev, ...patch };
@@ -51,10 +53,11 @@ export async function patchTaskWithFlow(prev: Task, fields: Partial<Task>): Prom
 // hand-offs (e.g. a footage link on a finished shoot moves it to editing).
 export function flowPatch(prev: Task, fields: Partial<Task>): Partial<Task> {
   const merged: Task = { ...prev, ...fields };
+  const skipClient = isInternalClient(merged.clientId);
   const settled =
     fields.type !== undefined && fields.type !== prev.type && fields.status === undefined
-      ? enterStage(merged.type, { footageUrl: merged.footageUrl, revisionCount: merged.revisionCount })
-      : settle({ type: merged.type, status: merged.status, footageUrl: merged.footageUrl, revisionCount: merged.revisionCount });
+      ? enterStage(merged.type, { footageUrl: merged.footageUrl, revisionCount: merged.revisionCount, skipClient })
+      : settle({ type: merged.type, status: merged.status, footageUrl: merged.footageUrl, revisionCount: merged.revisionCount, skipClient });
   const out: Partial<Task> = { ...fields };
   if (settled.type !== prev.type) out.type = settled.type;
   if (settled.status !== prev.status || fields.status !== undefined || out.type !== undefined) out.status = settled.status;

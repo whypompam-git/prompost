@@ -47,6 +47,7 @@ export type FlowTask = {
   status: TaskStatus;
   footageUrl?: string | null;
   revisionCount?: number;
+  skipClient?: boolean; // our own work: QC Done goes straight to approved
 };
 
 export type FlowResult = { type: string; status: TaskStatus; revisionCount: number; moved: boolean };
@@ -54,6 +55,14 @@ export type FlowResult = { type: string; status: TaskStatus; revisionCount: numb
 // Chains the automatic hand-offs after any change a person makes:
 //   shoot Done + file uploaded -> edit ToDo;  edit Done -> QC In Review;
 //   QC Done -> Pending (waiting for the client).
+// Our own channels (พร้อมโพส, Tradetalk, พอม, นุ่น, งานวิ่ง …) are clients with a category: after QC their
+// clips go straight to "ผ่าน" — there is no client to approve them. Filled in when the client list loads.
+let internalClients = new Set<string>();
+export const setInternalClients = (ids: string[]) => {
+  internalClients = new Set(ids);
+};
+export const isInternalClient = (id?: string | null) => Boolean(id && internalClients.has(id));
+
 export function settle(task: FlowTask): FlowResult {
   let { type, status } = task;
   const revisionCount = task.revisionCount ?? 0;
@@ -68,15 +77,20 @@ export function settle(task: FlowTask): FlowResult {
       type = "qc";
       status = "review";
     } else if (type === "qc" && status === "done") {
-      type = "pending";
-      status = "waiting";
+      if (task.skipClient) {
+        type = "approved";
+        status = "done";
+      } else {
+        type = "pending";
+        status = "waiting";
+      }
     } else break;
   }
   return { type, status, revisionCount, moved: type !== startType || status !== startStatus };
 }
 
 // Picking a stage by hand starts it at its default sub-status.
-export function enterStage(stage: string, task: Pick<FlowTask, "footageUrl" | "revisionCount">): FlowResult {
+export function enterStage(stage: string, task: Pick<FlowTask, "footageUrl" | "revisionCount" | "skipClient">): FlowResult {
   return settle({ ...task, type: stage, status: defaultStatusFor(stage) });
 }
 

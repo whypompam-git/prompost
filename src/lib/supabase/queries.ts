@@ -1,6 +1,6 @@
 import { createClient } from "./client";
 import { cachedFetch, dedupe, memo } from "@/lib/offline/cache";
-import { defaultStatusFor } from "@/lib/workflow";
+import { defaultStatusFor, setInternalClients } from "@/lib/workflow";
 import { normalizePermissions } from "@/lib/permissions";
 import { slugify } from "@/lib/slug";
 import { calcQuotationTotals } from "@/lib/accounting";
@@ -66,10 +66,12 @@ type ClientRow = {
   brand_brief: string | null;
   brand_images: string[] | null;
   manager_id: string | null;
+  category: string | null;
+  parent_id: string | null;
 };
 
 const CLIENT_COLUMNS =
-  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief, brand_images, manager_id";
+  "id, name, contact_name, phone, color_tag, payment_status, portal_token, name_en, billing_name, slug, portal_enabled, address, tax_id, entity_type, priority, brand_brief, brand_images, manager_id, category, parent_id";
 
 const fromClientRow = (r: ClientRow): Client => ({
   id: r.id,
@@ -90,6 +92,8 @@ const fromClientRow = (r: ClientRow): Client => ({
   brandBrief: r.brand_brief ?? undefined,
   brandImages: r.brand_images ?? [],
   managerId: r.manager_id ?? undefined,
+  category: r.category ?? "",
+  parentId: r.parent_id ?? undefined,
 });
 
 export async function listClients(): Promise<Client[]> {
@@ -99,7 +103,9 @@ export async function listClients(): Promise<Client[]> {
       .select(CLIENT_COLUMNS)
       .order("created_at", { ascending: false });
     if (error) throw error;
-    return (data as ClientRow[]).map(fromClientRow);
+    const list = (data as ClientRow[]).map(fromClientRow);
+    setInternalClients(list.filter((c) => c.category).map((c) => c.id));
+    return list;
   });
 }
 
@@ -123,6 +129,9 @@ const clientPayload = (values: ClientInput) => ({
   tax_id: values.taxId,
   entity_type: values.entityType,
   priority: values.priority,
+  // only when the form sent them (the quick edit modal doesn't) — never reset by accident
+  ...(values.category !== undefined ? { category: values.category } : {}),
+  ...("parentId" in values ? { parent_id: values.parentId ?? null } : {}),
   brand_brief: values.brandBrief || null,
   brand_images: values.brandImages,
   manager_id: values.managerId || null,

@@ -70,3 +70,10 @@ test("stage summary: QC counts under editing, rejected/other are not clips", asy
   assert.equal(r.total, 4);
   assert.equal(r.groups.find((g) => g.key === "edit")?.count, 2);
 });
+
+test("our own work (skipClient) goes from QC Done straight to approved; customers still wait for the client", () => {
+  const own = settle({ type: "qc", status: "done", skipClient: true });
+  assert.deepEqual([own.type, own.status], ["approved", "done"]);
+  const cust = settle({ type: "qc", status: "done" });
+  assert.deepEqual([cust.type, cust.status], ["pending", "waiting"]);
+});

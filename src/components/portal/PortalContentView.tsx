@@ -128,7 +128,7 @@ export async function PortalContentView({ clientKey, basePath }: { clientKey: st
           <PortalTaskList tasks={taskList.map((t) => ({ ...t, draft_url: draftUrls[t.id] ?? null }))} clientKey={clientKey} />
         </section>
       </div>
-      <PortalTabs basePath={basePath} active="dashboard" badges={portal?.badges} />
+      <PortalTabs basePath={basePath} active="dashboard" badges={portal?.badges} brands={portal?.brands} />
     </div>
   );
 }

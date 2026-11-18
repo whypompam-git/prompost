@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { findPortalClient } from "@/lib/portalClient";
-import { pinRow, portalCookie } from "@/lib/portalPin";
+import { pinOwnerId, pinRow, portalCookie } from "@/lib/portalPin";
 import { PORTAL_PIN_LOCK_MINUTES, PORTAL_PIN_MAX_FAILS, portalPinError } from "@/lib/portalPinRules";
 import { LIMITS, clientIp } from "@/lib/rateLimitRules";
 import { hashKey, record, tooMany } from "@/lib/rateLimit";
@@ -22,14 +22,15 @@ export async function POST(request: Request) {
   if (!client || !client.portal_enabled) return NextResponse.json({ error: "ลิงก์นี้ใช้ไม่ได้แล้ว" }, { status: 404 });
 
   const db = createAdminClient();
-  const row = await pinRow(client.id);
+  const owner = await pinOwnerId(client.id); // sibling businesses share one PIN
+  const row = await pinRow(owner);
   let setAt: string;
 
   if (action === "set") {
     if (row) return NextResponse.json({ error: "ลิงก์นี้ตั้ง PIN ไว้แล้ว ใส่ PIN เพื่อเข้า" }, { status: 409 });
     const { data, error } = await db
       .from("client_portal_pins")
-      .insert({ client_id: client.id, pin_hash: bcrypt.hashSync(pin, 10) })
+      .insert({ client_id: owner, pin_hash: bcrypt.hashSync(pin, 10) })
       .select("set_at")
       .single();
     // two people setting at the same moment: the first one wins
@@ -46,14 +47,14 @@ export async function POST(request: Request) {
       await db
         .from("client_portal_pins")
         .update({ failed_attempts: lock ? 0 : fails, locked_until: lock ? new Date(Date.now() + PORTAL_PIN_LOCK_MINUTES * 60_000).toISOString() : null })
-        .eq("client_id", client.id);
+        .eq("client_id", owner);
       return NextResponse.json({ error: lock ? `ใส่ผิด ${PORTAL_PIN_MAX_FAILS} ครั้ง ล็อก ${PORTAL_PIN_LOCK_MINUTES} นาที` : "PIN ไม่ถูกต้อง" }, { status: 401 });
     }
-    if (row.failed_attempts) await db.from("client_portal_pins").update({ failed_attempts: 0, locked_until: null }).eq("client_id", client.id);
+    if (row.failed_attempts) await db.from("client_portal_pins").update({ failed_attempts: 0, locked_until: null }).eq("client_id", owner);
     setAt = row.set_at;
   }
 
-  const c = await portalCookie(client.id, setAt);
+  const c = await portalCookie(owner, setAt);
   const res = NextResponse.json({ ok: true });
   res.cookies.set(c.name, c.value, c.options);
   return res;
