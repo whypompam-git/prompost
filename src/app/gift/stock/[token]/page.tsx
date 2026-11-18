@@ -37,15 +37,15 @@ export default function StockPage({ params }: { params: { token: string } }) {
     }
   }
 
-  if (err) return <main className="mx-auto max-w-lg px-5 py-20 text-center text-lg text-[#f0d68a]">{err}</main>;
+  if (err) return <main className="mx-auto max-w-lg px-5 py-20 text-center text-lg text-[#8a5a00]">{err}</main>;
   return (
     <main className="mx-auto max-w-lg px-4 pb-16 pt-8">
-      <p className="text-center font-[family-name:var(--font-serif)] text-3xl font-semibold tracking-[0.3em] text-[#d4af37]">STOCK</p>
-      <p className="mb-6 mt-2 text-center text-sm text-[#f5f1e6]/60">ปรับจำนวนสินค้าคงเหลือ (ลิงก์ชั่วคราว)</p>
-      {!items && <p className="py-10 text-center text-[#f5f1e6]/60">กำลังโหลด…</p>}
+      <p className="text-center font-[family-name:var(--font-serif)] text-3xl font-semibold tracking-[0.3em] text-[#b07a10]">STOCK</p>
+      <p className="mb-6 mt-2 text-center text-sm text-[#2f2a24]/60">ปรับจำนวนสินค้าคงเหลือ (ลิงก์ชั่วคราว)</p>
+      {!items && <p className="py-10 text-center text-[#2f2a24]/60">กำลังโหลด…</p>}
       <div className="space-y-3">
         {items?.map((p) => (
-          <div key={p.id} className={`rounded-2xl border border-[#d4af37]/25 bg-[#111] p-3 ${p.active ? "" : "opacity-50"}`}>
+          <div key={p.id} className={`rounded-2xl border border-[#eadcc0] bg-white shadow-sm p-3 ${p.active ? "" : "opacity-50"}`}>
             <div className="flex items-center gap-3">
               {p.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -53,16 +53,16 @@ export default function StockPage({ params }: { params: { token: string } }) {
               )}
               <div className="min-w-0 flex-1">
                 <p className="truncate text-lg font-medium">{p.name}{!p.active && " (ซ่อนอยู่)"}</p>
-                <p className={`text-base ${p.stock === 0 ? "text-red-400" : "text-[#f0d68a]"}`}>เหลือ <b className="text-2xl tabular-nums">{p.stock}</b> ชิ้น</p>
+                <p className={`text-base ${p.stock === 0 ? "text-red-500" : "text-[#8a5a00]"}`}>เหลือ <b className="text-2xl tabular-nums">{p.stock}</b> ชิ้น</p>
               </div>
               <div className="flex items-center gap-2">
-                <button disabled={busy === p.id || p.stock <= 0} onClick={() => change(p.id, { delta: -1 })} className="flex h-11 w-11 items-center justify-center rounded-full border border-[#d4af37]/60 text-[#d4af37] disabled:opacity-30" aria-label="ลด 1"><Minus size={20} /></button>
-                <button disabled={busy === p.id} onClick={() => change(p.id, { delta: 1 })} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#d4af37] text-black disabled:opacity-40" aria-label="เพิ่ม 1"><Plus size={20} /></button>
+                <button disabled={busy === p.id || p.stock <= 0} onClick={() => change(p.id, { delta: -1 })} className="flex h-11 w-11 items-center justify-center rounded-full border border-[#e0a526] text-[#b07a10] disabled:opacity-30" aria-label="ลด 1"><Minus size={20} /></button>
+                <button disabled={busy === p.id} onClick={() => change(p.id, { delta: 1 })} className="flex h-11 w-11 items-center justify-center rounded-full bg-[#f0b92e] text-[#2f2a24] disabled:opacity-40" aria-label="เพิ่ม 1"><Plus size={20} /></button>
               </div>
             </div>
             <div className="mt-3 flex gap-2">
-              <input inputMode="numeric" placeholder="ตั้งจำนวนใหม่" value={typed[p.id] ?? ""} onChange={(e) => setTyped({ ...typed, [p.id]: e.target.value.replace(/\D/g, "") })} className="min-w-0 flex-1 rounded-xl border border-[#d4af37]/25 bg-[#141414] px-3 py-2.5 text-base text-[#f5f1e6] placeholder:text-[#f5f1e6]/30 focus:border-[#d4af37] focus:outline-none" />
-              <button disabled={busy === p.id || !(typed[p.id] ?? "")} onClick={() => change(p.id, { set: Number(typed[p.id]) })} className="rounded-xl border border-[#d4af37]/60 px-4 text-base text-[#d4af37] disabled:opacity-30">บันทึก</button>
+              <input inputMode="numeric" placeholder="ตั้งจำนวนใหม่" value={typed[p.id] ?? ""} onChange={(e) => setTyped({ ...typed, [p.id]: e.target.value.replace(/\D/g, "") })} className="min-w-0 flex-1 rounded-xl border border-[#eadcc0] bg-white px-3 py-2.5 text-base text-[#2f2a24] placeholder:text-[#2f2a24]/60 focus:border-[#e0a526] focus:outline-none" />
+              <button disabled={busy === p.id || !(typed[p.id] ?? "")} onClick={() => change(p.id, { set: Number(typed[p.id]) })} className="rounded-xl border border-[#e0a526] px-4 text-base text-[#b07a10] disabled:opacity-30">บันทึก</button>
             </div>
           </div>
         ))}

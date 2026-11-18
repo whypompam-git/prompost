@@ -6,6 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ShopProduct } from "@/lib/shop";
 
 // SERVER-ONLY. The public /gift page sells for one workspace (the owner's own).
+// the shop's public LINE link (shown to customers anyway); Sale → ตั้งค่า can override it
+const DEFAULT_LINE_URL = "https://lin.ee/Zb7zhUI";
 export const SHOP_WORKSPACE_ID = PROMPOST_WORKSPACE_ID;
 
 type Row = Record<string, unknown>;
@@ -38,7 +40,7 @@ export async function loadSettings(ws: string) {
     intro: (data?.intro as string) || "",
     promptpayId: (data?.promptpay_id as string) || "",
     lineNote: (data?.line_note as string) || "LINE HOPS",
-    lineUrl: (data?.line_url as string) || "",
+    lineUrl: (data?.line_url as string) || DEFAULT_LINE_URL,
     isOpen: data?.is_open !== false,
   };
 }
