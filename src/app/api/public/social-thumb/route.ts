@@ -20,8 +20,8 @@ export async function GET(request: Request) {
   try {
     const res = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(url)}`, { cache: "no-store", signal: AbortSignal.timeout(6000) });
     if (!res.ok) return NextResponse.json({ thumb: null, embed: null }, { headers: { "Cache-Control": "public, max-age=300" } });
-    const data = (await res.json()) as { thumbnail_url?: string; html?: string };
-    const id = /data-video-id="(\d{8,})"/.exec(data.html ?? "")?.[1];
+    const data = (await res.json()) as { thumbnail_url?: string; html?: string; embed_product_id?: string };
+    const id = data.embed_product_id?.match(/^\d{8,}$/)?.[0] ?? /(?:data-video-id="|player\/v1\/)(\d{8,})/.exec(data.html ?? "")?.[1];
     return NextResponse.json({ thumb: data.thumbnail_url ?? null, embed: id ? `https://www.tiktok.com/embed/v2/${id}` : null }, { headers });
   } catch {
     return NextResponse.json({ thumb: null, embed: null }, { headers: { "Cache-Control": "public, max-age=300" } });
