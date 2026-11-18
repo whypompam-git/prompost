@@ -10,6 +10,9 @@ export const LIMITS = {
   signupAllHour: { max: 60, windowMs: HOUR }, // the whole platform: a flood from many IPs
   loginFailPerIp: { max: 20, windowMs: 15 * MIN }, // on top of the 5-try lock per account
   joinPerAccountHour: { max: 10, windowMs: HOUR },
+  shopOrderPerIpHour: { max: 10, windowMs: HOUR },
+  shopSlipPerIpHour: { max: 20, windowMs: HOUR },
+  shopLookupPerIp: { max: 60, windowMs: 15 * MIN },
   pinFailPerIp: { max: 30, windowMs: 15 * MIN }, // client-link PINs, on top of the per-link lock
 } satisfies Record<string, Limit>;
 

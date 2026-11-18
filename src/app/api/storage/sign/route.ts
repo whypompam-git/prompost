@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const BUCKETS = new Set(["slips", "client-brand", "round-files"]);
+const BUCKETS = new Set(["slips", "client-brand", "round-files", "shop-products"]);
 
 // Logged-in staff ask for a one-shot signed upload URL, then upload the file
 // straight to Supabase Storage — large files never pass through (and can't be

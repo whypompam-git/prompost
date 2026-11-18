@@ -14,6 +14,7 @@ const PUBLIC_PREFIXES = [
   "/api/ai", // authenticates itself with AI_API_TOKEN
   "/api/line/webhook", // authenticated by LINE's request signature
   "/portal",
+  "/gift", // public gift shop order page
   "/quote",
   "/invoice",
   "/receipt",
