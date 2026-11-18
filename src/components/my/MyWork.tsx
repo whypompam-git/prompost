@@ -15,9 +15,9 @@ import { cn } from "@/lib/utils";
 import { DraftUploadButton } from "@/components/v2/DraftUploadButton";
 
 const SECTIONS: { key: MyBucket; title: string; hint?: string; tone: string; open: boolean }[] = [
+  { key: "todo", title: "ต้องทำ", hint: "เรียงตามวันตัดต่อ", tone: "text-gray-800", open: true },
   { key: "revise", title: "ต้องแก้", hint: "ถูกส่งกลับมาพร้อมบรีฟ", tone: "text-rose-600", open: true },
   { key: "deliver", title: "ส่ง Drive", hint: "ลูกค้าอนุมัติแล้ว โหลดไฟล์ → อัปขึ้น Drive → วางลิงก์", tone: "text-sky-600", open: true },
-  { key: "todo", title: "ต้องทำ", hint: "เรียงตามวันตัดต่อ", tone: "text-gray-800", open: true },
   { key: "review", title: "ส่งตรวจแล้ว", hint: "รอผู้รับผิดชอบ/ลูกค้าตรวจ", tone: "text-amber-600", open: true },
   { key: "done", title: "เสร็จแล้ว", tone: "text-emerald-600", open: false },
 ];
@@ -92,53 +92,7 @@ function DeliverBox({ t, onChange }: { t: MyTask; onChange: () => void }) {
 function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
   const [open, setOpen] = useState(false);
   const [ci, setCi] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [finalDraft, setFinalDraft] = useState(t.finalUrl ?? "");
   const editable = t.type === "edit" || t.type === "qc";
-  const canSubmit = t.type === "edit";
-
-  // saving the link on blur must NOT disable the submit button: the blur fires on mouse-down, and a button
-  // that turns disabled before mouse-up swallows the click. Submit waits for any pending save instead.
-  const linkSave = useRef<Promise<boolean> | null>(null);
-  const savedUrl = useRef(t.finalUrl ?? "");
-
-  async function post(path: string, body: object): Promise<boolean> {
-    try {
-      const res = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        window.alert(data.error ?? "ไม่สำเร็จ ลองใหม่อีกครั้ง");
-        return false;
-      }
-      return true;
-    } catch {
-      window.alert("ไม่สำเร็จ ลองใหม่อีกครั้ง");
-      return false;
-    }
-  }
-
-  function saveLink(): Promise<boolean> {
-    const url = finalDraft.trim();
-    if (url === savedUrl.current) return linkSave.current ?? Promise.resolve(true);
-    const p = (linkSave.current ?? Promise.resolve(true)).then(async () => {
-      const ok = await post("/api/my/final", { taskId: t.id, finalUrl: url || null });
-      if (ok) savedUrl.current = url;
-      return ok;
-    });
-    linkSave.current = p;
-    return p;
-  }
-
-  async function submit() {
-    if (!window.confirm(`ส่ง "${t.title}" ให้ตรวจ? ส่งแล้วจะถอนกลับเองไม่ได้`)) return;
-    setBusy(true);
-    try {
-      if (!(await saveLink())) return;
-      if (await post("/api/my/submit", { taskId: t.id })) onChange();
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <div className={cn("rounded-2xl border bg-white p-4 shadow-card", t.type === "edit" && t.revisionCount > 0 ? "border-rose-200" : "border-gray-100")}>
@@ -193,25 +147,10 @@ function TaskCard({ t, onChange }: { t: MyTask; onChange: () => void }) {
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-3">
           {/* main way: upload the draft video — the team reviews it in the system */}
           <DraftUploadButton taskId={t.id} title={`${t.clientName} · ${t.title}`} label={t.type === "edit" ? "อัปโหลดดราฟ + ส่งงาน" : "อัปโหลดดราฟใหม่"} onDone={onChange} className="w-full justify-center sm:w-auto" />
-          <span className="w-full text-[11px] text-gray-400 sm:w-auto">หรือวางลิงก์ Drive แล้วกดส่งงาน</span>
-          <input
-            value={finalDraft}
-            onChange={(e) => setFinalDraft(e.target.value)}
-            onBlur={() => void saveLink()}
-            placeholder="วางลิงก์ Drive ของงานที่ตัดเสร็จ"
-            className="min-w-[180px] flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
-          />
-          {canSubmit && (
-            <button
-              disabled={busy || !finalDraft.trim()}
-              onClick={submit}
-              title={finalDraft.trim() ? "" : "ใส่ลิงก์งานที่ตัดเสร็จก่อน"}
-              className="flex items-center gap-1.5 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-40"
-            >
-              {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-              ส่งงาน
-            </button>
-          )}
+          <p className="w-full rounded-lg bg-brand-50 px-3 py-2 text-[12px] leading-relaxed text-brand-800">
+            <b>อัปโหลดไฟล์ดราฟเข้าระบบตรงนี้เลย</b> — ไม่ต้องอัปขึ้น Google Drive แล้วเอาลิงก์มาวาง อัปเสร็จระบบส่งให้ทีมตรวจให้เองทันที
+            (ไฟล์ Final ขึ้น Drive ทีหลัง เฉพาะตอนลูกค้าอนุมัติแล้ว ในกลุ่ม “ส่ง Drive”)
+          </p>
         </div>
       )}
     </div>

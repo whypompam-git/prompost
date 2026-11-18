@@ -1,19 +1,18 @@
 import Link from "@/components/ui/Link";
-import { ClipboardCheck, FolderOpen, Home, Info, ListTodo } from "lucide-react";
+import { ClipboardCheck, Info, ListTodo, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export type PortalTab = "dashboard" | "review" | "plan" | "files" | "info";
+export type PortalTab = "review" | "plan" | "data" | "profile";
 
 // The client link's tab bar (bottom of the screen): หน้าแรก · ตรวจงาน · แผนคอนเทนต์ · ไฟล์งาน · ข้อมูล
 export type PortalBrand = { id: string; name: string; path: string; current: boolean };
 
 export function PortalTabs({ basePath, active, badges = {}, brands = [] }: { basePath: string; active: PortalTab; badges?: Partial<Record<PortalTab, number>>; brands?: PortalBrand[] }) {
-  const tabs: { key: PortalTab; label: string; href: string; icon: typeof Home }[] = [
-    { key: "dashboard", label: "หน้าแรก", href: basePath, icon: Home },
+  const tabs: { key: PortalTab; label: string; href: string; icon: typeof Info }[] = [
     { key: "review", label: "ตรวจงาน", href: `${basePath}/review`, icon: ClipboardCheck },
     { key: "plan", label: "แผนคอนเทนต์", href: `${basePath}/plan`, icon: ListTodo },
-    { key: "files", label: "ไฟล์งาน", href: `${basePath}/files`, icon: FolderOpen },
-    { key: "info", label: "ข้อมูล", href: `${basePath}/info`, icon: Info },
+    { key: "data", label: "ข้อมูล", href: `${basePath}/all`, icon: Info },
+    { key: "profile", label: "โปรไฟล์", href: `${basePath}/files`, icon: UserCircle2 },
   ];
   return (
     <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-100 bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">

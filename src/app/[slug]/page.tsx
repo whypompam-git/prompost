@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation";
-import { PortalContentView } from "@/components/portal/PortalContentView";
+import { notFound, redirect } from "next/navigation";
 import { RESERVED_SLUGS } from "@/lib/slug";
 
+// The client link opens on the review feed (ตรวจงาน).
 export default function ClientSlugPage({ params }: { params: { slug: string } }) {
   if (RESERVED_SLUGS.has(params.slug)) notFound();
-  return <PortalContentView clientKey={params.slug} basePath={`/${params.slug}`} />;
+  redirect(`/${params.slug}/review`);
 }

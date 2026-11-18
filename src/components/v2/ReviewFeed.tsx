@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/Link";
-import { Check, CheckCircle2, Download, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
+import { Check, CheckCircle2, Download, Gauge, Heart, ListChecks, Loader2, Maximize, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { initials } from "@/components/v2/AppGrid";
@@ -130,6 +130,22 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
     if (video.current) video.current.playbackRate = n;
   }
 
+  // full screen with the player's own controls (iPhone uses its native player)
+  function fullscreen() {
+    const v = video.current as (HTMLVideoElement & { webkitEnterFullscreen?: () => void }) | null;
+    if (!v) return;
+    if (v.requestFullscreen) {
+      v.requestFullscreen().then(() => (v.controls = true)).catch(() => {});
+      const off = () => {
+        if (!document.fullscreenElement) {
+          v.controls = false;
+          document.removeEventListener("fullscreenchange", off);
+        }
+      };
+      document.addEventListener("fullscreenchange", off);
+    } else v.webkitEnterFullscreen?.();
+  }
+
   const canWrite = variant !== "editor" && Boolean(h.onComment);
   const reviseLabel = variant === "client" ? `ส่งให้แก้ (${open.length} ข้อ)` : `ส่งกลับให้แก้ (${open.length} ข้อ)`;
 
@@ -198,6 +214,10 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
         <button onClick={showComments} className="relative flex flex-col items-center gap-1" aria-label="คอมเมนต์">
           <MessageCircle size={30} className="drop-shadow" />
           <span className="text-[11px] font-semibold">{variant === "editor" ? `${open.length} ข้อ` : open.length || "คอมเมนต์"}</span>
+        </button>
+        <button onClick={fullscreen} className="flex flex-col items-center gap-1" aria-label="เต็มจอ">
+          <Maximize size={28} className="drop-shadow" />
+          <span className="text-[11px] font-semibold">เต็มจอ</span>
         </button>
         <button onClick={nextSpeed} className="flex flex-col items-center gap-1" aria-label="ความเร็ว">
           <Gauge size={28} className="drop-shadow" />

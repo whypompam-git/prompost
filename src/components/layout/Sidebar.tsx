@@ -30,6 +30,7 @@ import {
 import { cn } from "@/lib/utils";
 import { APP_LOGO_SRC, APP_NAME } from "@/config/branding";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { WorkspaceMenuButton } from "@/components/workspace/WorkspaceMenuButton";
 import { NavBadge } from "@/components/layout/NavBadge";
 import { useReviewBadge } from "@/components/layout/useReviewBadge";
 
@@ -97,7 +98,7 @@ export function Sidebar() {
       )}
     >
       <div className={cn("flex h-16 items-center gap-2 px-2", expanded ? "lg:justify-start lg:px-3.5 justify-center" : "justify-center")}>
-        <Image src={APP_LOGO_SRC} alt="" width={32} height={32} className="h-8 w-8 rounded-lg" />
+        <WorkspaceMenuButton size={32} />
         <span className={cn("text-lg font-semibold tracking-tight", expanded ? "hidden lg:inline" : "hidden")}>{APP_NAME}</span>
       </div>
 

@@ -1,5 +1,5 @@
-import { PortalContentView } from "@/components/portal/PortalContentView";
+import { redirect } from "next/navigation";
 
 export default function LegacyPortalPage({ params }: { params: { token: string } }) {
-  return <PortalContentView clientKey={params.token} basePath={`/portal/${params.token}`} />;
+  redirect(`/portal/${params.token}/review`);
 }

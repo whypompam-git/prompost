@@ -6,16 +6,12 @@ import { useRouter } from "next/navigation";
 import { Camera, ChevronRight, Film, LogOut, Menu, Pencil, Users, X } from "lucide-react";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { ClientTile } from "@/components/v2/AppGrid";
-import { LEGACY_ITEMS, allowed } from "@/components/layout/navItems";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { listClientLogos, listClients, listStaff, listTasksLite, updateOwnProfile } from "@/lib/supabase/queries";
 import type { Client, Staff, Task } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { DriveGrid } from "@/components/portal/DriveGrid";
 import { GoalCard } from "@/components/my/GoalCard";
-import { ChangePasswordCard } from "@/components/my/ChangePasswordCard";
-import { ReviewBadgeCard } from "@/components/my/ReviewBadgeCard";
-import { WorkspaceSwitcher } from "@/components/workspace/WorkspaceSwitcher";
 
 const MAX = 256;
 function resizeToDataUrl(file: File): Promise<string> {
@@ -54,7 +50,6 @@ export default function V2MePage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [logos, setLogos] = useState<Record<string, string>>({});
   const [tab, setTab] = useState<"work" | "clients">("work");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -82,7 +77,6 @@ export default function V2MePage() {
     [tasks, auth.staffId],
   );
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
-  const menu = LEGACY_ITEMS.filter((i) => allowed(i, auth));
 
   async function changePhoto(file?: File) {
     if (!file || !me) return;
@@ -106,9 +100,9 @@ export default function V2MePage() {
       {/* header: name + ☰ */}
       <div className="flex items-center justify-between px-4 pb-2 pt-4 sm:px-6">
         <h1 className="truncate text-lg font-semibold text-gray-900">{me?.name ?? "โปรไฟล์"}</h1>
-        <button onClick={() => setMenuOpen(true)} className="rounded-full p-2 text-gray-700 hover:bg-gray-100" aria-label="เมนูอื่นๆ">
+        <Link href="/v2/menu" className="rounded-full p-2 text-gray-700 hover:bg-gray-100" aria-label="เมนูเพิ่มเติม / ตั้งค่า">
           <Menu size={22} />
-        </button>
+        </Link>
       </div>
 
       {/* avatar + counts */}
@@ -144,17 +138,8 @@ export default function V2MePage() {
           <Pencil size={14} /> แก้ไขโปรไฟล์
         </Link>
         <div className="mt-3">
-          <GoalCard />
-          {auth.role === "owner" && (
-            <Link href="/v2/progress" className="mt-2 flex items-center justify-center gap-1 text-xs font-medium text-brand-600">
-              Progress Tracking ของทั้งทีม · ตั้งเป้าให้พนักงาน <ChevronRight size={14} />
-            </Link>
-          )}
-        </div>
-        <div className="mt-3 space-y-3">
-          <WorkspaceSwitcher />
-          <ReviewBadgeCard />
-          <ChangePasswordCard />
+          {/* preview only: the goal is edited under เมนูเพิ่มเติม (top right) */}
+          <GoalCard readOnly />
         </div>
       </div>
 
@@ -183,42 +168,6 @@ export default function V2MePage() {
         </div>
       )}
 
-      {/* ☰ other menus */}
-      {menuOpen && (
-        <div className="fixed inset-0 z-50" onClick={() => setMenuOpen(false)}>
-          <div className="absolute inset-0 bg-black/30" />
-          <div className="absolute inset-x-0 bottom-0 max-h-[80vh] overflow-y-auto rounded-t-2xl bg-white p-4 pb-8 shadow-2xl md:inset-x-auto md:right-6 md:top-16 md:bottom-auto md:w-80 md:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between">
-              <span className="text-sm font-semibold text-gray-700">เมนูอื่นๆ</span>
-              <button onClick={() => setMenuOpen(false)} className="rounded-full p-1 text-gray-400" aria-label="ปิด">
-                <X size={18} />
-              </button>
-            </div>
-            <div className="divide-y divide-gray-100">
-              {menu.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link key={item.href} href={item.href} className="flex items-center gap-3 px-1 py-3 text-sm text-gray-700">
-                    <Icon size={18} className="text-gray-400" />
-                    <span className="flex-1">{item.label}</span>
-                    <ChevronRight size={16} className="text-gray-300" />
-                  </Link>
-                );
-              })}
-              <button
-                onClick={async () => {
-                  await fetch("/api/auth/logout", { method: "POST" });
-                  router.push("/login");
-                  router.refresh();
-                }}
-                className="flex w-full items-center gap-3 px-1 py-3 text-sm text-rose-600"
-              >
-                <LogOut size={18} /> ออกจากระบบ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

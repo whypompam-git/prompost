@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "@/components/ui/Link";
 import { usePathname, useRouter } from "next/navigation";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { ArrowLeft, Menu } from "lucide-react";
+import { WorkspaceMenuButton } from "@/components/workspace/WorkspaceMenuButton";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { QuickNoteButton } from "@/components/layout/QuickNoteButton";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -33,17 +34,12 @@ export function Topbar({
     });
   }, [auth.staffId]);
 
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
-  }
-
   const displayName = me?.name || auth.name;
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-gray-100 bg-white px-6">
       <div className="flex min-w-0 items-center gap-2">
+        <WorkspaceMenuButton size={30} className="md:hidden" />
         {backTo && (
           <button
             onClick={() => (window.history.length > 1 ? router.back() : router.push(backTo))}
@@ -73,14 +69,9 @@ export function Topbar({
             (displayName || "A").charAt(0).toUpperCase()
           )}
         </Link>
-        <button
-          onClick={handleLogout}
-          className="rounded-full p-2 text-gray-400 hover:bg-gray-50 hover:text-gray-700"
-          aria-label="ออกจากระบบ"
-          title="ออกจากระบบ"
-        >
-          <LogOut size={16} />
-        </button>
+        <Link href="/v2/menu" className="rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-800" aria-label="เมนูเพิ่มเติม / ตั้งค่า" title="เมนูเพิ่มเติม / ตั้งค่า">
+          <Menu size={20} />
+        </Link>
       </div>
     </header>
   );

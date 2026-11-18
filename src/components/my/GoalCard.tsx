@@ -23,7 +23,7 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00
 // "Progress Tracking": a progress bar of clips finished this month (or since a
 // start date) against a target. Own card on the profile (fetches itself), or —
 // with staffId + data — the owner's card for someone else.
-export function GoalCard({ staffId, data, onChanged, compact }: { staffId?: string; data?: GoalData; onChanged?: () => void; compact?: boolean } = {}) {
+export function GoalCard({ staffId, data, onChanged, compact, readOnly }: { staffId?: string; data?: GoalData; onChanged?: () => void; compact?: boolean; readOnly?: boolean } = {}) {
   const [own, setOwn] = useState<GoalData | null>(null);
   const d = data ?? own;
   const [edit, setEdit] = useState(false);
@@ -80,7 +80,7 @@ export function GoalCard({ staffId, data, onChanged, compact }: { staffId?: stri
         <p className="flex min-w-0 items-center gap-1.5 text-xs font-medium text-gray-500">
           <Target size={14} className="shrink-0" /> <span className="font-semibold text-gray-700">Progress Tracking</span> <span className="truncate">· {period}</span>
         </p>
-        {!edit && !d.locked && (
+        {!edit && !d.locked && !readOnly && (
           <button onClick={openEdit} className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50">
             <Pencil size={12} /> {g ? "แก้เป้า" : "ตั้งเป้า"}
           </button>

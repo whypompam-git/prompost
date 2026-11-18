@@ -1,4 +1,5 @@
 import { APP_LOGO_SRC } from "@/config/branding";
+import { DocFit } from "@/components/billing/DocFit";
 import type { AgencySettings, QuotationItem } from "@/lib/types";
 
 const currency = (n: number) =>
@@ -51,6 +52,7 @@ export function BillingDocument({
   const payment = docType === "receipt" ? "" : (paymentNote?.trim() || seller.bankInfo?.trim() || "").trim();
 
   return (
+    <DocFit>
     <div id="billing-doc" className="mx-auto w-[210mm] min-h-[297mm] bg-white p-[15mm] text-gray-900 print:p-[15mm] print:shadow-none" style={{ fontFamily: "var(--font-prompt)" }}>
       <div className="flex items-start justify-between">
         <div>
@@ -181,5 +183,6 @@ export function BillingDocument({
         )}
       </div>
     </div>
+    </DocFit>
   );
 }
