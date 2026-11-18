@@ -198,7 +198,7 @@ export default function GiftPage() {
                   <div className="flex flex-1 flex-col p-3">
                     <h2 className="text-base font-medium leading-snug">{p.name}</h2>
                     {p.description && <p className="mt-0.5 line-clamp-2 whitespace-pre-line text-sm leading-snug text-[#2f2a24]/65">{p.description}</p>}
-                    <p className="mt-1 font-[family-name:var(--font-serif)] text-2xl font-semibold leading-none text-[#b07a10]">{baht(p.price)}</p>
+                    <p className="mt-1 text-2xl font-bold leading-none tabular-nums text-[#b07a10]">{baht(p.price)}</p>
                     <p className={`mt-2 text-sm font-medium ${out ? "text-red-500" : p.stock <= 3 ? "text-orange-600" : "text-[#8a5a00]"}`}>
                       {out ? "หมดแล้ว" : `เหลือ ${p.stock} ชิ้น`}
                     </p>
@@ -231,7 +231,7 @@ export default function GiftPage() {
             {lines.map((l) => (
               <div key={l.id} className="flex justify-between py-1 text-base"><span>{l.name} × {l.qty}</span><span className="tabular-nums">{baht(l.price * l.qty)}</span></div>
             ))}
-            <div className="mt-2 flex justify-between border-t border-[#eadcc0] pt-3 font-semibold"><span>ยอดชำระ</span><span className="font-[family-name:var(--font-serif)] text-2xl text-[#b07a10]">{baht(qr.total)}</span></div>
+            <div className="mt-2 flex justify-between border-t border-[#eadcc0] pt-3 font-semibold"><span>ยอดชำระ</span><span className="text-2xl font-bold tabular-nums text-[#b07a10]">{baht(qr.total)}</span></div>
           </div>
 
           <div className="rounded-2xl border border-[#eadcc0] bg-white shadow-sm p-4 text-center">
@@ -273,7 +273,7 @@ export default function GiftPage() {
           <div className="mx-auto flex max-w-lg items-center gap-4">
             <div className="flex-1">
               <p className="flex items-center gap-1.5 text-sm text-[#2f2a24]/70"><ShoppingBag size={14} /> {count} ชิ้น</p>
-              <p className="font-[family-name:var(--font-serif)] text-2xl font-semibold text-[#b07a10]">{baht(step === 2 && qr ? qr.total : total)}</p>
+              <p className="text-2xl font-bold tabular-nums text-[#b07a10]">{baht(step === 2 && qr ? qr.total : total)}</p>
             </div>
             {step === 1 ? (
               <button disabled={busy} onClick={goPay} className={`rounded-full px-7 py-3 text-base font-semibold disabled:opacity-50 ${GOLD}`}>{busy ? "กำลังเช็คสต็อก…" : "ไปชำระเงิน"}</button>
@@ -310,15 +310,15 @@ function Receipt({ d }: { d: Done }) {
   return (
     <section className="space-y-5 text-center">
       <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-500 text-white"><Check size={30} /></div>
-      <h2 className="font-[family-name:var(--font-serif)] text-2xl text-[#8a5a00]">ชำระเงินสำเร็จ</h2>
+      <h2 className="text-2xl text-[#8a5a00]">ชำระเงินสำเร็จ</h2>
       <div className="rounded-2xl border border-[#f0cf80] bg-white shadow-sm p-5 text-left">
         <p className="text-center text-sm uppercase tracking-widest text-[#2f2a24]/60">รหัสออเดอร์</p>
-        <p className="text-center font-[family-name:var(--font-serif)] text-3xl font-semibold tracking-widest text-[#b07a10]">{d.code}</p>
+        <p className="text-center text-3xl font-semibold tracking-widest text-[#b07a10]">{d.code}</p>
         <div className="my-4 h-px bg-[#f0b92e]/20" />
         {d.items.map((i, idx) => (
           <div key={idx} className="flex justify-between py-1 text-base"><span>{i.name} × {i.qty}</span><span className="tabular-nums">{baht(i.price * i.qty)}</span></div>
         ))}
-        <div className="mt-2 flex justify-between border-t border-[#eadcc0] pt-3 font-semibold"><span>รวม</span><span className="text-[#b07a10]">{baht(d.total)}</span></div>
+        <div className="mt-2 flex justify-between border-t border-[#eadcc0] pt-3 font-semibold"><span>รวม</span><span className="text-xl font-bold tabular-nums text-[#b07a10]">{baht(d.total)}</span></div>
         <div className="mt-4 space-y-0.5 text-base text-[#2f2a24]/90">
           <p>{d.name} · {d.phone}</p>
           <p className="whitespace-pre-line text-sm text-[#2f2a24]/70">{d.address}</p>
