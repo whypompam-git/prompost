@@ -5,14 +5,17 @@ import { Search } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
-import { listClientLogos, listClients, listTasksLite } from "@/lib/supabase/queries";
-import type { Client, Task } from "@/lib/types";
+import { listClientLogos, listClients } from "@/lib/supabase/queries";
+import { clientReasons, reasonText, type BadgeData, type ClientReasons } from "@/lib/reviewBadge";
+import type { Client } from "@/lib/types";
+
+const total = (r?: ClientReasons) => (r ? r.review + r.deliver + r.revise : 0);
 
 // New UI: clients as a grid of app icons — just logo + name; everything else is inside.
 export default function V2ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [logos, setLogos] = useState<Record<string, string>>({});
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [badge, setBadge] = useState<BadgeData | null>(null);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -24,15 +27,12 @@ export default function V2ClientsPage() {
       })
       .finally(() => setLoading(false));
     // the red dots fill in after the grid shows
-    listTasksLite().then(setTasks).catch(() => {});
+    fetch("/api/drafts/badge", { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject())).then(setBadge).catch(() => {});
   }, []);
 
-  // red dot = the client sent something back or is waiting to check a clip
-  const needs = useMemo(() => {
-    const s = new Set<string>();
-    for (const t of tasks) if (t.type === "pending" || ((t.type === "edit" || t.type === "qc") && (t.revisionCount ?? 0) > 0)) s.add(t.clientId);
-    return s;
-  }, [tasks]);
+  // red number = clips waiting for us in this client (waiting for QC, being re-edited after a
+  // revision request, or approved and still to be put on Drive); the text under the name says which.
+  const needs = useMemo(() => (badge ? clientReasons(badge) : new Map<string, ClientReasons>()), [badge]);
 
   // groups: customers, and each of our own channels (พร้อมโพส, Tradetalk, …)
   const [group, setGroup] = useState<string>("all");
@@ -72,7 +72,7 @@ export default function V2ClientsPage() {
         ) : (
           <AppGrid>
             {shown.map((c) => (
-              <ClientTile key={c.id} href={`/v2/clients/${c.id}`} name={c.parentId ? `${clients.find((x) => x.id === c.parentId)?.name ?? ""} · ${c.name}` : c.name} logo={logos[c.id] || c.brandImages?.[0]} color={c.colorTag} alert={needs.has(c.id)} />
+              <ClientTile key={c.id} href={`/v2/clients/${c.id}`} name={c.parentId ? `${clients.find((x) => x.id === c.parentId)?.name ?? ""} · ${c.name}` : c.name} logo={logos[c.id] || c.brandImages?.[0]} color={c.colorTag} alert={total(needs.get(c.id))} reason={needs.get(c.id) ? reasonText(needs.get(c.id)!) : undefined} />
             ))}
           </AppGrid>
         )}

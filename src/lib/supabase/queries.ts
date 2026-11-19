@@ -550,18 +550,21 @@ export async function listDistinctShotsAndEquipment(): Promise<{
 
 // Just the clips that are due soon and still the team's job (the bell's alerts) —
 // the full task list carries every script and is close to 1 MB.
-export async function listDueTasks(untilIso: string): Promise<Pick<Task, "id" | "title" | "clientId" | "assigneeId" | "status" | "dueDate">[]> {
+export async function listDueTasks(untilIso: string): Promise<Pick<Task, "id" | "title" | "clientId" | "assigneeId" | "editorId" | "type" | "status" | "dueDate">[]> {
   const { data, error } = await supabase()
     .from("tasks")
-    .select("id, title, client_id, assignee_id, status, due_date")
+    .select("id, title, client_id, assignee_id, editor_id, type, status, due_date")
     .not("status", "in", "(done,waiting)")
+    .not("type", "in", "(pending,approved,posted,rejected)")
     .lte("due_date", untilIso);
   if (error) throw error;
-  return (data as { id: string; title: string; client_id: string; assignee_id: string | null; status: Task["status"]; due_date: string }[]).map((r) => ({
+  return (data as { id: string; title: string; client_id: string; assignee_id: string | null; editor_id: string | null; type: Task["type"]; status: Task["status"]; due_date: string }[]).map((r) => ({
     id: r.id,
     title: r.title,
     clientId: r.client_id,
     assigneeId: r.assignee_id,
+    editorId: r.editor_id,
+    type: r.type,
     status: r.status,
     dueDate: r.due_date,
   }));
@@ -2562,12 +2565,6 @@ export async function getClientCi(clientId: string): Promise<ClientCi> {
 
 // logos for the client grid (one query)
 // clips waiting at QC (for the review badge): just who they belong to
-export async function listQcTaskOwners(): Promise<{ id: string; editorId: string | null; assigneeId: string | null }[]> {
-  const { data, error } = await supabase().from("tasks").select("id, editor_id, assignee_id").eq("type", "qc");
-  if (error) throw error;
-  return (data ?? []).map((r) => ({ id: r.id as string, editorId: (r.editor_id as string | null) ?? null, assigneeId: (r.assignee_id as string | null) ?? null }));
-}
-
 export async function listClientLogos(): Promise<Record<string, string>> {
   return memo("listClientLogos", listClientLogosRaw);
 }

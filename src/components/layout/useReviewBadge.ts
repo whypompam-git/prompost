@@ -2,8 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { REVIEW_PREF_EVENT, countReview, readReviewMode } from "@/lib/reviewBadge";
-import { listQcTaskOwners } from "@/lib/supabase/queries";
+import { REVIEW_PREF_EVENT, countReview, readReviewMode, type BadgeData } from "@/lib/reviewBadge";
 
 // How many clips wait for review (per the person's own setting). Refreshes every minute,
 // when the page is pulled to refresh, and when the setting changes.
@@ -12,8 +11,9 @@ export function useReviewBadge(): number {
   const [count, setCount] = useState(0);
   const load = useCallback(() => {
     if (auth.ownOnly) return;
-    listQcTaskOwners()
-      .then((items) => setCount(countReview(items, readReviewMode(), auth.staffId)))
+    fetch("/api/drafts/badge", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d: BadgeData) => setCount(countReview(d.review, readReviewMode(), auth.staffId)))
       .catch(() => {});
   }, [auth.ownOnly, auth.staffId]);
   useEffect(() => {

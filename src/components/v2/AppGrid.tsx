@@ -18,7 +18,7 @@ export function initials(name: string) {
 const stem = (c?: string): ColorStem => (c && c in PALETTE ? (c as ColorStem) : "orange");
 
 // A client: logo (or initials on the client's colour) + name. `alert` = red dot.
-export function ClientTile({ href, name, logo, color, alert }: { href: string; name: string; logo?: string; color?: string; alert?: boolean }) {
+export function ClientTile({ href, name, logo, color, alert, reason }: { href: string; name: string; logo?: string; color?: string; alert?: number | boolean; reason?: string }) {
   return (
     <Link href={href} className="group flex flex-col items-center gap-1.5 rounded-2xl p-1.5 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300">
       <span className="relative block aspect-square w-full max-w-[110px] overflow-hidden rounded-2xl bg-white shadow-card transition group-hover:shadow-md group-active:scale-95">
@@ -28,9 +28,14 @@ export function ClientTile({ href, name, logo, color, alert }: { href: string; n
         ) : (
           <span className={cn("flex h-full w-full items-center justify-center text-2xl font-bold text-white", PALETTE[stem(color)].solid)}>{initials(name)}</span>
         )}
-        {alert && <span className="absolute right-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white bg-rose-500" aria-label="มีงานรอ" />}
+        {alert ? (
+          <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-rose-500 px-1 text-[10px] font-bold leading-none text-white" aria-label={reason || "มีงานรอ"}>
+            {typeof alert === "number" ? alert : ""}
+          </span>
+        ) : null}
       </span>
       <span className="line-clamp-2 w-full text-xs font-medium leading-tight text-gray-800">{name}</span>
+      {reason && <span className="-mt-1 line-clamp-2 w-full text-[10px] font-medium leading-tight text-rose-600">{reason}</span>}
     </Link>
   );
 }

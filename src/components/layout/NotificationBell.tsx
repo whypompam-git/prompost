@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { bangkokDay, buildDigest } from "@/lib/alerts";
 import { alertBilling } from "@/lib/billing";
+import { stageInfo } from "@/lib/workflow";
 import {
   listClientPackages,
   listClients,
@@ -160,12 +161,15 @@ export function NotificationBell() {
 
     const today = new Date().toISOString().slice(0, 10);
     for (const t of due) {
-      if (!isOwner && t.assigneeId !== auth.staffId) continue;
+      // whoever holds the clip right now: the editor while it is being edited, otherwise the responsible person
+      const holder = t.type === "edit" ? t.editorId ?? t.assigneeId : t.assigneeId;
+      if (!isOwner && holder !== auth.staffId) continue;
+      const days = Math.round((new Date(`${today}T00:00:00Z`).getTime() - new Date(`${t.dueDate}T00:00:00Z`).getTime()) / DAY);
       out.push({
         id: `task:${t.id}:${t.dueDate}`,
         icon: "task",
-        title: t.dueDate < today ? `เลยกำหนดส่ง: ${t.title}` : `ใกล้ถึงกำหนดส่ง: ${t.title}`,
-        detail: `${clientName(t.clientId)} · Deadline ${t.dueDate}`,
+        title: t.dueDate < today ? `เลยกำหนดส่ง ${days} วัน: ${t.title}` : t.dueDate === today ? `ครบกำหนดส่งวันนี้: ${t.title}` : `ใกล้ถึงกำหนดส่ง: ${t.title}`,
+        detail: `${clientName(t.clientId)} · ขั้น ${stageInfo(t.type)?.label ?? t.type} · Deadline ${t.dueDate}`,
         href: `/tasks/${t.id}`,
       });
     }
