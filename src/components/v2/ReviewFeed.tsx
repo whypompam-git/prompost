@@ -449,7 +449,7 @@ export function ReviewFeed({ items, variant = "team", onFeedScroll, ...h }: { it
   const isClient = variant === "client";
   return (
     <div className="relative h-full">
-      <div ref={box} onScroll={onFeedScroll} onTouchMove={onFeedScroll} onWheel={onFeedScroll} className="h-full snap-y snap-mandatory overflow-y-auto">
+      <div ref={box} onScroll={onFeedScroll} onTouchMove={(e) => items.length === 1 && !(e.target instanceof HTMLInputElement) && onFeedScroll?.()} onWheel={() => items.length === 1 && onFeedScroll?.()} className="h-full snap-y snap-mandatory overflow-y-auto">
         {items.map((it, i) => (
           <div key={`${it.taskId}-${it.draft.id}`} data-i={i} className="h-full">
             <Slide item={it} active={i === active} load={mayLoad(i)} onLoaded={() => setLoaded((p) => (p.has(it.draft.id) ? p : new Set(p).add(it.draft.id)))} variant={variant} index={i} total={items.length} h={h} onOverlay={setOverlay} />
