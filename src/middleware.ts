@@ -15,6 +15,7 @@ const PUBLIC_PREFIXES = [
   "/api/line/webhook", // authenticated by LINE's request signature
   "/portal",
   "/gift", // public gift shop order page
+  "/waitlist", // public PromPost early-access sign-up page
   "/quote",
   "/invoice",
   "/receipt",

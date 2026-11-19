@@ -12,6 +12,7 @@ export const LIMITS = {
   joinPerAccountHour: { max: 10, windowMs: HOUR },
   shopOrderPerIpHour: { max: 10, windowMs: HOUR },
   shopSlipPerIpHour: { max: 20, windowMs: HOUR },
+  waitlistPerIpHour: { max: 5, windowMs: HOUR },
   shopLookupPerIp: { max: 60, windowMs: 15 * MIN },
   pinFailPerIp: { max: 30, windowMs: 15 * MIN }, // client-link PINs, on top of the per-link lock
 } satisfies Record<string, Limit>;
