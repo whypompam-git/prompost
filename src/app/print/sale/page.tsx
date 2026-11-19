@@ -30,36 +30,58 @@ function PrintInner() {
   if (!orders) return <LoadingView />;
 
   return (
-    <div className="bg-white text-black">
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff !important; } .order-card { break-inside: avoid; } @page { size: A4; margin: 12mm; } }`}</style>
-      <div className="no-print sticky top-0 flex items-center justify-between border-b bg-white px-4 py-3">
-        <p className="text-sm text-gray-600">{orders.length} ออเดอร์</p>
+    <div className="min-h-screen bg-gray-100 text-black print:bg-white">
+      {/* one label = one page of exactly 150 x 100 mm (landscape): set the printer's paper to the same size */}
+      <style>{`
+        @page { size: 150mm 100mm; margin: 0; }
+        .label { width: 150mm; height: 100mm; padding: 5mm 6mm; box-sizing: border-box; overflow: hidden; background: #fff; display: flex; flex-direction: column; }
+        @media print {
+          html, body { width: 150mm; background: #fff !important; margin: 0 !important; }
+          .no-print { display: none !important; }
+          .labels { padding: 0 !important; gap: 0 !important; }
+          .label { break-after: page; page-break-after: always; box-shadow: none !important; border: 0 !important; }
+          .label:last-child { break-after: auto; page-break-after: auto; }
+        }
+      `}</style>
+      <div className="no-print sticky top-0 z-10 flex items-center justify-between border-b bg-white px-4 py-3">
+        <p className="text-sm text-gray-600">{orders.length} ออเดอร์ · ใบปะหน้า 150×100 มม. (1 ออเดอร์ต่อ 1 ใบ)</p>
         <button onClick={() => window.print()} className="flex items-center gap-1.5 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white"><Printer size={15} /> ปริ้น</button>
       </div>
-      <div className="mx-auto max-w-3xl space-y-4 p-6">
-        <section className="order-card rounded-lg border-2 border-black p-4">
-          <h1 className="text-lg font-bold">สรุปของที่ต้องเตรียม ({orders.length} ออเดอร์)</h1>
-          <ul className="mt-2 grid grid-cols-2 gap-x-6 text-base">
-            {need.map(([n, q]) => <li key={n} className="flex justify-between border-b border-gray-300 py-1"><span>{n}</span><b>× {q}</b></li>)}
-          </ul>
-        </section>
-        {orders.map((o, idx) => (
-          <section key={o.id} className="order-card rounded-lg border border-gray-400 p-4">
-            <div className="flex items-baseline justify-between">
-              <p className="font-mono text-lg font-bold">{o.code}</p>
-              <p className="text-xs text-gray-500">#{idx + 1} · {new Date(o.createdAt).toLocaleDateString("th-TH")}</p>
-            </div>
-            <p className="mt-2 text-base font-semibold">{o.name}</p>
-            <p className="text-base">โทร {o.phone}</p>
-            <p className="whitespace-pre-line text-base">{o.address}</p>
-            {o.note && <p className="mt-1 text-sm">หมายเหตุ: {o.note}</p>}
-            <table className="mt-3 w-full text-sm">
-              <tbody>
-                {o.items.map((i, k) => <tr key={k} className="border-t border-gray-300"><td className="py-1">{i.name}</td><td className="py-1 text-right font-semibold">× {i.qty}</td></tr>)}
-              </tbody>
-            </table>
+      <div className="labels flex flex-col items-center gap-4 p-4">
+        {orders.length > 1 && (
+          <section className="label border border-gray-300 shadow-sm">
+            <h1 className="text-[15pt] font-bold leading-tight">สรุปของที่ต้องเตรียม · {orders.length} ออเดอร์</h1>
+            <ul className="mt-2 grid flex-1 grid-cols-2 content-start gap-x-6 text-[11pt] leading-snug">
+              {need.map(([n, q]) => <li key={n} className="flex justify-between border-b border-gray-300 py-0.5"><span className="truncate pr-2">{n}</span><b>× {q}</b></li>)}
+            </ul>
           </section>
-        ))}
+        )}
+        {orders.map((o, idx) => {
+          const qty = o.items.reduce((n, i) => n + i.qty, 0);
+          return (
+            <section key={o.id} className="label border border-gray-300 shadow-sm">
+              <div className="flex items-baseline justify-between border-b-2 border-black pb-1">
+                <p className="font-mono text-[14pt] font-bold leading-none">{o.code}</p>
+                <p className="text-[9pt] text-gray-600">#{idx + 1}/{orders.length} · {new Date(o.createdAt).toLocaleDateString("th-TH")} · รวม {qty} ชิ้น</p>
+              </div>
+              <div className="mt-2 grid min-h-0 flex-1 grid-cols-[1.25fr_1fr] gap-x-5">
+                <div className="min-w-0">
+                  <p className="text-[9pt] text-gray-500">ผู้รับ</p>
+                  <p className="text-[15pt] font-bold leading-tight">{o.name}</p>
+                  <p className="mt-0.5 text-[14pt] font-semibold leading-tight">โทร {o.phone}</p>
+                  <p className="mt-1.5 whitespace-pre-line text-[12pt] leading-snug">{o.address}</p>
+                  {o.note && <p className="mt-1 text-[10pt] leading-tight">หมายเหตุ: {o.note}</p>}
+                </div>
+                <div className="min-w-0 border-l border-gray-400 pl-4">
+                  <p className="text-[9pt] text-gray-500">รายการ</p>
+                  <ul className="text-[12pt] leading-snug">
+                    {o.items.map((i, k) => <li key={k} className="flex justify-between gap-2 border-b border-gray-300 py-0.5"><span className="min-w-0 break-words">{i.name}</span><b className="shrink-0">× {i.qty}</b></li>)}
+                  </ul>
+                </div>
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
