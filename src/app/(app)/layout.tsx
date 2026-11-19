@@ -7,6 +7,7 @@ import { OfflineStatus } from "@/components/OfflineStatus";
 import { NavProgress } from "@/components/layout/NavProgress";
 import { PullToRefresh } from "@/components/layout/PullToRefresh";
 import { Suspense } from "react";
+import { UndoBar } from "@/components/layout/UndoBar";
 import { UploadBanner } from "@/components/v2/UploadBanner";
 import { MyWork } from "@/components/my/MyWork";
 import { AuthProvider } from "@/lib/auth/AuthContext";
@@ -57,6 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen">
         <PullToRefresh />
         <UploadBanner />
+        <UndoBar />
         <Suspense fallback={null}>
           <NavProgress />
         </Suspense>

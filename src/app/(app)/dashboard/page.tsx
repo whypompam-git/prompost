@@ -1,5 +1,6 @@
 "use client";
 
+import { rememberUndo } from "@/lib/undo";
 import { announceChanges, flowPatch } from "@/lib/taskFlow";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -186,7 +187,10 @@ function DashboardPageInner() {
     const patch = flowPatch(prev, fields);
     setTasks((p) => p.map((t) => (t.id === taskId ? { ...t, ...patch } : t)));
     updateTaskRow(taskId, patch)
-      .then(() => announceChanges(prev, { ...prev, ...patch }))
+      .then(() => {
+        rememberUndo(prev, patch);
+        announceChanges(prev, { ...prev, ...patch });
+      })
       .catch(() => queueTaskEdit(taskId, patch));
   }
 

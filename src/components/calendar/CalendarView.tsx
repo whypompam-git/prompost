@@ -1,5 +1,6 @@
 "use client";
 
+import { rememberUndo } from "@/lib/undo";
 import { useEffect, useMemo, useState } from "react";
 import {
   addDays,
@@ -103,6 +104,7 @@ export function CalendarView() {
       if (Object.keys(patch).length === 0) return; // delivery day is history: nothing to move
       setTasks((prev) => prev.map((t) => (ids.has(t.id) ? { ...t, ...patch } : t)));
       await Promise.all([...ids].map((id) => updateTaskRow(id, patch)));
+      for (const t of snapshot.filter((x) => ids.has(x.id))) rememberUndo(t, patch, `ย้ายวัน: ${t.title}`);
     } catch (err) {
       console.error(err);
       setTasks(snapshot);

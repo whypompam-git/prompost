@@ -12,6 +12,7 @@ import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/co
 import { getTask } from "@/lib/supabase/queries";
 import { isInternalClient } from "@/lib/workflow";
 import { notifyTaskEvent, patchTaskWithFlow } from "@/lib/taskFlow";
+import { rememberUndo } from "@/lib/undo";
 import { cn } from "@/lib/utils";
 
 type DeliverItem = FeedItem;
@@ -94,6 +95,7 @@ export default function V2ReviewPage() {
     if (!r.ok) return window.alert(`ส่งกลับไม่สำเร็จ: ${r.error}`);
     await fetch("/api/drafts/comment", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ taskId: item.taskId }) });
     setItems((prev) => prev.filter((i) => i.taskId !== item.taskId));
+    rememberUndo({ id: item.taskId, title: item.title, type: "edit", status: "todo", revisionCount: item.revisionCount } as Task, { type: "qc", status: "review", revisionCount: item.revisionCount }, `ส่งกลับให้แก้: ${item.title}`);
     flash("ส่งกลับให้ Editor แก้แล้ว");
   }
 

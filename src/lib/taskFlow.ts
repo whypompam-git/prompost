@@ -5,6 +5,7 @@
 // can notify the right people.
 import { listClients, updateTaskRow } from "@/lib/supabase/queries";
 import type { Task } from "@/lib/types";
+import { rememberUndo } from "@/lib/undo";
 import { enterStage, isInternalClient, settle } from "@/lib/workflow";
 
 export type TaskEventName = "assigned" | "editor_assigned" | "stage_changed" | "qc_revise";
@@ -34,6 +35,7 @@ export async function saveTaskWithFlow(prev: Task, next: Task): Promise<Task> {
   const s = settle({ type: next.type, status: next.status, footageUrl: next.footageUrl, revisionCount: next.revisionCount, skipClient: isInternalClient(next.clientId) });
   const saved: Task = { ...next, type: s.type, status: s.status };
   await updateTaskRow(saved.id, saved);
+  rememberUndo(prev, saved);
   announceChanges(prev, saved);
   return saved;
 }
@@ -43,6 +45,7 @@ export async function patchTaskWithFlow(prev: Task, fields: Partial<Task>): Prom
   await listClients().catch(() => []);
   const patch = flowPatch(prev, fields);
   await updateTaskRow(prev.id, patch);
+  rememberUndo(prev, patch);
   const saved: Task = { ...prev, ...patch };
   announceChanges(prev, saved);
   return saved;

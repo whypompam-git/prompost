@@ -646,6 +646,7 @@ export async function updateTaskRow(id: string, values: Partial<Omit<Task, "id">
   if (values.editDate !== undefined) patch.edit_date = values.editDate || null;
   if (values.editorId !== undefined) patch.editor_id = values.editorId;
   if (values.editDifficulty !== undefined) patch.edit_difficulty = values.editDifficulty;
+  if (values.revisionCount !== undefined) patch.revision_count = values.revisionCount;
   if (values.queueId !== undefined) patch.queue_id = values.queueId;
   if (values.shootOrder !== undefined) patch.shoot_order = values.shootOrder;
   if (values.shotById !== undefined) patch.shot_by = values.shotById;
