@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
@@ -17,6 +18,20 @@ export default function V2ClientsPage() {
   const [logos, setLogos] = useState<Record<string, string>>({});
   const [badge, setBadge] = useState<BadgeData | null>(null);
   const [query, setQuery] = useState("");
+  const auth = useAuth();
+  // All = every client, Me = the clients I am responsible for (remembered on this device)
+  const [scope, setScope] = useState<"all" | "me">("all");
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("prompost:clients-scope") === "me") setScope("me");
+    } catch {}
+  }, []);
+  const pickScope = (v: "all" | "me") => {
+    setScope(v);
+    try {
+      localStorage.setItem("prompost:clients-scope", v);
+    } catch {}
+  };
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,10 +55,11 @@ export default function V2ClientsPage() {
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return clients
+      .filter((c) => scope === "all" || c.managerId === auth.staffId)
       .filter((c) => group === "all" || (group === "customer" ? !c.category : c.category === group))
       .filter((c) => !q || c.name.toLowerCase().includes(q) || (c.nameEn ?? "").toLowerCase().includes(q))
       .sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0) || a.name.localeCompare(b.name, "th"));
-  }, [clients, query, group]);
+  }, [clients, query, group, scope, auth.staffId]);
 
   return (
     <>
@@ -58,6 +74,13 @@ export default function V2ClientsPage() {
             className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300"
           />
         </label>
+        <div className="grid max-w-xs grid-cols-2 gap-1 rounded-lg bg-gray-100 p-0.5 text-xs font-medium">
+          {([["all", `All (${clients.length})`], ["me", `Me (${clients.filter((c) => c.managerId === auth.staffId).length})`]] as const).map(([k, label]) => (
+            <button key={k} onClick={() => pickScope(k)} className={`rounded-md py-1.5 ${scope === k ? "bg-white text-brand-700 shadow-sm" : "text-gray-500"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
         {categories.length > 0 && (
           <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1">
             {([["all", "ทั้งหมด"], ["customer", "ลูกค้า"], ...categories.map((c) => [c, c])] as [string, string][]).map(([k, label]) => (
@@ -76,7 +99,7 @@ export default function V2ClientsPage() {
             ))}
           </AppGrid>
         )}
-        {!loading && shown.length === 0 && <p className="py-10 text-center text-sm text-gray-400">ไม่พบลูกค้า</p>}
+        {!loading && shown.length === 0 && <p className="py-10 text-center text-sm text-gray-400">{scope === "me" && !query ? "ยังไม่มีลูกค้าที่คุณดูแล (ตั้งผู้ดูแลได้ที่หน้าลูกค้า)" : "ไม่พบลูกค้า"}</p>}
       </div>
     </>
   );
