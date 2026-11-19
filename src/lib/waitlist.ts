@@ -23,3 +23,7 @@ export const labelOf = (list: readonly (readonly [string, string])[], v: string)
 export const normalizePhone = (s: string) => s.replace(/[^\d+]/g, "").replace(/^\+66/, "0");
 export const validPhone = (s: string) => /^0\d{8,9}$/.test(s);
 export const validEmail = (s: string) => s === "" || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+
+// LINE the people add after signing up (same official account as the gift shop by default)
+export const WAITLIST_LINE_URL = "https://lin.ee/Zb7zhUI";
+export const DONE_KEY = "prompost:waitlist-done";

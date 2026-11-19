@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { CalendarDays, Check, FileText, Film, Link2, Loader2, MessageCircle, Workflow } from "lucide-react";
-import { CLIENT_COUNTS, INTERESTS, ROLES, SOURCES, TEAM_SIZES } from "@/lib/waitlist";
+import { CLIENT_COUNTS, DONE_KEY, INTERESTS, ROLES, SOURCES, TEAM_SIZES } from "@/lib/waitlist";
 import { cn } from "@/lib/utils";
 
 const FEATURES = [
@@ -41,7 +42,7 @@ export default function WaitlistPage() {
   const [utm, setUtm] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState<{ position: number; again: boolean } | null>(null);
+  const router = useRouter();
   const set = (k: keyof typeof f, v: string) => setF((p) => ({ ...p, [k]: v }));
 
   useEffect(() => {
@@ -59,8 +60,11 @@ export default function WaitlistPage() {
       const r = await fetch("/api/public/waitlist", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...f, interests, consent, utm }) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error ?? "ส่งไม่สำเร็จ ลองใหม่อีกครั้ง");
-      setDone({ position: d.position ?? 0, again: Boolean(d.again) });
-      document.getElementById("top")?.scrollIntoView();
+      // the confirmation is its own page; the details live only in this browser tab (not in the URL)
+      try {
+        sessionStorage.setItem(DONE_KEY, JSON.stringify({ name: f.name.trim(), phone: f.phone.replace(/[^\d]/g, "").slice(-4), position: d.position ?? 0, again: Boolean(d.again), at: new Date().toISOString() }));
+      } catch {}
+      router.push("/waitlist/done");
     } catch (x) {
       setErr(x instanceof Error ? x.message : "ส่งไม่สำเร็จ");
     } finally {
@@ -120,14 +124,7 @@ export default function WaitlistPage() {
 
       {/* form */}
       <section id="form" className="mt-14 scroll-mt-6">
-        {done ? (
-          <div className="rounded-3xl border border-brand-200 bg-brand-50 p-8 text-center">
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-500 text-white"><Check size={30} /></span>
-            <h2 className="mt-4 text-2xl font-bold">{done.again ? "คุณลงชื่อไว้แล้ว" : "ลงชื่อเรียบร้อย"}</h2>
-            {done.position > 0 && <p className="mt-2 text-gray-700">คุณอยู่ในคิวลำดับที่ <b className="text-brand-700">{done.position}</b></p>}
-            <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-gray-600">เราจะติดต่อกลับทาง LINE หรืออีเมลที่ให้ไว้ ขอบคุณที่สนใจ PromPost</p>
-          </div>
-        ) : (
+        {(
           <form onSubmit={submit} className="space-y-5 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:p-7">
             <div>
               <h2 className="text-2xl font-bold">ลงชื่อรอใช้งาน</h2>
