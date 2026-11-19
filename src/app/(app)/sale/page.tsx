@@ -32,7 +32,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export default function SalePage() {
-  const [tab, setTab] = useState<"orders" | "products" | "settings">("orders");
+  const [tab, setTab] = useState<"slips" | "orders" | "products" | "settings">("orders");
   const [orders, setOrders] = useState<Order[]>([]);
   const [products, setProducts] = useState<ShopProduct[]>([]);
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -69,15 +69,72 @@ export default function SalePage() {
       <div className="mx-auto max-w-4xl space-y-4 p-4 sm:p-6">
         {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{err}</p>}
         <div className="flex items-center gap-1 rounded-xl bg-gray-100 p-1 text-sm">
-          {([["orders", `ออเดอร์${pending ? ` (${pending} รอตรวจ)` : ""}`], ["products", "สินค้า"], ["settings", "ตั้งค่า"]] as const).map(([k, l]) => (
+          {([["slips", `ตรวจสลิป${pending ? ` (${pending})` : ""}`], ["orders", "ออเดอร์"], ["products", "สินค้า"], ["settings", "ตั้งค่า"]] as const).map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} className={cn("flex-1 rounded-lg py-2 font-medium", tab === k ? "bg-white text-gray-900 shadow-sm" : "text-gray-500")}>{l}</button>
           ))}
         </div>
+        {tab === "slips" && <SlipReview orders={orders} onChange={reload} />}
         {tab === "orders" && <Orders orders={orders} onChange={reload} />}
         {tab === "products" && <Products products={products} onChange={reload} />}
         {tab === "settings" && settings && <SettingsForm initial={settings} onSaved={reload} />}
         {tab === "settings" && <StockLinks />}
       </div>
+    </div>
+  );
+}
+
+// Slip check: every order waiting for a check, slip picture first. Compare the amount, tap อนุมัติ.
+function SlipReview({ orders, onChange }: { orders: Order[]; onChange: () => void }) {
+  const queue = useMemo(() => orders.filter((o) => o.status === "paid_pending").sort((a, b) => a.createdAt.localeCompare(b.createdAt)), [orders]);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function act(o: Order, status: "confirmed" | "cancelled") {
+    if (status === "cancelled" && !window.confirm(`ไม่อนุมัติ ${o.code} (${o.name})?\nออเดอร์จะถูกยกเลิกและสต็อกคืนเข้าระบบ`)) return;
+    setBusy(o.id);
+    try {
+      await api("/api/sale/orders", { method: "PATCH", body: JSON.stringify({ id: o.id, status }) });
+      await onChange();
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "ไม่สำเร็จ");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (queue.length === 0) return <p className="rounded-xl bg-white py-16 text-center text-sm text-gray-400 shadow-sm">ไม่มีสลิปรอตรวจ ✓</p>;
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-500">รอตรวจ {queue.length} ออเดอร์ (เก่าสุดอยู่บน) เทียบยอดในสลิปกับ "ยอดที่ต้องได้" แล้วกดอนุมัติ</p>
+      {queue.map((o) => (
+        <Card key={o.id} className="overflow-hidden">
+          <div className="grid sm:grid-cols-[minmax(0,260px)_1fr]">
+            <a href={`/api/sale/orders?slip=${o.id}`} target="_blank" rel="noreferrer" className="flex max-h-[420px] items-start justify-center overflow-hidden bg-gray-100">
+              {o.hasSlip ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={`/api/sale/orders?slip=${o.id}`} alt={`สลิป ${o.code}`} className="max-h-[420px] w-full object-contain" loading="lazy" />
+              ) : (
+                <span className="py-20 text-sm text-red-500">ไม่มีสลิปแนบ</span>
+              )}
+            </a>
+            <div className="flex flex-col p-4">
+              <div className="flex flex-wrap items-baseline gap-x-3">
+                <span className="font-mono text-sm font-semibold">{o.code}</span>
+                <span className="text-xs text-gray-400">{new Date(o.createdAt).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" })}</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">ยอดที่ต้องได้</p>
+              <p className="text-3xl font-bold tabular-nums text-gray-900">{baht(o.total)}</p>
+              <p className="mt-2 text-sm font-medium">{o.name} · {o.phone}</p>
+              <ul className="mt-1 text-sm text-gray-600">
+                {o.items.map((i, k) => <li key={k}>{i.name} × {i.qty}</li>)}
+              </ul>
+              <div className="mt-auto grid grid-cols-[1fr_auto] gap-2 pt-4">
+                <button disabled={busy === o.id} onClick={() => act(o, "confirmed")} className="rounded-xl bg-green-600 py-3 text-base font-semibold text-white hover:bg-green-700 disabled:opacity-50">{busy === o.id ? "กำลังบันทึก…" : "✓ อนุมัติ"}</button>
+                <button disabled={busy === o.id} onClick={() => act(o, "cancelled")} className="rounded-xl border border-red-200 px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50">ไม่อนุมัติ</button>
+              </div>
+            </div>
+          </div>
+        </Card>
+      ))}
     </div>
   );
 }
