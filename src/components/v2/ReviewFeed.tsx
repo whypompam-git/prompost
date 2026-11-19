@@ -67,7 +67,7 @@ type Handlers = {
 
 // One full-screen clip, TikTok style. Speed button 1×–2×. Tap the bottom area for the
 // scrub bar; comments show as dots on it. The right rail depends on who watches.
-function Slide({ item, active, variant, index, total, h, onOverlay }: { item: FeedItem; active: boolean; variant: FeedVariant; index: number; total: number; h: Handlers; onOverlay: (open: boolean) => void }) {
+function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoaded }: { item: FeedItem; active: boolean; load: boolean; variant: FeedVariant; index: number; total: number; h: Handlers; onOverlay: (open: boolean) => void; onLoaded: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -80,6 +80,8 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
   const [busy, setBusy] = useState(false);
   // the video ran out of buffered data for a moment: slow connection
   const [stalled, setStalled] = useState(false);
+  // not enough of the clip yet to play: show the spinning logo
+  const [ready, setReady] = useState(false);
   const stallTimer = useRef<ReturnType<typeof setTimeout>>();
   const waiting = () => {
     clearTimeout(stallTimer.current);
@@ -135,17 +137,27 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
 
   return (
     <section className="relative h-full w-full touch-manipulation select-none snap-start snap-always overflow-hidden bg-black [-webkit-touch-callout:none]">
-      {item.draft.url ? (
+      {item.draft.url && load ? (
         <video
           ref={video}
           src={item.draft.url}
           className="absolute inset-0 h-full w-full object-contain"
           playsInline
           loop
-          preload={active ? "auto" : "metadata"}
-          onWaiting={() => active && waiting()}
-          onPlaying={flowing}
-          onCanPlay={flowing}
+          preload="auto"
+          onWaiting={() => {
+            setReady(false);
+            if (active) waiting();
+          }}
+          onPlaying={() => {
+            setReady(true);
+            flowing();
+          }}
+          onCanPlay={() => {
+            setReady(true);
+            flowing();
+          }}
+          onCanPlayThrough={onLoaded}
           controlsList="nodownload noplaybackrate"
           disablePictureInPicture
           onContextMenu={(e) => variant === "client" && e.preventDefault()}
@@ -161,8 +173,15 @@ function Slide({ item, active, variant, index, total, h, onOverlay }: { item: Fe
           }}
           onLoadedData={(e) => (e.currentTarget.playbackRate = speed)}
         />
-      ) : (
+      ) : item.draft.url ? null : (
         <p className="absolute inset-0 flex items-center justify-center text-sm text-white/70">โหลดวิดีโอไม่ได้</p>
+      )}
+      {item.draft.url && !ready && (
+        <div className="pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center gap-2 bg-black/40">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon-192.png" alt="" className="h-14 w-14 animate-spin rounded-2xl bg-white p-1.5 [animation-duration:1.4s]" />
+          <span className="text-[11px] text-white/70">{load ? "กำลังโหลดคลิป…" : "รอคิวโหลด…"}</span>
+        </div>
       )}
 
       {total > 1 && <span className="absolute left-3 top-3 rounded-full bg-black/50 px-2.5 py-1 text-[11px] font-medium text-white">คลิปที่ {index + 1} / {total}</span>}
@@ -377,6 +396,16 @@ export function ReviewFeed({ items, variant = "team", onFeedScroll, ...h }: { it
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [sending, setSending] = useState<{ done: number; total: number } | null>(null);
   const [slowNet, setSlowNet] = useState(false);
+  // clips load one after another: the one in view first, then the next ones only once the
+  // earlier ones can play through (many drafts at once made everything stutter)
+  const [loaded, setLoaded] = useState<Set<string>>(new Set());
+  const key = (i: number) => items[i].draft.id;
+  const mayLoad = (i: number) => {
+    if (loaded.has(key(i))) return true;
+    if (i < active || i > active + 2) return false;
+    for (let k = active; k < i; k++) if (!loaded.has(key(k))) return false;
+    return true;
+  };
 
   // a phone on a slow connection: warn once that drafts may stutter
   useEffect(() => {
@@ -420,10 +449,10 @@ export function ReviewFeed({ items, variant = "team", onFeedScroll, ...h }: { it
   const isClient = variant === "client";
   return (
     <div className="relative h-full">
-      <div ref={box} onScroll={onFeedScroll} className="h-full snap-y snap-mandatory overflow-y-auto">
+      <div ref={box} onScroll={onFeedScroll} onTouchMove={onFeedScroll} onWheel={onFeedScroll} className="h-full snap-y snap-mandatory overflow-y-auto">
         {items.map((it, i) => (
           <div key={`${it.taskId}-${it.draft.id}`} data-i={i} className="h-full">
-            <Slide item={it} active={i === active} variant={variant} index={i} total={items.length} h={h} onOverlay={setOverlay} />
+            <Slide item={it} active={i === active} load={mayLoad(i)} onLoaded={() => setLoaded((p) => (p.has(it.draft.id) ? p : new Set(p).add(it.draft.id)))} variant={variant} index={i} total={items.length} h={h} onOverlay={setOverlay} />
           </div>
         ))}
       </div>
