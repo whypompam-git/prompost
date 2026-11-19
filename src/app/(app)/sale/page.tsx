@@ -159,6 +159,23 @@ function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void })
     for (const o of orders) if (o.status !== "cancelled") for (const i of o.items) m.set(i.name, (m.get(i.name) ?? 0) + i.qty);
     return [...m.entries()];
   }, [orders]);
+  // money + customers over every order that is not cancelled (a customer = one phone number)
+  const sum = useMemo(() => {
+    const live = orders.filter((o) => o.status !== "cancelled");
+    const money = (list: Order[]) => list.reduce((n, o) => n + o.total, 0);
+    const approved = live.filter((o) => o.status !== "paid_pending");
+    const pendingList = live.filter((o) => o.status === "paid_pending");
+    return {
+      total: money(live),
+      approved: money(approved),
+      pending: money(pendingList),
+      pendingCount: pendingList.length,
+      customers: new Set(live.map((o) => o.phone)).size,
+      orders: live.length,
+      pieces: live.reduce((n, o) => n + o.items.reduce((m, i) => m + i.qty, 0), 0),
+      cancelled: orders.length - live.length,
+    };
+  }, [orders]);
   const allPicked = shown.length > 0 && shown.every((o) => picked.has(o.id));
 
   async function setStatus(o: Order, status: string) {
@@ -174,6 +191,21 @@ function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void })
 
   return (
     <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {([
+          ["ยอดรวมทั้งหมด", baht(sum.total), "ไม่นับที่ยกเลิก", "text-gray-900"],
+          ["ตรวจสลิปแล้ว", baht(sum.approved), "ยืนยัน + ส่งแล้ว", "text-green-600"],
+          ["รอตรวจสลิป", baht(sum.pending), `${sum.pendingCount} ออเดอร์`, "text-amber-600"],
+          ["จำนวนลูกค้า", `${sum.customers} คน`, `${sum.orders} ออเดอร์ · ${sum.pieces} ชิ้น`, "text-gray-900"],
+        ] as const).map(([label, value, hint, color]) => (
+          <Card key={label} className="p-3">
+            <p className="text-xs text-gray-500">{label}</p>
+            <p className={cn("text-xl font-bold tabular-nums", color)}>{value}</p>
+            <p className="text-[11px] text-gray-400">{hint}</p>
+          </Card>
+        ))}
+      </div>
+      {sum.cancelled > 0 && <p className="text-xs text-gray-400">ยกเลิกแล้ว {sum.cancelled} ออเดอร์ (ไม่รวมในยอดด้านบน)</p>}
       {need.length > 0 && (
         <Card className="p-4">
           <p className="mb-2 text-xs font-medium text-gray-500">ของที่ต้องเตรียมรวม (ไม่นับที่ยกเลิก)</p>
