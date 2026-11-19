@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, ImagePlus, Pencil, Plus, Printer, Receipt, Trash2, X } from "lucide-react";
+import { ExternalLink, ImagePlus, Pencil, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
@@ -85,7 +85,18 @@ export default function SalePage() {
 function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<string>("active");
-  const shown = useMemo(() => orders.filter((o) => (filter === "all" ? true : filter === "active" ? o.status !== "cancelled" : o.status === filter)), [orders, filter]);
+  const [q, setQ] = useState("");
+  const shown = useMemo(() => {
+    // search ignores the status filter: you look someone up first, then change their status
+    const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    if (words.length) {
+      return orders.filter((o) => {
+        const hay = `${o.code} ${o.name} ${o.phone} ${o.address} ${o.note} ${o.items.map((i) => i.name).join(" ")}`.toLowerCase().replace(/-/g, "");
+        return words.every((w) => hay.includes(w.replace(/-/g, "")) || o.phone.includes(w.replace(/\D/g, "") || "\u0000"));
+      });
+    }
+    return orders.filter((o) => (filter === "all" ? true : filter === "active" ? o.status !== "cancelled" : o.status === filter));
+  }, [orders, filter, q]);
   const need = useMemo(() => {
     const m = new Map<string, number>();
     for (const o of orders) if (o.status !== "cancelled") for (const i of o.items) m.set(i.name, (m.get(i.name) ?? 0) + i.qty);
@@ -114,6 +125,12 @@ function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void })
           </div>
         </Card>
       )}
+      <div className="relative">
+        <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="ค้นหา ชื่อ / เบอร์โทร / รหัสออเดอร์ / ที่อยู่ / สินค้า" className={cn(field, "pl-9 pr-9")} />
+        {q && <button onClick={() => setQ("")} aria-label="ล้างคำค้นหา" className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-gray-400 hover:bg-gray-100"><X size={15} /></button>}
+      </div>
+      {q.trim() && <p className="text-xs text-gray-500">พบ {shown.length} ออเดอร์ (ค้นหาจากทุกสถานะ รวมที่ยกเลิก)</p>}
       <div className="flex flex-wrap items-center gap-2">
         <select value={filter} onChange={(e) => setFilter(e.target.value)} className="rounded-lg border border-gray-200 px-2 py-1.5 text-sm">
           <option value="active">ที่ไม่ยกเลิก</option>
@@ -130,7 +147,7 @@ function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void })
           <Printer size={15} /> ปริ้นทั้งหมดที่แสดง
         </button>
       </div>
-      {shown.length === 0 && <p className="py-12 text-center text-sm text-gray-400">ยังไม่มีออเดอร์</p>}
+      {shown.length === 0 && <p className="py-12 text-center text-sm text-gray-400">{q.trim() ? "ไม่พบออเดอร์ที่ค้นหา" : "ยังไม่มีออเดอร์"}</p>}
       {shown.map((o) => (
         <Card key={o.id} className="p-4">
           <div className="flex items-start gap-3">
