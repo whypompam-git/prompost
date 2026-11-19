@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 
 type Order = {
   id: string; code: string; name: string; phone: string; address: string; note: string; total: number;
-  hasSlip: boolean; status: string; createdAt: string; items: { name: string; price: number; qty: number }[];
+  hasSlip: boolean; status: string; createdAt: string; items: { productId: string | null; name: string; price: number; qty: number }[];
 };
 type Settings = { title: string; intro: string; promptpayId: string; lineNote: string; lineUrl: string; isOpen: boolean };
 
@@ -74,7 +74,7 @@ export default function SalePage() {
           ))}
         </div>
         {tab === "slips" && <SlipReview orders={orders} onChange={reload} />}
-        {tab === "orders" && <Orders orders={orders} onChange={reload} />}
+        {tab === "orders" && <Orders orders={orders} products={products} onChange={reload} />}
         {tab === "products" && <Products products={products} onChange={reload} />}
         {tab === "settings" && settings && <SettingsForm initial={settings} onSaved={reload} />}
         {tab === "settings" && <StockLinks />}
@@ -139,7 +139,8 @@ function SlipReview({ orders, onChange }: { orders: Order[]; onChange: () => voi
   );
 }
 
-function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void }) {
+function Orders({ orders, products, onChange }: { orders: Order[]; products: ShopProduct[]; onChange: () => void }) {
+  const [editing, setEditing] = useState<Order | null>(null);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<string>("active");
   const [q, setQ] = useState("");
@@ -259,12 +260,14 @@ function Orders({ orders, onChange }: { orders: Order[]; onChange: () => void })
                 <select value={o.status} disabled={o.status === "cancelled"} onChange={(e) => setStatus(o, e.target.value)} className="ml-auto rounded-lg border border-gray-200 px-2 py-1 text-xs">
                   {Object.entries(ORDER_STATUS_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
                 </select>
+                {o.status !== "cancelled" && <button onClick={() => setEditing(o)} className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" aria-label="แก้ไขออเดอร์"><Pencil size={14} /></button>}
                 <button onClick={() => printIds([o.id])} className="rounded-lg border border-gray-200 p-1.5 text-gray-500 hover:bg-gray-50" aria-label="ปริ้น"><Printer size={14} /></button>
               </div>
             </div>
           </div>
         </Card>
       ))}
+      {editing && <EditOrder order={editing} products={products} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); onChange(); }} />}
     </div>
   );
 }
@@ -475,5 +478,67 @@ function StockLinks() {
         </ul>
       )}
     </Card>
+  );
+}
+
+type Line = { id: string; name: string; price: number; qty: number };
+
+// Edit an order: customer details and items. Stock follows (more = takes stock, fewer = gives back).
+function EditOrder({ order, products, onClose, onSaved }: { order: Order; products: ShopProduct[]; onClose: () => void; onSaved: () => void }) {
+  const [f, setF] = useState({ name: order.name, phone: order.phone, address: order.address, note: order.note });
+  const [lines, setLines] = useState<Line[]>(order.items.filter((i) => i.productId).map((i) => ({ id: i.productId as string, name: i.name, price: i.price, qty: i.qty })));
+  const fixed = order.items.filter((i) => !i.productId); // product was deleted later: can't be changed
+  const [add, setAdd] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const total = lines.reduce((n, l) => n + l.price * l.qty, 0) + fixed.reduce((n, l) => n + l.price * l.qty, 0);
+  const addable = products.filter((p) => !lines.some((l) => l.id === p.id));
+
+  async function save() {
+    setBusy(true);
+    setErr(null);
+    try {
+      await api("/api/sale/orders", { method: "PUT", body: JSON.stringify({ id: order.id, ...f, items: lines.map((l) => ({ id: l.id, qty: l.qty })) }) });
+      onSaved();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "บันทึกไม่สำเร็จ");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 sm:items-center" onClick={onClose}>
+      <div className="max-h-[92vh] w-full max-w-md space-y-3 overflow-y-auto rounded-t-2xl bg-white p-5 sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between"><h3 className="font-semibold">แก้ไขออเดอร์ <span className="font-mono text-sm">{order.code}</span></h3><button onClick={onClose} aria-label="ปิด"><X size={18} /></button></div>
+        <input className={field} placeholder="ชื่อผู้รับ" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        <input className={field} inputMode="tel" placeholder="เบอร์โทร" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+        <textarea className={field} rows={3} placeholder="ที่อยู่จัดส่ง" value={f.address} onChange={(e) => setF({ ...f, address: e.target.value })} />
+        <input className={field} placeholder="หมายเหตุ" value={f.note} onChange={(e) => setF({ ...f, note: e.target.value })} />
+
+        <div className="rounded-xl border border-gray-200 p-3">
+          <p className="mb-2 text-xs font-medium text-gray-500">รายการสินค้า (สต็อกปรับตามที่แก้อัตโนมัติ)</p>
+          {lines.map((l) => (
+            <div key={l.id} className="flex items-center gap-2 py-1.5">
+              <span className="min-w-0 flex-1 truncate text-sm">{l.name} <span className="text-gray-400">{baht(l.price)}</span></span>
+              <button onClick={() => setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, qty: Math.max(1, x.qty - 1) } : x)))} className="h-7 w-7 rounded-full border border-gray-300 text-base leading-none" aria-label="ลด">−</button>
+              <span className="w-6 text-center text-sm font-semibold tabular-nums">{l.qty}</span>
+              <button onClick={() => setLines((ls) => ls.map((x) => (x.id === l.id ? { ...x, qty: x.qty + 1 } : x)))} className="h-7 w-7 rounded-full border border-gray-300 text-base leading-none" aria-label="เพิ่ม">+</button>
+              <button onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))} className="rounded-md p-1 text-red-500 hover:bg-red-50" aria-label="เอาออก"><Trash2 size={14} /></button>
+            </div>
+          ))}
+          {fixed.map((l, k) => <p key={k} className="py-1 text-xs text-gray-400">{l.name} × {l.qty} (สินค้าถูกลบแล้ว แก้ไม่ได้)</p>)}
+          {addable.length > 0 && (
+            <select value={add} onChange={(e) => { const p = products.find((x) => x.id === e.target.value); if (p) setLines((ls) => [...ls, { id: p.id, name: p.name, price: p.price, qty: 1 }]); setAdd(""); }} className="mt-2 w-full rounded-lg border border-dashed border-gray-300 px-2 py-2 text-sm text-gray-600">
+              <option value="">+ เพิ่มสินค้า…</option>
+              {addable.map((p) => <option key={p.id} value={p.id}>{p.name} ({baht(p.price)}, เหลือ {p.stock})</option>)}
+            </select>
+          )}
+          <p className="mt-2 flex justify-between border-t border-gray-100 pt-2 text-sm font-semibold"><span>ยอดรวมใหม่</span><span className="tabular-nums">{baht(total)}{total !== order.total && <span className="ml-1 text-xs font-normal text-amber-600">(เดิม {baht(order.total)})</span>}</span></p>
+        </div>
+        {err && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{err}</p>}
+        <button disabled={busy} onClick={save} className="w-full rounded-lg bg-gray-900 py-2.5 text-sm font-medium text-white disabled:opacity-40">{busy ? "กำลังบันทึก…" : "บันทึกการแก้ไข"}</button>
+      </div>
+    </div>
   );
 }
