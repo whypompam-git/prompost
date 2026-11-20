@@ -6,7 +6,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { uploadShopImage } from "@/lib/supabase/queries";
-import { ORDER_STATUS_LABEL, type ShopProduct } from "@/lib/shop";
+import { ORDER_STATUS_LABEL, groupOrders, type ShopProduct } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 
 type Order = {
@@ -144,6 +144,12 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [filter, setFilter] = useState<string>("active");
   const [q, setQ] = useState("");
+  const [group, setGroup] = useState<string | null>(null);
+  // orders in the chosen status filter, grouped by what is in the box
+  const inFilter = useMemo(() => orders.filter((o) => (filter === "all" ? true : filter === "active" ? o.status !== "cancelled" : o.status === filter)), [orders, filter]);
+  const groups = useMemo(() => groupOrders(inFilter), [inFilter]);
+  const groupIds = useMemo(() => (group && groups.find((g) => g.key === group)?.ids) || null, [groups, group]);
+  const groupSet = useMemo(() => (groupIds ? new Set(groupIds) : null), [groupIds]);
   const shown = useMemo(() => {
     // search ignores the status filter: you look someone up first, then change their status
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -153,8 +159,8 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
         return words.every((w) => hay.includes(w.replace(/-/g, "")) || o.phone.includes(w.replace(/\D/g, "") || "\u0000"));
       });
     }
-    return orders.filter((o) => (filter === "all" ? true : filter === "active" ? o.status !== "cancelled" : o.status === filter));
-  }, [orders, filter, q]);
+    return inFilter.filter((o) => !groupSet || groupSet.has(o.id));
+  }, [orders, q, inFilter, groupSet]);
   const need = useMemo(() => {
     const m = new Map<string, number>();
     for (const o of orders) if (o.status !== "cancelled") for (const i of o.items) m.set(i.name, (m.get(i.name) ?? 0) + i.qty);
@@ -213,6 +219,20 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
           <div className="flex flex-wrap gap-2">
             {need.map(([n, q]) => <span key={n} className="rounded-full bg-gray-100 px-3 py-1 text-sm">{n} × <b>{q}</b></span>)}
           </div>
+        </Card>
+      )}
+      {groups.length > 0 && (
+        <Card className="p-4">
+          <p className="mb-2 text-xs font-medium text-gray-500">จัดกลุ่มตามชุดสินค้า — {groups.length} แบบ (กดเพื่อดูเฉพาะกลุ่ม ปริ้นและแพ็คทีเดียวได้)</p>
+          <div className="space-y-1.5">
+            {groups.map((g) => (
+              <button key={g.key} onClick={() => { setGroup(group === g.key ? null : g.key); setPicked(new Set()); }} className={cn("flex w-full items-center gap-3 rounded-xl border px-3 py-2 text-left", group === g.key ? "border-brand-500 bg-brand-50" : "border-gray-100 hover:bg-gray-50")}>
+                <span className="min-w-0 flex-1 text-sm">{g.label}</span>
+                <span className="shrink-0 text-right text-sm tabular-nums"><b>{g.orders}</b> ออเดอร์<span className="block text-[11px] text-gray-400">{g.pieces} ชิ้น</span></span>
+              </button>
+            ))}
+          </div>
+          {group && <button onClick={() => setGroup(null)} className="mt-2 text-xs font-medium text-brand-600">ล้างตัวกรองกลุ่ม ✕</button>}
         </Card>
       )}
       <div className="relative">

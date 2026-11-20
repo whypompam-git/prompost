@@ -41,3 +41,18 @@ test("promptpay payload is well formed with a valid CRC", () => {
   assert.equal(promptPayPayload("0812345678")!.startsWith("000201010211"), true);
   assert.equal(promptPayPayload("123"), null);
 });
+
+import { groupOrders } from "../src/lib/shop.ts";
+test("orders with the same items are grouped, biggest group first", () => {
+  const g = groupOrders([
+    { id: "1", items: [{ name: "A", qty: 1 }, { name: "B", qty: 1 }] },
+    { id: "2", items: [{ name: "B", qty: 1 }, { name: "A", qty: 1 }] },
+    { id: "3", items: [{ name: "A", qty: 2 }] },
+    { id: "4", items: [{ name: "A", qty: 1 }, { name: "B", qty: 1 }] },
+  ]);
+  assert.equal(g.length, 2);
+  assert.equal(g[0].orders, 3);
+  assert.equal(g[0].pieces, 6);
+  assert.equal(g[0].label, "A + B");
+  assert.equal(g[1].label, "A ×2");
+});

@@ -124,3 +124,21 @@ export function parseCart(raw: unknown): CartLine[] | null {
   return out;
 }
 
+
+// Orders with exactly the same items (same products, same quantities) go in one group, so a
+// whole batch can be packed in one go. Biggest group first.
+export type OrderGroup = { key: string; label: string; orders: number; pieces: number; ids: string[] };
+export function groupOrders(orders: { id: string; items: { name: string; qty: number }[] }[]): OrderGroup[] {
+  const m = new Map<string, OrderGroup>();
+  for (const o of orders) {
+    const lines = [...o.items].sort((a, b) => a.name.localeCompare(b.name, "th"));
+    const key = lines.map((l) => `${l.name}×${l.qty}`).join("|");
+    const pieces = lines.reduce((n, l) => n + l.qty, 0);
+    const g = m.get(key) ?? { key, label: lines.map((l) => (l.qty > 1 ? `${l.name} ×${l.qty}` : l.name)).join(" + "), orders: 0, pieces: 0, ids: [] };
+    g.orders += 1;
+    g.pieces += pieces;
+    g.ids.push(o.id);
+    m.set(key, g);
+  }
+  return [...m.values()].sort((a, b) => b.orders - a.orders || a.label.localeCompare(b.label, "th"));
+}
