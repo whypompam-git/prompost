@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Printer } from "lucide-react";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { groupOrders } from "@/lib/shop";
 
 type Order = {
   id: string; code: string; name: string; phone: string; address: string; note: string; total: number;
@@ -15,10 +16,21 @@ type Order = {
 function PrintInner() {
   const ids = (useSearchParams().get("ids") ?? "").split(",").filter(Boolean);
   const [orders, setOrders] = useState<Order[] | null>(null);
+  const [groupInfo, setGroupInfo] = useState<Map<string, { g: number; groups: number; k: number; n: number }>>(new Map());
   useEffect(() => {
     fetch("/api/sale/orders")
       .then((r) => r.json())
-      .then((d) => setOrders((d.orders as Order[]).filter((o) => ids.includes(o.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt))))
+      .then((d) => {
+        // same item set together (biggest group first), oldest first inside a group, so packing goes group by group
+        const picked = (d.orders as Order[]).filter((o) => ids.includes(o.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const byId = new Map(picked.map((o) => [o.id, o]));
+        const groups = groupOrders(picked);
+        const info = new Map<string, { g: number; groups: number; k: number; n: number }>();
+        const ordered: Order[] = [];
+        groups.forEach((g, gi) => g.ids.forEach((id, k) => { info.set(id, { g: gi + 1, groups: groups.length, k: k + 1, n: g.ids.length }); ordered.push(byId.get(id)!); }));
+        setGroupInfo(info);
+        setOrders(ordered);
+      })
       .catch(() => setOrders([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -62,7 +74,10 @@ function PrintInner() {
             <section key={o.id} className="label border border-gray-300 shadow-sm">
               <div className="flex items-baseline justify-between border-b-2 border-black pb-1">
                 <p className="font-mono text-[14pt] font-bold leading-none">{o.code}</p>
-                <p className="text-[9pt] text-gray-600">#{idx + 1}/{orders.length} · {new Date(o.createdAt).toLocaleDateString("th-TH")} · รวม {qty} ชิ้น</p>
+                <p className="text-[9pt] text-gray-600">
+                  {groupInfo.get(o.id) && groupInfo.get(o.id)!.groups > 1 && <b className="text-black">กลุ่ม {groupInfo.get(o.id)!.g}/{groupInfo.get(o.id)!.groups} ({groupInfo.get(o.id)!.k}/{groupInfo.get(o.id)!.n}) · </b>}
+                  #{idx + 1}/{orders.length} · {new Date(o.createdAt).toLocaleDateString("th-TH")} · รวม {qty} ชิ้น
+                </p>
               </div>
               <div className="mt-2 grid min-h-0 flex-1 grid-cols-[1.25fr_1fr] gap-x-5">
                 <div className="min-w-0">
