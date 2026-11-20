@@ -24,7 +24,7 @@ export async function taskForCaller(c: Caller, taskId: string) {
     .eq("id", taskId)
     .maybeSingle();
   if (!data) return null;
-  if (c.ownOnly && data.editor_id !== c.staffId) return null;
+  if (c.ownOnly && !(data.editor_id === c.staffId || (!data.editor_id && data.assignee_id === c.staffId))) return null;
   return data;
 }
 

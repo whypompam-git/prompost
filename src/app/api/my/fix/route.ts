@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireMe } from "@/lib/myWork";
+import { requireMe, mineFilter } from "@/lib/myWork";
 import { signedDraftUrl } from "@/lib/draftsServer";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   const { data: tasks } = await db
     .from("tasks")
     .select("id, title, client_id, revision_count, clients(name, color_tag, brand_images)")
-    .eq("editor_id", me.staffId)
+    .or(mineFilter(me.staffId))
     .in("type", ["edit", "qc"])
     .limit(200);
   const ids = (tasks ?? []).map((t) => t.id);

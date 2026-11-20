@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireMe } from "@/lib/myWork";
+import { requireMe, mineFilter } from "@/lib/myWork";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   const db = workspaceDb(me.workspaceId);
   const [{ data: staff }, { data: done }, { data: contracts }] = await Promise.all([
     db.from("staff").select("name, photo_url, position").eq("id", me.staffId).maybeSingle(),
-    db.from("tasks").select("id, title, final_url, cover_url, type, edit_date, clients(name)").eq("editor_id", me.staffId).in("type", ["approved", "posted"]).order("edit_date", { ascending: false }).limit(300),
+    db.from("tasks").select("id, title, final_url, cover_url, type, edit_date, clients(name)").or(mineFilter(me.staffId)).in("type", ["approved", "posted"]).order("edit_date", { ascending: false }).limit(300),
     db.from("contracts").select("id, contract_no").eq("staff_id", me.staffId).eq("status", "signed"),
   ]);
   const cids = (contracts ?? []).map((c) => c.id);

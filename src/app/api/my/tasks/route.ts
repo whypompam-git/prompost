@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
-import { requireMe } from "@/lib/myWork";
+import { requireMe, mineFilter } from "@/lib/myWork";
 import { MY_STAGES, type MyTask } from "@/lib/myWorkTypes";
 import { freelanceProgress, monthlyProgress } from "@/lib/contractProgress";
 import { bangkokDay } from "@/lib/alerts";
@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await db
     .from("tasks")
     .select("id, title, type, status, client_id, edit_date, due_date, script_text, shots, equipment, notes, footage_url, ref_link, final_url, revision_count, revision_brief, clients(name)")
-    .eq("editor_id", me.staffId)
+    .or(mineFilter(me.staffId))
     .in("type", [...MY_STAGES])
     .order("edit_date", { ascending: true, nullsFirst: false })
     .order("title", { ascending: true })

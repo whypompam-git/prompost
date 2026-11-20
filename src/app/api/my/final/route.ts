@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isUuid } from "@/lib/aiApi";
-import { requireMe } from "@/lib/myWork";
+import { requireMe, mineFilter } from "@/lib/myWork";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     .from("tasks")
     .update({ final_url: url, updated_at: new Date().toISOString() })
     .eq("id", taskId)
-    .eq("editor_id", me.staffId)
+    .or(mineFilter(me.staffId))
     .in("type", ["edit", "qc"])
     .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

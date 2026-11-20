@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { notifyEvent } from "@/lib/notifyLine";
 import { isUuid } from "@/lib/aiApi";
-import { requireMe } from "@/lib/myWork";
+import { requireMe, mineFilter } from "@/lib/myWork";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 import { settle } from "@/lib/workflow";
 
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     .from("tasks")
     .select("id, title, type, status, client_id, assignee_id, editor_id, footage_url, revision_count, clients(name, manager_id)")
     .eq("id", taskId)
-    .eq("editor_id", me.staffId)
+    .or(mineFilter(me.staffId))
     .maybeSingle();
   if (!task) return NextResponse.json({ error: "ไม่พบงานนี้ในงานของคุณ" }, { status: 404 });
   if (task.type !== "edit") return NextResponse.json({ error: "งานนี้ไม่ได้อยู่ในขั้นตัดต่อแล้ว" }, { status: 409 });
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     .update({ type: next.type, status: next.status, updated_at: new Date().toISOString() })
     .eq("id", task.id)
     .eq("type", "edit")
-    .eq("editor_id", me.staffId)
+    .or(mineFilter(me.staffId))
     .select("id");
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!updated?.length) return NextResponse.json({ error: "งานเปลี่ยนไปแล้ว รีเฟรชหน้านี้" }, { status: 409 });

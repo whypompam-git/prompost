@@ -15,3 +15,10 @@ export async function requireMe(request: NextRequest): Promise<{ staffId: string
 
 export { MY_STAGES } from "./myWorkTypes.ts";
 export type { MyTask } from "./myWorkTypes.ts";
+
+// "My clip": I am its editor, or it has no separate editor and I am the responsible person.
+// Same rule the notifications use (editor ?? assignee), so what rings the bell also shows up
+// in my list.
+export const mineFilter = (staffId: string) => `editor_id.eq.${staffId},and(editor_id.is.null,assignee_id.eq.${staffId})`;
+export const isMine = (t: { editor_id: string | null; assignee_id?: string | null }, staffId: string) =>
+  t.editor_id === staffId || (!t.editor_id && t.assignee_id === staffId);
