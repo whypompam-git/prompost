@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Download, ExternalLink, Film, X } from "lucide-react";
-import { SOCIAL_LABEL, driveDownload, drivePreview, driveThumb, socialEmbed, socialKind } from "@/lib/drive";
+import { Check, ExternalLink, Film, X } from "lucide-react";
+import { SOCIAL_LABEL, drivePreview, driveThumb, socialEmbed, socialKind } from "@/lib/drive";
 
 export type DriveClip = { id: string; title: string; subtitle?: string; finalUrl: string | null; coverUrl: string | null; note?: string; posted?: boolean; postDate?: string | null; postBy?: string | null };
 
@@ -15,7 +15,7 @@ const TILE: Record<"tiktok" | "facebook" | "instagram" | "youtube", string> = {
 const withScheme = (u: string) => (u.startsWith("http") ? u : `https://${u}`);
 
 // Instagram-style grid of finished clips. Tapping one plays it right here (Drive's
-// player) with download and "open in Drive" buttons.
+// player) with an "open in Drive" button (downloads happen in Drive).
 export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { clientKey: string } }) {
   const [open, setOpen] = useState<DriveClip | null>(null);
   const [dates, setDates] = useState<Record<string, string | null>>({});
@@ -47,7 +47,6 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
   }
   const socialOf = open ? socialKind(open.finalUrl) : undefined;
   const preview = open ? (drivePreview(open.finalUrl) ?? socialEmbed(open.finalUrl) ?? social[open.id]?.embed ?? undefined) : undefined;
-  const download = open ? driveDownload(open.finalUrl) : undefined;
 
   return (
     <>
@@ -111,13 +110,8 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
               <span className="text-white/60">{postOf(open) ? "ทีมงานเห็นวันนี้แล้ว" : "ยังไม่ได้ตั้ง (ลูกค้าตั้งวันเองได้)"}</span>
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-            {download ? (
-              <a href={download} className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-semibold text-gray-900"><Download size={16} /> ดาวน์โหลด</a>
-            ) : (
-              <span />
-            )}
-            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white/15 py-3 text-sm font-semibold text-white"><ExternalLink size={16} /> {socialOf ? `เปิดใน ${SOCIAL_LABEL[socialOf]}` : "เปิดใน Drive"}</a>
+          <div className="grid grid-cols-1 gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
+            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-semibold text-gray-900"><ExternalLink size={16} /> {socialOf ? `เปิดใน ${SOCIAL_LABEL[socialOf]}` : "เปิดใน Drive"}</a>
           </div>
           <p className="pb-3 text-center text-[11px] text-white/40">{socialOf ? "ถ้าเล่นไม่ได้ โพสต์ต้องตั้งเป็นสาธารณะ" : "ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”"}</p>
         </div>
