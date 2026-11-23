@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, ImagePlus, Pencil, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
+import { Download, ExternalLink, ImagePlus, Pencil, Plus, Printer, Receipt, Search, Trash2, X } from "lucide-react";
 import { Topbar } from "@/components/layout/Topbar";
 import { Card } from "@/components/ui/Card";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { uploadShopImage } from "@/lib/supabase/queries";
+import { buildXlsx } from "@/lib/xlsx";
+import { saleSheets } from "@/lib/saleExport";
 import { ORDER_STATUS_LABEL, groupOrders, type ShopProduct } from "@/lib/shop";
 import { cn } from "@/lib/utils";
 
@@ -194,6 +196,16 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
       window.alert(e instanceof Error ? e.message : "ไม่สำเร็จ");
     }
   }
+  // Excel with 3 sheets: customers, orders, product lines (everything in Sale, not just what is on screen)
+  function exportExcel() {
+    const bytes = buildXlsx(saleSheets(orders));
+    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `sale-ลูกค้า-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
   const printIds = (ids: string[]) => window.open(`/print/sale?ids=${ids.join(",")}`, "_blank");
 
   return (
@@ -250,7 +262,10 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
           <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((o) => o.id)))} /> เลือกทั้งหมด
         </label>
-        <button disabled={picked.size === 0} onClick={() => printIds([...picked])} className="ml-auto flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
+        <button disabled={orders.length === 0} onClick={exportExcel} className="ml-auto flex items-center gap-1.5 rounded-lg border border-green-600 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 disabled:opacity-40">
+          <Download size={15} /> Export Excel
+        </button>
+        <button disabled={picked.size === 0} onClick={() => printIds([...picked])} className=" flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
           <Printer size={15} /> ปริ้นที่เลือก ({picked.size})
         </button>
         <button disabled={shown.length === 0} onClick={() => printIds(shown.map((o) => o.id))} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium disabled:opacity-40">
