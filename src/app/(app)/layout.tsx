@@ -25,13 +25,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // deactivated account is bounced to the login screen.
   const live = await fetchLiveAccess(claims.staffId);
   if (live && !live.active) redirect("/login");
-  // the lookup is cached for a few seconds: re-check without the cache before sending someone
-  // (who just changed their password) back to the change-password screen
-  if (live?.mustChangePassword) {
-    const fresh = await fetchLiveAccessUncached(claims.staffId);
-    if (fresh?.mustChangePassword) redirect("/change-password");
-    forgetLiveAccess(claims.staffId);
-  }
   const auth = {
     staffId: claims.staffId,
     name: live?.name ?? claims.name,
