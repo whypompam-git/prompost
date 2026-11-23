@@ -11,7 +11,7 @@ import { UndoBar } from "@/components/layout/UndoBar";
 import { UploadBanner } from "@/components/v2/UploadBanner";
 import { MyWork } from "@/components/my/MyWork";
 import { AuthProvider } from "@/lib/auth/AuthContext";
-import { SESSION_COOKIE, fetchLiveAccess, fetchLiveAccessUncached, forgetLiveAccess, verifySession } from "@/lib/auth/session";
+import { SESSION_COOKIE, fetchLiveAccess, verifySession } from "@/lib/auth/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const token = cookies().get(SESSION_COOKIE)?.value;
