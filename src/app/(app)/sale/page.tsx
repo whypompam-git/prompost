@@ -199,7 +199,7 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
   // Excel with 3 sheets: customers, orders, product lines (everything in Sale, not just what is on screen)
   function exportExcel() {
     const bytes = buildXlsx(saleSheets(orders));
-    const blob = new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `sale-ลูกค้า-${new Date().toISOString().slice(0, 10)}.xlsx`;
