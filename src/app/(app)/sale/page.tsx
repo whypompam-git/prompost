@@ -197,12 +197,12 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
     }
   }
   // Excel with 3 sheets: customers, orders, product lines (everything in Sale, not just what is on screen)
-  function exportExcel() {
-    const bytes = buildXlsx(saleSheets(orders));
+  function exportExcel(mode: "combined" | "split" = "combined") {
+    const bytes = buildXlsx(saleSheets(orders, mode));
     const blob = new Blob([bytes.slice().buffer as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `sale-ลูกค้า-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    a.download = `sale-${mode === "split" ? "แยกกลุ่ม" : "ลูกค้า"}-${new Date().toISOString().slice(0, 10)}.xlsx`;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -233,9 +233,12 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
           </div>
         </Card>
       )}
-      <div className="flex justify-end">
-        <button disabled={orders.length === 0} onClick={exportExcel} className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
-          <Download size={15} /> Export Excel (ลูกค้า · ออเดอร์ · จัดกลุ่ม)
+      <div className="flex flex-wrap justify-end gap-2">
+        <button disabled={orders.length === 0} onClick={() => exportExcel("combined")} className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+          <Download size={15} /> Export Excel · รวม (เรียงตามกลุ่ม + ที่อยู่ไปรษณีย์)
+        </button>
+        <button disabled={orders.length === 0} onClick={() => exportExcel("split")} className="flex items-center gap-1.5 rounded-lg border border-green-600 bg-green-50 px-4 py-2 text-sm font-semibold text-green-700 disabled:opacity-40">
+          <Download size={15} /> Export Excel · แยกชีตตามกลุ่ม
         </button>
       </div>
       {groups.length > 0 && (
@@ -267,10 +270,7 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
         <label className="flex items-center gap-1.5 text-sm text-gray-600">
           <input type="checkbox" checked={allPicked} onChange={() => setPicked(allPicked ? new Set() : new Set(shown.map((o) => o.id)))} /> เลือกทั้งหมด
         </label>
-        <button disabled={orders.length === 0} onClick={exportExcel} className="ml-auto flex items-center gap-1.5 rounded-lg border border-green-600 bg-green-50 px-3 py-2 text-sm font-medium text-green-700 disabled:opacity-40">
-          <Download size={15} /> Export Excel
-        </button>
-        <button disabled={picked.size === 0} onClick={() => printIds([...picked])} className=" flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
+                <button disabled={picked.size === 0} onClick={() => printIds([...picked])} className="ml-auto  flex items-center gap-1.5 rounded-lg bg-gray-900 px-3 py-2 text-sm font-medium text-white disabled:opacity-40">
           <Printer size={15} /> ปริ้นที่เลือก ({picked.size})
         </button>
         <button disabled={shown.length === 0} onClick={() => printIds(shown.map((o) => o.id))} className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium disabled:opacity-40">
