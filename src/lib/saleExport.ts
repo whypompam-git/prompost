@@ -1,8 +1,8 @@
-import { ORDER_STATUS_LABEL } from "@/lib/shop";
+import { ORDER_STATUS_LABEL, groupOrders } from "@/lib/shop";
 import type { Cell, Sheet } from "@/lib/xlsx";
 
 type ExportOrder = {
-  code: string; name: string; phone: string; address: string; note: string; total: number; hasSlip: boolean; status: string; createdAt: string;
+  id: string; code: string; name: string; phone: string; address: string; note: string; total: number; hasSlip: boolean; status: string; createdAt: string;
   items: { name: string; price: number; qty: number }[];
 };
 const when = (iso: string) => new Date(iso).toLocaleString("th-TH", { dateStyle: "short", timeStyle: "short" });
@@ -29,7 +29,20 @@ export function saleSheets(orders: ExportOrder[]): Sheet[] {
   const lines: Cell[][] = [["รหัสออเดอร์", "สถานะ", "ชื่อ", "เบอร์โทร", "สินค้า", "ราคา/ชิ้น", "จำนวน", "รวม"]];
   for (const o of sorted) for (const i of o.items) lines.push([o.code, ORDER_STATUS_LABEL[o.status] ?? o.status, o.name, o.phone, i.name, i.price, i.qty, i.price * i.qty]);
 
+  // grouping (same item set, not cancelled) + the total to prepare per product
+  const groups = groupOrders(live);
+  const groupRows: Cell[][] = [["กลุ่ม", "ชุดสินค้า", "จำนวนออเดอร์", "จำนวนชิ้น", "รหัสออเดอร์", "ชื่อลูกค้า"]];
+  groups.forEach((g, i) => {
+    const os = live.filter((o) => g.ids.includes(o.id));
+    groupRows.push([i + 1, g.label, g.orders, g.pieces, os.map((o) => o.code).join(", "), os.map((o) => o.name).join(", ")]);
+  });
+  const need = new Map<string, number>();
+  for (const o of live) for (const i of o.items) need.set(i.name, (need.get(i.name) ?? 0) + i.qty);
+  const needRows: Cell[][] = [["สินค้า", "ต้องเตรียม (ชิ้น)"], ...[...need].map(([n, q]) => [n, q] as Cell[])];
+
   return [
+    { name: "จัดกลุ่ม", rows: groupRows, widths: [8, 50, 14, 12, 60, 60] },
+    { name: "ของที่ต้องเตรียม", rows: needRows, widths: [24, 18] },
     { name: "ลูกค้า", rows: customers, widths: [22, 14, 50, 12, 10, 14, 30, 18, 18, 30, 30] },
     { name: "ออเดอร์", rows: orderRows, widths: [14, 18, 14, 22, 14, 50, 24, 30, 10, 14, 10] },
     { name: "รายการสินค้า", rows: lines, widths: [14, 14, 22, 14, 24, 12, 8, 12] },

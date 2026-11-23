@@ -233,6 +233,11 @@ function Orders({ orders, products, onChange }: { orders: Order[]; products: Sho
           </div>
         </Card>
       )}
+      <div className="flex justify-end">
+        <button disabled={orders.length === 0} onClick={exportExcel} className="flex items-center gap-1.5 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-40">
+          <Download size={15} /> Export Excel (ลูกค้า · ออเดอร์ · จัดกลุ่ม)
+        </button>
+      </div>
       {groups.length > 0 && (
         <Card className="p-4">
           <p className="mb-2 text-xs font-medium text-gray-500">จัดกลุ่มตามชุดสินค้า — {groups.length} แบบ (กดเพื่อดูเฉพาะกลุ่ม ปริ้นและแพ็คทีเดียวได้)</p>
