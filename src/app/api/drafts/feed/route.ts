@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { caller, signedDraftUrl } from "@/lib/draftsServer";
+import { caller, signedDraftUrl, signedDraftUrls } from "@/lib/draftsServer";
 import { workspaceDb } from "@/lib/supabase/workspaceDb";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +33,7 @@ export async function GET(request: NextRequest) {
   const logo = new Map((cis ?? []).map((r) => [r.client_id as string, r.logo_url as string | null]));
   const nameOf = (id?: string | null) => (staff ?? []).find((s) => s.id === id)?.name ?? "";
 
+  const urls = await signedDraftUrls([...latest.values()].map((d) => d.path));
   const rows = await Promise.all(
     (tasks ?? [])
       .filter((t) => latest.has(t.id))
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
           editorName: nameOf(t.editor_id),
           revisionCount: t.revision_count ?? 0,
           editDate: t.edit_date,
-          draft: { id: d.id, version: d.version, url: await signedDraftUrl(d.path), downloadUrl: await signedDraftUrl(d.path, `${cl?.name ?? ""} ${t.title} v${d.version}${ext}`.replace(/[\\/:*?"<>|]/g, " ")) },
+          draft: { id: d.id, version: d.version, url: urls.get(d.path), downloadUrl: t.type === "approved" ? await signedDraftUrl(d.path, `${cl?.name ?? ""} ${t.title} v${d.version}${ext}`.replace(/[\\/:*?"<>|]/g, " ")) : undefined },
           comments: (comments ?? [])
             .filter((m) => m.task_id === t.id)
             .map((m) => ({ id: m.id, draftId: m.draft_id, atSeconds: m.at_seconds == null ? null : Number(m.at_seconds), body: m.body, fromClient: m.from_client, author: m.from_client ? "ลูกค้า" : nameOf(m.author_staff_id), createdAt: m.created_at, resolved: Boolean(m.resolved_at) })),

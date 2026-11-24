@@ -7,6 +7,7 @@ import { Topbar } from "@/components/layout/Topbar";
 import { LoadingView } from "@/components/ui/LoadingView";
 import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
 import { listClientLogos, listClients } from "@/lib/supabase/queries";
+import { fetchBadge } from "@/components/layout/useReviewBadge";
 import { clientReasons, reasonText, type BadgeData, type ClientReasons } from "@/lib/reviewBadge";
 import type { Client } from "@/lib/types";
 
@@ -42,7 +43,7 @@ export default function V2ClientsPage() {
       })
       .finally(() => setLoading(false));
     // the red dots fill in after the grid shows
-    fetch("/api/drafts/badge", { cache: "no-store" }).then((r) => (r.ok ? r.json() : Promise.reject())).then(setBadge).catch(() => {});
+    fetchBadge().then(setBadge).catch(() => {});
   }, []);
 
   // red number = clips waiting for us in this client (waiting for QC, being re-edited after a

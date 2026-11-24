@@ -28,6 +28,15 @@ export async function taskForCaller(c: Caller, taskId: string) {
   return data;
 }
 
+// Sign many draft paths in ONE storage call (the feed used to make two calls per clip).
+export async function signedDraftUrls(paths: string[], seconds = 60 * 60 * 3): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (!paths.length) return out;
+  const { data } = await createAdminClient().storage.from("drafts").createSignedUrls(paths, seconds);
+  for (const r of data ?? []) if (r.path && r.signedUrl) out.set(r.path, r.signedUrl);
+  return out;
+}
+
 export async function signedDraftUrl(path: string, download?: string): Promise<string | undefined> {
   const { data } = await createAdminClient().storage.from("drafts").createSignedUrl(path, 60 * 60 * 3, download ? { download } : undefined);
   return data?.signedUrl;

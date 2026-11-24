@@ -36,7 +36,7 @@ const timeAgo = (iso: string) => {
 
 // the automatic alerts are shared across pages: switching pages must not refetch them
 let alertsCache: { at: number; who: string; notices: Notice[] } | null = null;
-const ALERTS_TTL_MS = 300_000;
+const ALERTS_TTL_MS = 900_000; // the money alerts download every quotation, invoice, receipt and transaction: refresh every 15 minutes, not 5
 
 const SEEN_KEY = "prompost:seen-notifications";
 const DAY = 86_400_000;
@@ -218,7 +218,7 @@ export function NotificationBell() {
     // page has drawn so the alerts never slow down opening a page
     const fresh = alertsCache && alertsCache.who === auth.staffId && Date.now() - alertsCache.at < ALERTS_TTL_MS;
     if (fresh) setNotices(alertsCache!.notices);
-    const first = fresh ? undefined : setTimeout(() => load().catch(() => {}), 2500);
+    const first = fresh ? undefined : setTimeout(() => load().catch(() => {}), 9000);
     const timer = setInterval(() => load().catch(() => {}), ALERTS_TTL_MS);
     const onRefresh = () => {
       alertsCache = null;
