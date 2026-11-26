@@ -20,6 +20,23 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
   const [open, setOpen] = useState<DriveClip | null>(null);
   const [dates, setDates] = useState<Record<string, string | null>>({});
   const [saving, setSaving] = useState(false);
+  // after the client opens a clip in Drive (to download it): ask whether it is posted now
+  const [asking, setAsking] = useState<string | null>(null);
+  const [postedIds, setPostedIds] = useState<Set<string>>(new Set());
+  const isPosted = (c: DriveClip) => Boolean(c.posted) || postedIds.has(c.id);
+  async function markPosted(c: DriveClip) {
+    setSaving(true);
+    try {
+      const res = await fetch("/api/portal/posted", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clientKey: postApi!.clientKey, taskId: c.id }) });
+      if (!res.ok) throw new Error();
+      setPostedIds((p) => new Set(p).add(c.id));
+      setAsking(null);
+    } catch {
+      window.alert("บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    } finally {
+      setSaving(false);
+    }
+  }
   // social links: ask for a thumbnail (and a player id for short TikTok links)
   const [social, setSocial] = useState<Record<string, { thumb: string | null; embed: string | null }>>({});
   useEffect(() => {
@@ -64,12 +81,12 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
                   {socialKind(t.finalUrl) && <span className="text-xs font-bold tracking-wide">{SOCIAL_LABEL[socialKind(t.finalUrl)!]}</span>}
                 </span>
               )}
-              {t.posted && (
+              {isPosted(t) && (
                 <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-white shadow ring-1 ring-white/70" title="โพสแล้ว">
                   <Check size={12} strokeWidth={3} />
                 </span>
               )}
-              {!t.posted && postOf(t) && (
+              {!isPosted(t) && postOf(t) && (
                 <span className="absolute left-1.5 top-1.5 rounded-full bg-sky-600/90 px-1.5 py-0.5 text-[9px] font-semibold text-white">
                   โพส {new Date(postOf(t)!).toLocaleDateString("th-TH", { day: "numeric", month: "short" })}
                 </span>
@@ -97,7 +114,7 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
               <p className="p-6 text-center text-sm text-white/70">{socialOf ? `ลิงก์ ${SOCIAL_LABEL[socialOf]} นี้เล่นในหน้านี้ไม่ได้` : "ลิงก์นี้ไม่ใช่ไฟล์ Google Drive"} — เปิดดูจากปุ่มด้านล่าง</p>
             )}
           </div>
-          {postApi && !open.posted && (
+          {postApi && !isPosted(open) && (
             <div className="mx-3 mb-2 flex flex-wrap items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-white">
               <span className="font-semibold">วันที่จะโพส</span>
               <input
@@ -111,8 +128,18 @@ export function DriveGrid({ clips, postApi }: { clips: DriveClip[]; postApi?: { 
             </div>
           )}
           <div className="grid grid-cols-1 gap-2 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3">
-            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-semibold text-gray-900"><ExternalLink size={16} /> {socialOf ? `เปิดใน ${SOCIAL_LABEL[socialOf]}` : "เปิดใน Drive"}</a>
+            <a href={withScheme(open.finalUrl!)} target="_blank" rel="noreferrer" onClick={() => postApi && !isPosted(open) && setAsking(open.id)} className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-3 text-sm font-semibold text-gray-900"><ExternalLink size={16} /> {socialOf ? `เปิดใน ${SOCIAL_LABEL[socialOf]}` : "เปิดใน Drive"}</a>
           </div>
+          {postApi && asking === open.id && !isPosted(open) && (
+            <div className="mx-3 mb-3 rounded-2xl bg-white p-4 text-gray-900">
+              <p className="text-sm font-semibold">โหลดคลิปแล้ว คุณโพสคลิปนี้แล้วหรือยัง?</p>
+              <p className="mt-0.5 text-xs text-gray-500">ถ้าโพสแล้ว กด “โพสแล้ว” เพื่อให้ทีมงานเห็น และจะมีเครื่องหมายถูกสีเขียวบนคลิปนี้</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button disabled={saving} onClick={() => setAsking(null)} className="rounded-xl border border-gray-200 py-2.5 text-sm font-medium">ยังไม่โพส</button>
+                <button disabled={saving} onClick={() => markPosted(open)} className="rounded-xl bg-emerald-500 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{saving ? "กำลังบันทึก…" : "โพสแล้ว"}</button>
+              </div>
+            </div>
+          )}
           <p className="pb-3 text-center text-[11px] text-white/40">{socialOf ? "ถ้าเล่นไม่ได้ โพสต์ต้องตั้งเป็นสาธารณะ" : "ถ้าเล่นไม่ได้ ไฟล์ใน Drive ต้องตั้งเป็น “ทุกคนที่มีลิงก์ดูได้”"}</p>
         </div>
       )}

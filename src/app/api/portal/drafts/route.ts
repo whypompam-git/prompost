@@ -44,5 +44,14 @@ export async function GET(request: Request) {
         };
       }),
   );
-  return NextResponse.json({ items, withoutDraft: (tasks ?? []).filter((t) => !latest.has(t.id)).map((t) => ({ id: t.id, title: t.title })) });
+  // everything the client already sent back for changes (all rounds, newest first), with where each clip is now
+  const { data: allTasks } = await db.from("tasks").select("id, title, type, revision_count").eq("client_id", client.id).gt("revision_count", 0);
+  const { data: revs } = (allTasks ?? []).length
+    ? await db.from("task_revisions").select("task_id, round, brief, created_at").in("task_id", (allTasks ?? []).map((t) => t.id)).eq("source", "client").order("created_at", { ascending: false })
+    : { data: [] as { task_id: string; round: number; brief: string; created_at: string }[] };
+  const sent = (allTasks ?? [])
+    .map((t) => ({ taskId: t.id, title: t.title, stage: t.type, rounds: (revs ?? []).filter((r) => r.task_id === t.id).map((r) => ({ round: r.round, brief: r.brief, at: r.created_at })) }))
+    .filter((t) => t.rounds.length > 0)
+    .sort((a, b) => b.rounds[0].at.localeCompare(a.rounds[0].at));
+  return NextResponse.json({ sent, items, withoutDraft: (tasks ?? []).filter((t) => !latest.has(t.id)).map((t) => ({ id: t.id, title: t.title })) });
 }

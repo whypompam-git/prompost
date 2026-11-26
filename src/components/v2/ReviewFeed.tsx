@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "@/components/ui/Link";
-import { Check, CheckCircle2, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, WifiOff, X } from "lucide-react";
+import { Check, CheckCircle2, Gauge, Heart, ListChecks, Loader2, MessageCircle, Palette, Send, Trash2, WifiOff, X } from "lucide-react";
 import { PALETTE, type ColorStem } from "@/lib/colors";
 import { cn } from "@/lib/utils";
 import { initials } from "@/components/v2/AppGrid";
@@ -61,6 +61,7 @@ type Handlers = {
   onComment?: (item: FeedItem, atSeconds: number | null, body: string) => Promise<void>;
   onRevise?: (item: FeedItem) => Promise<void>;
   onResolve?: (item: FeedItem, comment: FeedComment) => Promise<void>;
+  onDeleteComment?: (item: FeedItem, comment: FeedComment) => Promise<void>;
   onOpenCi?: (item: FeedItem) => void;
   onUploaded?: () => void;
 };
@@ -233,7 +234,7 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
           {variant !== "client" && item.editorName && ` · ตัดโดย ${item.editorName}`}
           {item.revisionCount > 0 && ` · แก้รอบที่ ${item.revisionCount}`}
         </p>
-        <div className="relative mt-3">
+        <div className="relative z-20 mt-3 px-1" onClick={(e) => scrub && e.stopPropagation()}>
           {scrub ? (
             <div className="flex items-center gap-2 text-[11px] tabular-nums">
               <span>{clock(time)}</span>
@@ -309,6 +310,15 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
                       {m.resolved && <Check size={12} />}
                     </button>
                   )}
+                  {variant !== "editor" && h.onDeleteComment && (variant !== "client" || m.pending) && (
+                    <button
+                      onClick={() => window.confirm("ลบคอมเมนต์นี้?") && void h.onDeleteComment!(item, m)}
+                      className="order-last mt-0.5 shrink-0 rounded-full p-1 text-gray-300 hover:bg-rose-50 hover:text-rose-500"
+                      aria-label="ลบคอมเมนต์"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  )}
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-gray-400">
                       {variant !== "client" && <b className="text-gray-700">{m.author}</b>}
@@ -344,6 +354,7 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
                   <button
                     disabled={busy}
                     onClick={async () => {
+                      if (!window.confirm(variant === "client" ? `ส่งให้ทีมแก้ ${open.length} ข้อ ใช่ไหม?` : `ส่งกลับให้ Editor แก้ ${open.length} ข้อ ใช่ไหม?`)) return;
                       setBusy(true);
                       try {
                         await h.onRevise!(item);
@@ -467,7 +478,7 @@ export function ReviewFeed({ items, variant = "team", onFeedScroll, ...h }: { it
 
       {/* bottom-right, like a share button: send several clips back in one go */}
       {withNotes.length > 0 && !overlay && !bulk && (
-        <button onClick={openBulk} className="absolute bottom-16 right-2 z-30 flex w-14 flex-col items-center gap-0.5 text-white" aria-label={isClient ? "ส่งให้แก้หลายคลิป" : "สั่งแก้หลายคลิป"}>
+        <button onClick={openBulk} className="absolute right-2 top-14 z-30 flex w-14 flex-col items-center gap-0.5 text-white" aria-label={isClient ? "ส่งให้แก้หลายคลิป" : "สั่งแก้หลายคลิป"}>
           <span className="relative flex h-11 w-11 items-center justify-center rounded-full bg-amber-500 shadow-lg">
             <ListChecks size={22} />
             <span className="absolute -right-1 -top-1 min-w-5 rounded-full border-2 border-black bg-rose-500 px-1 text-center text-[10px] font-bold leading-4">{withNotes.length}</span>

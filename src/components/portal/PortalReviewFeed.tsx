@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Inbox } from "lucide-react";
+import { History, Inbox, X } from "lucide-react";
 import { ReviewFeed, clock, type FeedComment, type FeedItem } from "@/components/v2/ReviewFeed";
 
 // The client's "ตรวจงาน": clips waiting for them as a TikTok-style feed. ✓ = approve,
@@ -10,6 +10,8 @@ export function PortalReviewFeed({ clientKey }: { clientKey: string }) {
   const [items, setItems] = useState<FeedItem[] | null>(null);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [sent, setSent] = useState<{ taskId: string; title: string; stage: string; rounds: { round: number; brief: string; at: string }[] }[]>([]);
+  const [showSent, setShowSent] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -17,6 +19,7 @@ export function PortalReviewFeed({ clientKey }: { clientKey: string }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? String(res.status));
       setItems(data.items);
+      setSent(data.sent ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "โหลดไม่สำเร็จ");
     }
@@ -50,6 +53,11 @@ export function PortalReviewFeed({ clientKey }: { clientKey: string }) {
     setItems((prev) => (prev ?? []).map((i) => (i.taskId === item.taskId ? { ...i, comments: [...i.comments, note] } : i)));
   }
 
+  // only notes still on this device (not yet sent) can be removed
+  async function removeNote(item: FeedItem, c: FeedComment) {
+    setItems((prev) => (prev ?? []).map((i) => (i.taskId === item.taskId ? { ...i, comments: i.comments.filter((m) => m.id !== c.id) } : i)));
+  }
+
   async function revise(item: FeedItem) {
     const notes = item.comments.filter((c) => c.pending);
     if (!notes.length) return;
@@ -70,7 +78,36 @@ export function PortalReviewFeed({ clientKey }: { clientKey: string }) {
           <p className="text-xs text-white/40">เมื่อทีมงานส่งคลิปมาให้ตรวจ จะขึ้นที่หน้านี้</p>
         </div>
       ) : (
-        <ReviewFeed items={items} variant="client" onPass={pass} onComment={comment} onRevise={revise} />
+        <ReviewFeed items={items} variant="client" onPass={pass} onComment={comment} onRevise={revise} onDeleteComment={removeNote} />
+      )}
+      {sent.length > 0 && !showSent && (
+        <button onClick={() => setShowSent(true)} className="absolute right-3 top-3 z-30 flex items-center gap-1 rounded-full bg-black/55 px-3 py-1.5 text-[11px] font-medium text-white backdrop-blur" aria-label="ดูบรีฟที่ส่งแก้ไปแล้ว">
+          <History size={13} /> ที่ส่งแก้ไปแล้ว ({sent.length})
+        </button>
+      )}
+      {showSent && (
+        <div className="absolute inset-0 z-40 flex items-end bg-black/50" onClick={() => setShowSent(false)}>
+          <div className="flex max-h-[80%] w-full flex-col rounded-t-2xl bg-white text-gray-900" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
+              <p className="text-sm font-semibold">คลิปที่คุณส่งให้แก้ไปแล้ว</p>
+              <button onClick={() => setShowSent(false)} className="rounded-full p-1 text-gray-400" aria-label="ปิด"><X size={18} /></button>
+            </div>
+            <div className="min-h-0 flex-1 divide-y divide-gray-100 overflow-y-auto px-4">
+              {sent.map((t) => (
+                <div key={t.taskId} className="py-3">
+                  <p className="text-sm font-semibold">{t.title}</p>
+                  <p className="text-[11px] text-gray-400">{t.stage === "pending" ? "ทีมส่งฉบับใหม่ให้ตรวจแล้ว" : t.stage === "approved" || t.stage === "posted" ? "อนุมัติแล้ว" : "ทีมกำลังแก้ไข"}</p>
+                  {t.rounds.map((r) => (
+                    <div key={r.round} className="mt-2 rounded-xl bg-rose-50 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-rose-700">รอบที่ {r.round} · {new Date(r.at).toLocaleDateString("th-TH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</p>
+                      <p className="mt-0.5 whitespace-pre-wrap text-sm text-gray-800">{r.brief}</p>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
       {toast && <span className="absolute left-1/2 top-4 z-20 w-max max-w-[90%] -translate-x-1/2 rounded-full bg-white px-4 py-2 text-center text-sm font-medium text-gray-900 shadow-lg">{toast}</span>}
     </div>

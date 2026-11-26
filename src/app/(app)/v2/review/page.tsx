@@ -8,7 +8,7 @@ import { listClientLogos, listClients, listTasksLite } from "@/lib/supabase/quer
 import { AppGrid, ClientTile } from "@/components/v2/AppGrid";
 import type { Client, Task } from "@/lib/types";
 import { LoadingView } from "@/components/ui/LoadingView";
-import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedItem } from "@/components/v2/ReviewFeed";
+import { ReviewFeed, ClientAvatar, clock, unresolved, type FeedComment, type FeedItem } from "@/components/v2/ReviewFeed";
 import { getTask } from "@/lib/supabase/queries";
 import { isInternalClient } from "@/lib/workflow";
 import { notifyTaskEvent, patchTaskWithFlow } from "@/lib/taskFlow";
@@ -88,6 +88,12 @@ export default function V2ReviewPage() {
     );
   }
 
+  async function removeComment(item: FeedItem, c: FeedComment) {
+    const res = await fetch(`/api/drafts/comment?id=${c.id}`, { method: "DELETE" });
+    if (!res.ok) return window.alert("ลบคอมเมนต์ไม่สำเร็จ");
+    setItems((prev) => prev.map((i) => (i.taskId === item.taskId ? { ...i, comments: i.comments.filter((m) => m.id !== c.id) } : i)));
+  }
+
   async function revise(item: FeedItem) {
     const open = unresolved(item.comments);
     const brief = open.map((m) => (m.atSeconds != null && !/^\d\d:\d\d/.test(m.body) ? `${clock(m.atSeconds)} ${m.body}` : m.body)).join("\n");
@@ -158,7 +164,7 @@ export default function V2ReviewPage() {
               <p className="max-w-xs text-center text-xs text-white/40">Editor อัปโหลดดราฟได้จากหน้างานของคลิป แล้วคลิปจะมาขึ้นที่นี่</p>
             </div>
           ) : (
-            <ReviewFeed items={shown} variant="team" onFeedScroll={() => setStories(false)} onPass={pass} onComment={comment} onRevise={revise} />
+            <ReviewFeed items={shown} variant="team" onFeedScroll={() => setStories(false)} onPass={pass} onComment={comment} onRevise={revise} onDeleteComment={removeComment} />
           )
         ) : (
           <DeliverList items={deliver} onDone={(id) => setDeliver((p) => p.filter((x) => x.taskId !== id))} />

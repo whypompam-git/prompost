@@ -42,3 +42,18 @@ export async function PATCH(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
+
+// Delete a comment (team side). Any teammate can remove a comment on a clip they can open.
+export async function DELETE(request: NextRequest) {
+  const c = await caller(request);
+  if (c instanceof NextResponse) return c;
+  if (c.ownOnly) return NextResponse.json({ error: "not available for this account" }, { status: 403 });
+  const id = new URL(request.url).searchParams.get("id") ?? "";
+  if (!isUuid(id)) return NextResponse.json({ error: "invalid request" }, { status: 400 });
+  const db = workspaceDb(c.workspaceId);
+  const { data: row } = await db.from("draft_comments").select("id, task_id").eq("id", id).maybeSingle();
+  if (!row || !(await taskForCaller(c, row.task_id))) return NextResponse.json({ error: "not found" }, { status: 404 });
+  const { error } = await db.from("draft_comments").delete().eq("id", id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
