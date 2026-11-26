@@ -8,6 +8,7 @@ import { ChevronDown, Download, FilePlus2, FileText, Paperclip, Pencil, Plus, Re
 import { Topbar } from "@/components/layout/Topbar";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { LoadingView } from "@/components/ui/LoadingView";
+import { MonthLock } from "@/components/accounting/MonthLock";
 import { MonthRangeFilter } from "@/components/accounting/MonthRangeFilter";
 import { QuotationModal, type QuotationFormValues } from "@/components/accounting/QuotationModal";
 import { IssueReceiptModal, type IssueReceiptValues } from "@/components/accounting/IssueReceiptModal";
@@ -110,12 +111,27 @@ export default function AccountingPage() {
     return { items: suggestedQuoteItems(r), clientPackageId: r?.id ?? null };
   };
 
+  // the database refuses changes to a locked month; say so plainly
+  const lockedMsg = (err: unknown) => {
+    const m = /MONTH_LOCKED:(\d{4}-\d{2})/.exec(typeof err === "object" ? JSON.stringify(err) : String(err));
+    return m ? `เดือน ${m[1]} ถูกล็อกแล้ว ต้องปลดล็อกด้วยรหัสก่อนถึงจะเพิ่ม/แก้/ลบรายการได้ (ปุ่ม “ปลดล็อก” ด้านบน)` : null;
+  };
+
   const clientName = (id?: string) => clients.find((c) => c.id === id)?.name;
 
   const totalIncome = visible.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
   const totalExpense = visible.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
 
-  async function handleSaveTransaction({ slipFile, keepSlip, ...values }: TransactionFormValues) {
+  async function handleSaveTransaction(form: TransactionFormValues) {
+    try {
+      await saveTransaction(form);
+    } catch (err) {
+      console.error(err);
+      window.alert(lockedMsg(err) ?? "บันทึกไม่สำเร็จ ลองใหม่อีกครั้ง");
+    }
+  }
+
+  async function saveTransaction({ slipFile, keepSlip, ...values }: TransactionFormValues) {
     if (modalMode === "create") {
       const slipUrl = slipFile ? await uploadSlip(slipFile) : undefined;
       const created = await createTransactionRow({ ...values, slipUrl });
@@ -205,7 +221,7 @@ export default function AccountingPage() {
       setTransactions((prev) => prev.map((x) => (x.id === t.id ? { ...x, slipUrl } : x)));
     } catch (err) {
       console.error(err);
-      window.alert("แนบสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
+      window.alert(lockedMsg(err) ?? "แนบสลิปไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -217,7 +233,7 @@ export default function AccountingPage() {
     } catch (err) {
       console.error(err);
       setTransactions((prev) => [t, ...prev]);
-      window.alert("ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
+      window.alert(lockedMsg(err) ?? "ลบไม่สำเร็จ ลองใหม่อีกครั้ง");
     }
   }
 
@@ -257,6 +273,7 @@ export default function AccountingPage() {
         )}
 
         <section>
+          <div className="mb-3"><MonthLock month={monthFrom && monthFrom === monthTo ? monthFrom : null} /></div>
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="flex items-center gap-1.5 text-sm font-semibold text-gray-700">
               <Wallet size={16} />

@@ -299,7 +299,7 @@ function DashboardPageInner() {
       <Topbar title="แดชบอร์ด" subtitle="ภาพรวมงานและลูกค้าทั้งหมด" />
 
       <div className="flex-1 space-y-4 p-4 sm:space-y-6 sm:p-6">
-        <ClientUpdates tasks={tasks} clients={clients} />
+        <ClientUpdates tasks={tasks} clients={clients} staff={staff} />
         <div className="flex justify-end">
           <DigestCopyButton />
         </div>

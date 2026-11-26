@@ -76,6 +76,15 @@ export default function V2MePage() {
     () => tasks.filter((t) => ["shoot", "edit", "qc"].includes(t.type) && (t.editorId === auth.staffId || t.shotById === auth.staffId || t.assigneeId === auth.staffId)).length,
     [tasks, auth.staffId],
   );
+  // clips the client sent back that I am responsible for (responsible person, editor, or manager of that client)
+  const myRevisions = useMemo(
+    () =>
+      tasks
+        .filter((t) => (t.type === "edit" || t.type === "qc") && (t.revisionCount ?? 0) > 0)
+        .filter((t) => t.assigneeId === auth.staffId || t.editorId === auth.staffId || clients.find((c) => c.id === t.clientId)?.managerId === auth.staffId)
+        .sort((a, b) => (a.editDate ?? a.dueDate).localeCompare(b.editDate ?? b.dueDate)),
+    [tasks, clients, auth.staffId],
+  );
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? "";
 
   async function changePhoto(file?: File) {
@@ -137,6 +146,23 @@ export default function V2MePage() {
         <Link href="/profile" className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg bg-gray-100 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200">
           <Pencil size={14} /> แก้ไขโปรไฟล์
         </Link>
+        {myRevisions.length > 0 && (
+          <div className="mt-3 overflow-hidden rounded-2xl border border-rose-200 bg-white">
+            <p className="bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700">ลูกค้าสั่งแก้ที่คุณรับผิดชอบ ({myRevisions.length})</p>
+            <div className="divide-y divide-gray-100">
+              {myRevisions.map((t) => (
+                <Link key={t.id} href={`/tasks/${t.id}`} className="block px-4 py-2.5 hover:bg-gray-50">
+                  <p className="flex items-center gap-2 text-sm text-gray-800">
+                    <span className="font-medium">{clientName(t.clientId)}</span>
+                    <span className="truncate text-gray-600">· {t.title}</span>
+                    <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700">รอบที่ {t.revisionCount}</span>
+                  </p>
+                  {t.revisionBrief && <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-xs text-gray-500">{t.revisionBrief}</p>}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="mt-3">
           {/* preview only: the goal is edited under เมนูเพิ่มเติม (top right) */}
           <GoalCard readOnly />

@@ -3,21 +3,27 @@
 import Link from "@/components/ui/Link";
 import { useState } from "react";
 import { ChevronDown, MessageSquareWarning, UserCheck } from "lucide-react";
-import type { Client, Task } from "@/lib/types";
+import type { Client, Staff, Task } from "@/lib/types";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { cn } from "@/lib/utils";
 
 // What the clients did that needs the team: clips they sent back for changes
 // (still in edit / QC), plus how many are waiting on them. Derived from the
 // clips themselves so it never goes stale — it disappears when the fix is sent.
-export function ClientUpdates({ tasks, clients }: { tasks: Task[]; clients: Client[] }) {
+export function ClientUpdates({ tasks, clients, staff = [] }: { tasks: Task[]; clients: Client[]; staff?: Staff[] }) {
   const [open, setOpen] = useState(true);
+  const auth = useAuth();
+  const [mineOnly, setMineOnly] = useState(false);
+  const who = (id?: string | null) => staff.find((s) => s.id === id)?.name ?? "";
   const name = (id: string) => clients.find((c) => c.id === id)?.name ?? "—";
   const revisions = tasks
     .filter((t) => (t.type === "edit" || t.type === "qc") && (t.revisionCount ?? 0) > 0)
+    .filter((t) => !mineOnly || t.assigneeId === auth.staffId || t.editorId === auth.staffId)
     .sort((a, b) => (a.editDate ?? a.dueDate).localeCompare(b.editDate ?? b.dueDate));
   const waitingPlan = tasks.filter((t) => t.type === "plan").length;
   const waitingCheck = tasks.filter((t) => t.type === "pending").length;
-  if (revisions.length === 0 && waitingPlan + waitingCheck === 0) return null;
+  const anyRevision = tasks.some((t) => (t.type === "edit" || t.type === "qc") && (t.revisionCount ?? 0) > 0);
+  if (!anyRevision && waitingPlan + waitingCheck === 0) return null;
 
   return (
     <div className={cn("rounded-2xl border bg-white shadow-card", revisions.length > 0 ? "border-rose-200" : "border-gray-100")}>
@@ -33,6 +39,13 @@ export function ClientUpdates({ tasks, clients }: { tasks: Task[]; clients: Clie
           <ChevronDown size={16} className={cn("transition", open && "rotate-180")} />
         </span>
       </button>
+      {open && (
+        <div className="flex gap-1.5 border-t border-gray-100 px-4 py-2 text-xs">
+          {([[false, "ทั้งหมด"], [true, "ของฉัน"]] as const).map(([v, label]) => (
+            <button key={label} onClick={() => setMineOnly(v)} className={cn("rounded-full border px-3 py-1 font-medium", mineOnly === v ? "border-rose-500 bg-rose-500 text-white" : "border-gray-200 text-gray-600")}>{label}</button>
+          ))}
+        </div>
+      )}
       {open && revisions.length > 0 && (
         <div className="divide-y divide-gray-100 border-t border-gray-100">
           {revisions.slice(0, 12).map((t) => (
@@ -44,6 +57,7 @@ export function ClientUpdates({ tasks, clients }: { tasks: Task[]; clients: Clie
                 <span className="ml-auto shrink-0 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-medium text-rose-700">แก้รอบที่ {t.revisionCount}</span>
               </p>
               {t.revisionBrief && <p className="mt-0.5 line-clamp-2 pl-6 text-xs text-gray-500">{t.revisionBrief}</p>}
+              {(who(t.assigneeId) || who(t.editorId)) && <p className="mt-0.5 pl-6 text-[11px] text-gray-400">{who(t.assigneeId) && `ผู้รับผิดชอบ: ${who(t.assigneeId)}`}{who(t.assigneeId) && who(t.editorId) && " · "}{who(t.editorId) && `Editor: ${who(t.editorId)}`}</p>}
             </Link>
           ))}
           {revisions.length > 12 && <p className="px-4 py-2 text-xs text-gray-400">…และอีก {revisions.length - 12} คลิป</p>}

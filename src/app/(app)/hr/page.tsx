@@ -99,7 +99,7 @@ export default function MyStaffPage() {
   if (loading) {
     return (
       <>
-        <Topbar title="พนักงาน" subtitle="ข้อมูลของฉันและวันลา" />
+        <Topbar title="ข้อมูลของฉัน / วันลา" subtitle="ข้อมูลส่วนตัวและวันลา · จัดการพนักงานที่ ตั้งค่า → พนักงาน" />
         <LoadingView />
       </>
     );
@@ -108,7 +108,7 @@ export default function MyStaffPage() {
   if (!me) {
     return (
       <>
-        <Topbar title="พนักงาน" subtitle="ข้อมูลของฉันและวันลา" />
+        <Topbar title="ข้อมูลของฉัน / วันลา" subtitle="ข้อมูลส่วนตัวและวันลา · จัดการพนักงานที่ ตั้งค่า → พนักงาน" />
         <div className="flex-1 p-6">
           <p className="text-sm text-gray-400">ไม่พบข้อมูลพนักงานของบัญชีนี้</p>
         </div>
@@ -118,7 +118,7 @@ export default function MyStaffPage() {
 
   return (
     <>
-      <Topbar title="พนักงาน" subtitle="ข้อมูลของฉันและวันลา" />
+      <Topbar title="ข้อมูลของฉัน / วันลา" subtitle="ข้อมูลส่วนตัวและวันลา · จัดการพนักงานที่ ตั้งค่า → พนักงาน" />
       <div className="flex-1 space-y-6 p-6">
         <section>
           <h2 className="mb-3 text-sm font-semibold text-gray-700">ข้อมูลของฉัน</h2>

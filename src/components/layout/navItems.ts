@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import type { Permissions } from "@/lib/permissions";
 
-export type NavItem = { href: string; label: string; icon: LucideIcon; permission?: keyof Permissions; ownerOnly?: boolean };
+export type NavItem = { href: string; label: string; icon: LucideIcon; permission?: keyof Permissions; ownerOnly?: boolean; notOwner?: boolean };
 
 // The original menu. On phones it now lives under โปรไฟล์ → "เมนูเดิม" while the new pages are tried out.
 export const LEGACY_ITEMS: NavItem[] = [
@@ -31,13 +31,13 @@ export const LEGACY_ITEMS: NavItem[] = [
   { href: "/sale", label: "Sale", icon: Gift, permission: "accounting" },
   { href: "/leads", label: "Waitlist", icon: ListPlus, ownerOnly: true },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog },
+  { href: "/hr", label: "ข้อมูลของฉัน / วันลา", icon: UserCog, notOwner: true }, // the owner manages staff under ตั้งค่า → พนักงาน (one place)
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "accounting" },
   { href: "/reports", label: "รายงาน", icon: BarChart3, permission: "financialTotals" },
   { href: "/v2/progress", label: "Progress Tracking", icon: Target, ownerOnly: true },
-  { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
+  { href: "/settings/staff", label: "ตั้งค่า / พนักงาน", icon: Settings, ownerOnly: true },
 ];
 
 export const allowed = (item: NavItem, auth: { role: string; permissions: Permissions }) =>
-  (!item.permission || auth.permissions[item.permission]) && (!item.ownerOnly || auth.role === "owner");
+  (!item.permission || auth.permissions[item.permission]) && (!item.ownerOnly || auth.role === "owner") && (!item.notOwner || auth.role !== "owner");

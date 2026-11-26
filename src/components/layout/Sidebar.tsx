@@ -45,11 +45,11 @@ const NAV_ITEMS = [
   { href: "/sale", label: "Sale", icon: Gift, permission: "accounting" as const },
   { href: "/leads", label: "Waitlist", icon: ListPlus, ownerOnly: true },
   { href: "/packages", label: "แพ็คเกจ", icon: Package },
-  { href: "/hr", label: "พนักงาน", icon: UserCog },
+  { href: "/hr", label: "ข้อมูลของฉัน / วันลา", icon: UserCog, notOwner: true as const },
   { href: "/documents", label: "เอกสาร", icon: FileText, permission: "documents" as const },
   { href: "/accounting", label: "บัญชี", icon: Wallet, permission: "accounting" as const },
   { href: "/reports", label: "รายงาน", icon: BarChart3, permission: "financialTotals" as const },
-  { href: "/settings/staff", label: "ตั้งค่า", icon: Settings, ownerOnly: true },
+  { href: "/settings/staff", label: "ตั้งค่า / พนักงาน", icon: Settings, ownerOnly: true },
 ];
 
 // new UI pages, being tried out next to the old menu
@@ -89,7 +89,7 @@ export function Sidebar() {
   const v2Items = V2_ITEMS.filter((i) => !i.ownerOnly || auth.role === "owner");
   const items = NAV_ITEMS.filter(
     (item) =>
-      (!item.permission || auth.permissions[item.permission]) && (!item.ownerOnly || auth.role === "owner"),
+      (!item.permission || auth.permissions[item.permission]) && (!item.ownerOnly || auth.role === "owner") && (!("notOwner" in item && item.notOwner) || auth.role !== "owner"),
   );
 
   const expanded = !collapsed;
