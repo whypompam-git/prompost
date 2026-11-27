@@ -199,6 +199,7 @@ export default function ClientContentDashboardPage() {
           <ClientTaskBoard
             client={client}
             tasks={shownTasks}
+            flat={!!(stagePick || queueFilter)}
             queues={queueFilter ? queues.filter((q) => q.id === queueFilter) : queues}
             staff={staff}
             onTasksChange={(updater) => setTasks((prev) => {

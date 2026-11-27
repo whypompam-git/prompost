@@ -30,6 +30,7 @@ export function ClientTaskBoard({
   staff,
   onTasksChange,
   onQueuesChange,
+  flat,
   onToast,
 }: {
   client: Client;
@@ -38,6 +39,7 @@ export function ClientTaskBoard({
   staff: Staff[];
   onTasksChange: (updater: (prev: Task[]) => Task[]) => void;
   onQueuesChange: (updater: (prev: Queue[]) => Queue[]) => void;
+  flat?: boolean; // a stage filter is on: one plain list, no queue groups
   onToast: (msg: string) => void;
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -52,6 +54,7 @@ export function ClientTaskBoard({
   const groups = useMemo<Group[]>(() => {
     const byOrder = (a: Task, b: Task) =>
       (a.shootOrder ?? 9999) - (b.shootOrder ?? 9999) || a.title.localeCompare(b.title, "th", { numeric: true });
+    if (flat) return tasks.length ? [{ key: "all", title: "คลิปที่กรอง", tasks: [...tasks].sort(byOrder), defaultOpen: true }] : [];
     const out: Group[] = [];
     const unqueuedShoot = tasks.filter((t) => t.type === "shoot" && !t.queueId);
     if (unqueuedShoot.length) out.push({ key: "unqueued", title: "รอจัดคิว", tasks: unqueuedShoot.sort(byOrder), defaultOpen: true, hint: "ผ่านแผนแล้ว ยังไม่ได้เลือกคิว/วันถ่าย — ไม่ขึ้นปฏิทิน" });
@@ -64,7 +67,7 @@ export function ClientTaskBoard({
     const rest = tasks.filter((t) => t.type !== "plan" && !t.queueId && !(t.type === "shoot"));
     if (rest.length) out.push({ key: "rest", title: "งานอื่น (ไม่มีคิว)", tasks: rest.sort(byOrder), defaultOpen: false });
     return out;
-  }, [tasks, queues]);
+  }, [tasks, queues, flat]);
 
   const isOpen = (g: Group) => open[g.key] ?? g.defaultOpen;
 
