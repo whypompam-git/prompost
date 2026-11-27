@@ -258,7 +258,7 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
 
       {/* confirm pass */}
       {panel === "confirm" && h.onPass && (
-        <div className="absolute inset-0 z-10 flex items-end bg-black/50" onClick={() => setPanel("none")}>
+        <div className="absolute inset-0 z-40 flex items-end bg-black/50" onClick={() => setPanel("none")}>
           <div className="w-full rounded-t-2xl bg-white p-5 pb-8 text-gray-900" onClick={(e) => e.stopPropagation()}>
             <p className="text-base font-semibold">{variant === "client" ? "อนุมัติคลิปนี้?" : "ยืนยันว่างานนี้ผ่าน QC?"}</p>
             <p className="mt-1 text-sm text-gray-500">{item.title}</p>
@@ -287,7 +287,7 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
 
       {/* comments sheet */}
       {panel === "comments" && (
-        <div className="absolute inset-0 z-10 flex items-end bg-black/40" onClick={() => setPanel("none")}>
+        <div className="absolute inset-0 z-40 flex items-end bg-black/40" onClick={() => setPanel("none")}>
           <div className="flex max-h-[75%] w-full flex-col rounded-t-2xl bg-white text-gray-900" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <p className="text-sm font-semibold">{variant === "editor" ? "สิ่งที่ต้องแก้" : "คอมเมนต์"} ({shownComments.length})</p>
