@@ -66,15 +66,33 @@ type Handlers = {
   onUploaded?: () => void;
 };
 
-// One full-screen clip, TikTok style. Speed button 1×–2×. Tap the bottom area for the
-// scrub bar; comments show as dots on it. The right rail depends on who watches.
+// Phones (iOS especially) draw the keyboard over the page without shrinking it. While it is up,
+// returns the part of the screen still visible so the comment sheet can sit inside it.
+function useKeyboardArea(on: boolean) {
+  const [area, setArea] = useState<{ top: number; height: number } | null>(null);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!on || !vv) return setArea(null);
+    const update = () => setArea(window.innerHeight - vv.height > 120 ? { top: vv.offsetTop, height: vv.height } : null);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, [on]);
+  return area;
+}
+
+// One full-screen clip, TikTok style. Speed button 1×–2×. The scrub bar is
+// always there; comments show as dots on it. The right rail depends on who watches.
 function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoaded }: { item: FeedItem; active: boolean; load: boolean; variant: FeedVariant; index: number; total: number; h: Handlers; onOverlay: (open: boolean) => void; onLoaded: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState(1);
-  const [scrub, setScrub] = useState(false);
   const [panel, setPanel] = useState<"none" | "comments" | "confirm">("none");
   const [draft, setDraft] = useState("");
   const [at, setAt] = useState<number | null>(null);
@@ -93,6 +111,8 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
     setStalled(false);
   };
   useEffect(() => () => clearTimeout(stallTimer.current), []);
+
+  const keyboard = useKeyboardArea(panel === "comments");
 
   useEffect(() => {
     if (active) onOverlay(panel !== "none");
@@ -225,8 +245,8 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
         )}
       </div>
 
-      {/* bottom: client (bold) + clip title; tap to reveal the scrub bar */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-5 pt-16 text-white" onClick={() => setScrub(true)}>
+      {/* bottom: client (bold) + clip title; scrub bar */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-5 pt-16 text-white">
         <p className="text-sm font-bold">{item.clientName}</p>
         <p className="pr-16 text-sm leading-snug text-white/90">{item.title}</p>
         <p className="mt-0.5 text-[11px] text-white/60">
@@ -234,25 +254,16 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
           {variant !== "client" && item.editorName && ` · ตัดโดย ${item.editorName}`}
           {item.revisionCount > 0 && ` · แก้รอบที่ ${item.revisionCount}`}
         </p>
-        <div className="relative z-20 mt-3 px-1" onClick={(e) => scrub && e.stopPropagation()}>
-          {scrub ? (
-            <div className="flex items-center gap-2 text-[11px] tabular-nums">
-              <span>{clock(time)}</span>
-              <span className="relative flex-1">
-                <input type="range" min={0} max={duration || 0} step={0.05} value={time} onChange={(e) => seek(Number(e.target.value))} className="relative z-10 h-1 w-full accent-white" aria-label="กรอคลิป" />
-                {duration > 0 &&
-                  markers.map((m) => (
-                    <button key={m.id} onClick={(e) => { e.stopPropagation(); seek(m.atSeconds!); }} className="absolute -top-3 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-white bg-amber-400" style={{ left: `${(m.atSeconds! / duration) * 100}%` }} aria-label={`คอมเมนต์ที่ ${clock(m.atSeconds!)}`} />
-                  ))}
-              </span>
-              <span>{clock(duration)}</span>
-            </div>
-          ) : (
-            <div className="relative h-0.5 w-full rounded bg-white/25">
-              <div className="h-full rounded bg-white" style={{ width: duration ? `${(time / duration) * 100}%` : 0 }} />
-              {duration > 0 && markers.map((m) => <span key={m.id} className="absolute -top-[3px] h-2 w-2 -translate-x-1/2 rounded-full bg-amber-400" style={{ left: `${(m.atSeconds! / duration) * 100}%` }} />)}
-            </div>
-          )}
+        <div className="relative z-20 mt-3 flex items-center gap-2 px-1 text-[11px] tabular-nums">
+          <span>{clock(time)}</span>
+          <span className="relative flex-1">
+            <input type="range" min={0} max={duration || 0} step={0.05} value={time} onChange={(e) => seek(Number(e.target.value))} className="relative z-10 h-5 w-full accent-white" aria-label="กรอคลิป" />
+            {duration > 0 &&
+              markers.map((m) => (
+                <button key={m.id} onClick={() => seek(m.atSeconds!)} className="absolute -top-1.5 z-20 h-2.5 w-2.5 -translate-x-1/2 rounded-full border border-white bg-amber-400" style={{ left: `${(m.atSeconds! / duration) * 100}%` }} aria-label={`คอมเมนต์ที่ ${clock(m.atSeconds!)}`} />
+              ))}
+          </span>
+          <span>{clock(duration)}</span>
         </div>
       </div>
 
@@ -287,8 +298,12 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
 
       {/* comments sheet */}
       {panel === "comments" && (
-        <div className="absolute inset-0 z-40 flex items-end bg-black/40" onClick={() => setPanel("none")}>
-          <div className="flex max-h-[75%] w-full flex-col rounded-t-2xl bg-white text-gray-900" onClick={(e) => e.stopPropagation()}>
+        <div
+          className={cn("inset-x-0 flex items-end bg-black/40", keyboard ? "fixed z-[70]" : "absolute inset-y-0 z-40")}
+          style={keyboard ?? undefined}
+          onClick={() => setPanel("none")}
+        >
+          <div className={cn("flex w-full flex-col rounded-t-2xl bg-white text-gray-900", keyboard ? "max-h-full" : "max-h-[75%]")} onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-gray-100 px-4 py-3">
               <p className="text-sm font-semibold">{variant === "editor" ? "สิ่งที่ต้องแก้" : "คอมเมนต์"} ({shownComments.length})</p>
               <button onClick={() => setPanel("none")} className="rounded-full p-1 text-gray-400" aria-label="ปิด">
@@ -383,7 +398,7 @@ function Slide({ item, active, load, variant, index, total, h, onOverlay, onLoad
                       }
                     }}
                   >
-                    <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={variant === "client" ? "อยากให้แก้ตรงไหน…" : "คอมเมนต์ถึง Editor…"} className="flex-1 rounded-full border border-gray-200 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" />
+                    <input autoFocus value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={variant === "client" ? "อยากให้แก้ตรงไหน…" : "คอมเมนต์ถึง Editor…"} className="min-w-0 flex-1 rounded-full border border-gray-200 px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-brand-300" />
                     <button disabled={busy || !draft.trim()} className="rounded-full bg-brand-500 p-2.5 text-white disabled:opacity-40" aria-label="เพิ่มคอมเมนต์">
                       <Send size={16} />
                     </button>
